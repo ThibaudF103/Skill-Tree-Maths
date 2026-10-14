@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:verger_core/verger_core.dart';
 
+import '../features/documents/documents_page.dart';
 import '../features/orchard/orchard_page.dart';
 import '../features/review/reviews_page.dart';
 import '../features/trees/trees_page.dart';
@@ -26,6 +27,11 @@ const _destinations = [
   _Destination('Verger', Icons.park_outlined, Icons.park),
   _Destination('Révisions', Icons.event_repeat_outlined, Icons.event_repeat),
   _Destination('Arbres', Icons.account_tree_outlined, Icons.account_tree),
+  _Destination(
+    'Documents',
+    Icons.picture_as_pdf_outlined,
+    Icons.picture_as_pdf,
+  ),
 ];
 
 class _HomeShellState extends State<HomeShell> {
@@ -70,6 +76,7 @@ class _HomeShellState extends State<HomeShell> {
     final page = switch (_index) {
       1 => const ReviewsPage(),
       2 => const TreesPage(),
+      3 => const DocumentsPage(),
       _ => const OrchardPage(),
     };
 

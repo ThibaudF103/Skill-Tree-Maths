@@ -6,6 +6,7 @@ import 'package:verger_data/verger_data.dart';
 import '../../app/app_scope.dart';
 import '../../ui/item_glyph.dart';
 import '../../ui/labels.dart';
+import '../items/anchors_section.dart';
 
 /// Session de révision façon cartes : on lit le titre, on tente de se
 /// souvenir, on révèle le contenu, puis on s'évalue.
@@ -29,6 +30,7 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
   Map<String, KnowledgeNode>? _nodes;
   KnowledgeItem? _item;
   List<ReviewRecord> _history = const [];
+  List<Anchor> _anchors = const [];
   var _index = 0;
   var _revealed = false;
   var _busy = false;
@@ -66,11 +68,15 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
     final history = item == null
         ? const <ReviewRecord>[]
         : await _store.history(item.id);
+    final anchors = item == null
+        ? const <Anchor>[]
+        : await _store.anchorsOf(item.id);
     if (!mounted) return;
     setState(() {
       _index = i;
       _item = i < widget.itemIds.length ? item : null;
       _history = history;
+      _anchors = anchors;
       _revealed = false;
       _busy = false;
     });
@@ -214,6 +220,13 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
                     ),
                     const SizedBox(height: 16),
                     Text(item.title, style: theme.textTheme.headlineMedium),
+                    // Recto : l'énoncé encadré dans le cours.
+                    for (final anchor in _anchors.where(
+                      (a) => a.role == AnchorRole.source,
+                    )) ...[
+                      const SizedBox(height: 16),
+                      AnchorSnapshot(anchor: anchor, maxHeight: 360),
+                    ],
                     const SizedBox(height: 32),
                     if (!_revealed)
                       Text(
@@ -225,6 +238,13 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
                         ),
                       )
                     else ...[
+                      // Verso : la rédaction manuscrite.
+                      for (final anchor in _anchors.where(
+                        (a) => a.role == AnchorRole.work,
+                      )) ...[
+                        AnchorSnapshot(anchor: anchor, maxHeight: 640),
+                        const SizedBox(height: 16),
+                      ],
                       if (item.body != null)
                         Container(
                           width: double.infinity,
@@ -238,7 +258,7 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
                             style: theme.textTheme.bodyLarge,
                           ),
                         )
-                      else
+                      else if (!_anchors.any((a) => a.role == AnchorRole.work))
                         Text(
                           'Pas de contenu enregistré : comparez avec vos notes.',
                           style: theme.textTheme.bodyLarge?.copyWith(

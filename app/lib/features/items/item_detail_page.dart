@@ -5,6 +5,7 @@ import '../../app/app_scope.dart';
 import '../../ui/dialogs.dart';
 import '../../ui/item_glyph.dart';
 import '../../ui/labels.dart';
+import 'anchors_section.dart';
 import 'item_editor.dart';
 
 /// Fiche d'une connaissance : contenu, état de révision, historique.
@@ -146,6 +147,11 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                       style: theme.textTheme.bodyLarge,
                     ),
                   ],
+                  const SizedBox(height: 28),
+                  _Section(
+                    title: 'Recto / verso',
+                    child: AnchorsSection(item: item),
+                  ),
                   const SizedBox(height: 28),
                   _Section(
                     title: 'Progression',

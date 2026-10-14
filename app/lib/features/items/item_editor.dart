@@ -26,24 +26,43 @@ const _statementKinds = [
 ];
 
 /// Crée une connaissance dans [nodeId] ([item] nul) ou modifie [item].
-Future<void> showItemEditor(
+///
+/// Renvoie la connaissance créée (ou `null` en modification / annulation).
+Future<KnowledgeItem?> showItemEditor(
   BuildContext context, {
   required String nodeId,
   KnowledgeItem? item,
   ItemFamily? family,
+  String? initialTitle,
+  String? initialBody,
 }) {
-  return showDialog<void>(
+  return showDialog<KnowledgeItem>(
     context: context,
-    builder: (_) => ItemEditor(nodeId: nodeId, item: item, family: family),
+    builder: (_) => ItemEditor(
+      nodeId: nodeId,
+      item: item,
+      family: family,
+      initialTitle: initialTitle,
+      initialBody: initialBody,
+    ),
   );
 }
 
 class ItemEditor extends StatefulWidget {
-  const ItemEditor({super.key, required this.nodeId, this.item, this.family});
+  const ItemEditor({
+    super.key,
+    required this.nodeId,
+    this.item,
+    this.family,
+    this.initialTitle,
+    this.initialBody,
+  });
 
   final String nodeId;
   final KnowledgeItem? item;
   final ItemFamily? family;
+  final String? initialTitle;
+  final String? initialBody;
 
   @override
   State<ItemEditor> createState() => _ItemEditorState();
@@ -62,8 +81,10 @@ class _ItemEditorState extends State<ItemEditor> {
   void initState() {
     super.initState();
     final item = widget.item;
-    _title = TextEditingController(text: item?.title ?? '');
-    _body = TextEditingController(text: item?.body ?? '');
+    _title = TextEditingController(
+      text: item?.title ?? widget.initialTitle ?? '',
+    );
+    _body = TextEditingController(text: item?.body ?? widget.initialBody ?? '');
     _kind =
         item?.kind ??
         switch (widget.family) {
@@ -86,6 +107,7 @@ class _ItemEditorState extends State<ItemEditor> {
     setState(() => _saving = true);
     final scope = AppScope.of(context);
     final item = widget.item;
+    KnowledgeItem? created;
     if (item != null) {
       await scope.store.updateItem(
         item.id,
@@ -94,7 +116,7 @@ class _ItemEditorState extends State<ItemEditor> {
         kind: _kind,
       );
     } else {
-      final created = await scope.store.createItem(
+      created = await scope.store.createItem(
         nodeId: widget.nodeId,
         kind: _kind,
         title: title,
@@ -113,7 +135,7 @@ class _ItemEditorState extends State<ItemEditor> {
         );
       }
     }
-    if (mounted) Navigator.pop(context);
+    if (mounted) Navigator.pop(context, created);
   }
 
   @override

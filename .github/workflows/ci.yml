@@ -33,6 +33,11 @@ jobs:
           dart format --output=none --set-exit-if-changed .
           dart analyze --fatal-infos
           dart test
+      - name: PDFium (tests des outils PDF)
+        run: |
+          mkdir -p "$RUNNER_TEMP/pdfium"
+          curl -sSLf "https://github.com/bblanchon/pdfium-binaries/releases/download/chromium%2F7811/pdfium-linux-x64.tgz" | tar -xz -C "$RUNNER_TEMP/pdfium"
+          echo "PDFIUM_PATH=$RUNNER_TEMP/pdfium/lib/libpdfium.so" >> "$GITHUB_ENV"
       - name: app
         working-directory: app
         run: |

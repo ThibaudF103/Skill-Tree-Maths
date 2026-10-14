@@ -1,11 +1,13 @@
 import 'package:drift_flutter/drift_flutter.dart';
 import 'package:flutter/material.dart';
+import 'package:pdfrx/pdfrx.dart';
 import 'package:verger_data/verger_data.dart';
 
 import 'app/verger_app.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await pdfrxFlutterInitialize();
   final store = VergerStore(
     VergerDatabase(
       driftDatabase(

@@ -186,14 +186,34 @@ de démonstration (deux mois de révisions simulées).
 
 ## PDF et notes manuscrites : recto / verso
 
-- **Recto** : ancre `source` sur le PDF de cours (énoncé).
-- **Verso** : ancre `work` sur le PDF des notes (rédaction manuscrite exportée de CollaNote).
-- En révision : on affiche le recto, l'utilisateur tente de reproduire, « Révéler » affiche le verso, puis note.
-- Flux : encadrer une zone dans la visionneuse → « Créer une connaissance » (recto) ou « Attacher comme rédaction » (verso).
-- Notes en un seul carnet : à chaque fin de session, export PDF → « Mettre à jour le document ».
-  L'app compare les empreintes de pages, recale les ancres si des pages ont été insérées,
-  et liste les **nouvelles pages** pour attacher rapidement les versos.
-- Chaque ancre garde une miniature : le verso reste visible même si une ancre est cassée.
+- **Recto** : ancre `source` sur un PDF de cours (énoncé encadré).
+- **Verso** : ancre `work` sur le PDF des notes (rédaction manuscrite exportée
+  de CollaNote).
+- **Onglet Documents** : import (titre, rôle cours/notes), mise à jour (nouvelle
+  version), renommage, suppression. Les PDF sont copiés dans la base
+  (`document_files`, contenu séparé des métadonnées).
+- **Visionneuse** (pdfrx / PDFium, y compris sur le web en WebAssembly) :
+  mode « Encadrer » → créer une connaissance depuis un énoncé (titre et
+  contenu pré-remplis par le texte du PDF) ou attacher la zone comme recto /
+  verso. Les ancres existantes sont dessinées sur les pages (bleu : recto,
+  orange : verso) et ouvrent la connaissance.
+- **Fiche d'une connaissance** : section Recto / verso (miniatures, ouvrir au
+  bon endroit du PDF, retirer), « Attacher une zone d'un PDF » (la zone est
+  attachée directement : recto pour un cours, verso pour des notes).
+- **Révision** : le recto s'affiche sous le titre ; « Révéler » montre le verso
+  (rédaction) et le contenu texte.
+- **Miniatures** (PNG) stockées avec l'ancre : le verso reste lisible même si
+  le PDF change ou est absent de l'appareil.
+- **Mise à jour d'un carnet** : empreintes de pages 32×32 ; `remapPages`
+  apparie les pages au rendu identique (plus longue sous-suite commune), puis
+  les pages complétées (inclusion de l'encre). Ancres recalées ; page
+  introuvable → « à vérifier ». Les nouvelles pages sont signalées dans la
+  visionneuse pour y attacher les nouveaux versos. Testé sur de vrais PDF.
+- **Sauvegarde JSON** : documents (sans contenu) et ancres (avec miniatures) ;
+  une restauration conserve les PDF déjà présents sur l'appareil.
+- Limite connue : contenu des PDF dans SQLite ; à surveiller si le carnet
+  dépasse quelques centaines de Mo (migration possible vers des fichiers
+  derrière la même API `VergerStore`).
 
 ## Plan
 
@@ -206,4 +226,5 @@ de démonstration (deux mois de révisions simulées).
 | 4 | Révisions : file + session ✅ |
 | 5 | Verger v0 (CustomPainter, descente par niveaux) ✅ |
 | 6 | Export/import JSON + données d'exemple ✅ |
-| post-MVP | PDF recto/verso, statistiques, LaTeX, programme officiel, iOS, Android… |
+| 7 | PDF recto/verso ✅ |
+| ensuite | Déplacement par l'interface, LaTeX, statistiques, programme officiel, verger, iPad… |
