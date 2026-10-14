@@ -1,9 +1,14 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
+import '../domain/anchor.dart';
 import '../domain/item_kind.dart';
 import '../domain/knowledge_item.dart';
 import '../domain/knowledge_node.dart';
 import '../domain/rating.dart';
 import '../domain/review_record.dart';
 import '../domain/scheduling_state.dart';
+import '../domain/source_document.dart';
 import '../scheduling/scheduler_settings.dart';
 
 /// Révision archivée, rattachée à sa connaissance.
@@ -28,6 +33,8 @@ final class VergerArchive {
     required this.nodes,
     required this.items,
     this.reviews = const [],
+    this.documents = const [],
+    this.anchors = const [],
     this.settings,
     this.title,
   });
@@ -38,6 +45,12 @@ final class VergerArchive {
   final List<KnowledgeNode> nodes;
   final List<KnowledgeItem> items;
   final List<ArchivedReview> reviews;
+
+  /// PDF de la bibliothèque (métadonnées et empreintes, sans le contenu).
+  final List<SourceDocument> documents;
+
+  /// Ancres recto/verso, avec leurs miniatures.
+  final List<Anchor> anchors;
   final SchedulerSettings? settings;
 
   /// Nom lisible (ex. « Algèbre — exemple »).
@@ -111,6 +124,47 @@ final class VergerArchive {
             ),
           ),
       ];
+      Uint8List? bytes(Object? v) =>
+          v == null ? null : base64Decode(v as String);
+      final documents = [
+        for (final d in list('documents'))
+          SourceDocument(
+            id: d['id'] as String,
+            title: d['title'] as String,
+            role: DocumentRole.values.byName(d['role'] as String),
+            pageCount: d['pageCount'] as int,
+            contentHash: d['contentHash'] as String? ?? '',
+            importedAt: date(d['importedAt']),
+            version: d['version'] as int? ?? 1,
+            fingerprints: [
+              for (final f in (d['fingerprints'] as List? ?? const []))
+                bytes(f)!,
+            ],
+            newPages: List<int>.from(d['newPages'] as List? ?? const []),
+          ),
+      ];
+      final anchors = [
+        for (final a in list('anchors'))
+          Anchor(
+            id: a['id'] as String,
+            itemId: a['itemId'] as String,
+            documentId: a['documentId'] as String,
+            role: AnchorRole.values.byName(a['role'] as String),
+            page: a['page'] as int,
+            region: a['region'] == null
+                ? null
+                : NormalizedRect(
+                    ((a['region'] as List)[0] as num).toDouble(),
+                    ((a['region'] as List)[1] as num).toDouble(),
+                    ((a['region'] as List)[2] as num).toDouble(),
+                    ((a['region'] as List)[3] as num).toDouble(),
+                  ),
+            textSnippet: a['textSnippet'] as String?,
+            snapshot: bytes(a['snapshot']),
+            needsReview: a['needsReview'] as bool? ?? false,
+            createdAt: date(a['createdAt']),
+          ),
+      ];
       final settings = json['settings'] == null
           ? null
           : SchedulerSettings.fromJson((json['settings'] as Map).cast());
@@ -118,6 +172,8 @@ final class VergerArchive {
         nodes: nodes,
         items: items,
         reviews: reviews,
+        documents: documents,
+        anchors: anchors,
         settings: settings,
         title: json['title'] as String?,
       );
@@ -163,6 +219,12 @@ final class VergerArchive {
         throw ArchiveFormatException('Nœud inconnu pour « ${i.title} »');
       }
     }
+    final documentIds = {for (final d in documents) d.id};
+    for (final a in anchors) {
+      if (!itemIds.contains(a.itemId) || !documentIds.contains(a.documentId)) {
+        throw const ArchiveFormatException('Ancre vers un élément inconnu');
+      }
+    }
     for (final r in reviews) {
       if (!itemIds.contains(r.itemId)) {
         throw const ArchiveFormatException(
@@ -202,6 +264,42 @@ final class VergerArchive {
           'createdAt': i.createdAt.toUtc().toIso8601String(),
           'updatedAt': i.updatedAt.toUtc().toIso8601String(),
           'scheduling': i.scheduling.toJson(),
+        },
+    ],
+    'documents': [
+      for (final d in documents)
+        {
+          'id': d.id,
+          'title': d.title,
+          'role': d.role.name,
+          'pageCount': d.pageCount,
+          'contentHash': d.contentHash,
+          'importedAt': d.importedAt.toUtc().toIso8601String(),
+          'version': d.version,
+          'fingerprints': [for (final f in d.fingerprints) base64Encode(f)],
+          'newPages': d.newPages,
+        },
+    ],
+    'anchors': [
+      for (final a in anchors)
+        {
+          'id': a.id,
+          'itemId': a.itemId,
+          'documentId': a.documentId,
+          'role': a.role.name,
+          'page': a.page,
+          'region': ?(a.region == null
+              ? null
+              : [
+                  a.region!.left,
+                  a.region!.top,
+                  a.region!.right,
+                  a.region!.bottom,
+                ]),
+          'textSnippet': ?a.textSnippet,
+          'snapshot': ?(a.snapshot == null ? null : base64Encode(a.snapshot!)),
+          'needsReview': a.needsReview,
+          'createdAt': a.createdAt.toUtc().toIso8601String(),
         },
     ],
     'reviews': [

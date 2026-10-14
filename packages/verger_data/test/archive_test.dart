@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
@@ -127,6 +128,54 @@ void main() {
 
       await source.close();
       await target.close();
+    },
+  );
+
+  test(
+    'sauvegarde : ancres et documents ; PDF conservés sur l\'appareil',
+    () async {
+      final store = await populated();
+      final item = (await store.allItems()).first;
+      final notes = await store.importDocument(
+        title: 'Carnet',
+        role: DocumentRole.notes,
+        bytes: Uint8List.fromList([1, 2, 3]),
+        contentHash: 'h',
+        fingerprints: [Uint8List(4), Uint8List(4)],
+      );
+      await store.addAnchor(
+        itemId: item.id,
+        documentId: notes.id,
+        role: AnchorRole.work,
+        page: 2,
+        region: const NormalizedRect(0, 0.5, 1, 1),
+        snapshot: Uint8List.fromList([137, 80, 78, 71]),
+      );
+      final json = jsonEncode((await store.exportArchive()).toJson());
+      expect(json.contains('"bytes"'), isFalse);
+
+      // Même appareil : on supprime l'ancre puis on restaure.
+      await store.deleteAnchor((await store.anchorsOf(item.id)).single.id);
+      await store.restoreArchive(
+        VergerArchive.fromJson((jsonDecode(json) as Map).cast()),
+      );
+      final restored = (await store.anchorsOf(item.id)).single;
+      expect(restored.page, 2);
+      expect(restored.region, const NormalizedRect(0, 0.5, 1, 1));
+      expect(restored.snapshot, [137, 80, 78, 71]);
+      expect(await store.documentBytes(notes.id), [1, 2, 3]);
+
+      // Autre appareil : le document est connu mais son PDF manque.
+      final other = memoryStore();
+      await other.restoreArchive(
+        VergerArchive.fromJson((jsonDecode(json) as Map).cast()),
+      );
+      expect((await other.allDocuments()).single.title, 'Carnet');
+      expect(await other.documentBytes(notes.id), isNull);
+      expect((await other.anchorsOf(item.id)).single.snapshot, isNotNull);
+
+      await store.close();
+      await other.close();
     },
   );
 }

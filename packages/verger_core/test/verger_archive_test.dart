@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:test/test.dart';
 import 'package:verger_core/verger_core.dart';
@@ -34,9 +35,35 @@ void main() {
       updatedAt: t,
       scheduling: record.after,
     );
+    final doc = SourceDocument(
+      id: 'd1',
+      title: 'Carnet',
+      role: DocumentRole.notes,
+      pageCount: 2,
+      contentHash: 'abc',
+      importedAt: t,
+      version: 3,
+      fingerprints: [
+        Uint8List.fromList([1, 2]),
+        Uint8List.fromList([3, 4]),
+      ],
+      newPages: const [2],
+    );
+    final anchor = Anchor(
+      id: 'a1',
+      itemId: 'i1',
+      documentId: 'd1',
+      role: AnchorRole.work,
+      page: 2,
+      region: const NormalizedRect(0.1, 0.2, 0.5, 0.6),
+      snapshot: Uint8List.fromList([137, 80, 78, 71]),
+      createdAt: t,
+    );
     return VergerArchive(
       nodes: [tree, branch],
       items: [item],
+      documents: [doc],
+      anchors: [anchor],
       reviews: [(itemId: 'i1', record: record)],
       settings: const SchedulerSettings(desiredRetention: 0.88),
       title: 'Test',
@@ -61,6 +88,17 @@ void main() {
     );
     expect(copy.reviews.single.record.rating, Rating.good);
     expect(copy.settings!.desiredRetention, 0.88);
+    final doc = copy.documents.single;
+    expect(
+      (doc.title, doc.role, doc.pageCount, doc.version),
+      ('Carnet', DocumentRole.notes, 2, 3),
+    );
+    expect(doc.newPages, [2]);
+    expect(doc.fingerprints.last, [3, 4]);
+    final anchor = copy.anchors.single;
+    expect(anchor.region, const NormalizedRect(0.1, 0.2, 0.5, 0.6));
+    expect(anchor.snapshot, [137, 80, 78, 71]);
+    expect(anchor.role, AnchorRole.work);
   });
 
   test('un modèle minimal (sans état ni dates) est accepté', () {

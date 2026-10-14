@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:drift/drift.dart';
 import 'package:verger_core/verger_core.dart';
@@ -22,6 +23,18 @@ class StaleReviewException implements Exception {
   @override
   String toString() => 'StaleReviewException($itemId)';
 }
+
+/// Bilan d'une mise à jour de PDF.
+typedef DocumentUpdate = ({
+  /// Ancres déplacées vers une autre page (pages insérées ou supprimées).
+  int moved,
+
+  /// Ancres dont la page n'a pas été retrouvée : à vérifier.
+  int flagged,
+
+  /// Pages apparues (à partir de 1), pour y attacher les nouveaux versos.
+  List<int> newPages,
+});
 
 /// Accès aux données du Verger. L'application ne manipule que des types du
 /// domaine (`verger_core`) ; drift reste un détail d'implémentation.
@@ -254,6 +267,164 @@ class VergerStore {
         SettingRow(key: _schedulerKey, value: jsonEncode(settings.toJson())),
       );
 
+  // --- Documents PDF -------------------------------------------------------
+
+  Future<List<SourceDocument>> allDocuments() async =>
+      (await _documentsQuery().get()).map(_toDocument).toList();
+
+  Stream<List<SourceDocument>> watchDocuments() =>
+      _documentsQuery().watch().map((rows) => rows.map(_toDocument).toList());
+
+  Future<SourceDocument?> document(String id) async {
+    final row = await (_db.select(
+      _db.documents,
+    )..where((d) => d.id.equals(id))).getSingleOrNull();
+    return row == null ? null : _toDocument(row);
+  }
+
+  /// Contenu du PDF, ou `null` s'il n'est pas sur cet appareil (sauvegarde
+  /// restaurée ailleurs, par exemple).
+  Future<Uint8List?> documentBytes(String id) async {
+    final row = await (_db.select(
+      _db.documentFiles,
+    )..where((f) => f.documentId.equals(id))).getSingleOrNull();
+    return row?.bytes;
+  }
+
+  /// Ajoute un PDF à la bibliothèque. [fingerprints] : une empreinte par page.
+  Future<SourceDocument> importDocument({
+    required String title,
+    required DocumentRole role,
+    required Uint8List bytes,
+    required String contentHash,
+    required List<Uint8List> fingerprints,
+  }) => _db.transaction(() async {
+    final row = DocumentRow(
+      id: newId(),
+      title: title.trim(),
+      role: role,
+      pageCount: fingerprints.length,
+      contentHash: contentHash,
+      importedAt: _now(),
+      version: 1,
+      fingerprints: _packFingerprints(fingerprints),
+      newPages: '[]',
+    );
+    await _db.into(_db.documents).insert(row);
+    await _db
+        .into(_db.documentFiles)
+        .insert(DocumentFileRow(documentId: row.id, bytes: bytes));
+    return _toDocument(row);
+  });
+
+  Future<void> renameDocument(String id, String title) =>
+      (_db.update(_db.documents)..where((d) => d.id.equals(id))).write(
+        DocumentsCompanion(title: Value(title.trim())),
+      );
+
+  /// Supprime le PDF et toutes les ancres qui y renvoient.
+  Future<void> deleteDocument(String id) =>
+      (_db.delete(_db.documents)..where((d) => d.id.equals(id))).go();
+
+  /// Remplace le fichier par une nouvelle version (carnet réexporté) et
+  /// recale les ancres d'après les empreintes des pages.
+  Future<DocumentUpdate> updateDocument(
+    String id, {
+    required Uint8List bytes,
+    required String contentHash,
+    required List<Uint8List> fingerprints,
+  }) => _db.transaction(() async {
+    final old = await document(id);
+    if (old == null) throw ArgumentError.value(id, 'id', 'inconnu');
+    final remap = remapPages(old.fingerprints, fingerprints);
+
+    var moved = 0;
+    var flagged = 0;
+    for (final anchor in await _anchorsQuery(documentId: id).get()) {
+      final match = remap.matches[anchor.page];
+      if (match?.page != null) {
+        if (match!.page != anchor.page) moved++;
+        await (_db.update(_db.anchors)..where((a) => a.id.equals(anchor.id)))
+            .write(AnchorsCompanion(page: Value(match.page!)));
+      } else if (!anchor.needsReview) {
+        flagged++;
+        await (_db.update(_db.anchors)..where((a) => a.id.equals(anchor.id)))
+            .write(const AnchorsCompanion(needsReview: Value(true)));
+      }
+    }
+
+    await (_db.update(_db.documents)..where((d) => d.id.equals(id))).write(
+      DocumentsCompanion(
+        pageCount: Value(fingerprints.length),
+        contentHash: Value(contentHash),
+        importedAt: Value(_now()),
+        version: Value(old.version + 1),
+        fingerprints: Value(_packFingerprints(fingerprints)),
+        newPages: Value(jsonEncode(remap.newPages)),
+      ),
+    );
+    await _db
+        .into(_db.documentFiles)
+        .insertOnConflictUpdate(DocumentFileRow(documentId: id, bytes: bytes));
+    return (moved: moved, flagged: flagged, newPages: remap.newPages);
+  });
+
+  // --- Ancres (recto / verso) ----------------------------------------------
+
+  Future<Anchor> addAnchor({
+    required String itemId,
+    required String documentId,
+    required AnchorRole role,
+    required int page,
+    NormalizedRect? region,
+    String? textSnippet,
+    Uint8List? snapshot,
+  }) async {
+    final anchor = Anchor(
+      id: newId(),
+      itemId: itemId,
+      documentId: documentId,
+      role: role,
+      page: page,
+      region: region,
+      textSnippet: _blankToNull(textSnippet),
+      snapshot: snapshot,
+      createdAt: _now(),
+    );
+    await _db.into(_db.anchors).insert(_anchorRow(anchor));
+    return anchor;
+  }
+
+  Future<List<Anchor>> anchorsOf(String itemId) async =>
+      (await _anchorsQuery(itemId: itemId).get()).map(_toAnchor).toList();
+
+  Stream<List<Anchor>> watchAnchors({String? itemId, String? documentId}) =>
+      _anchorsQuery(
+        itemId: itemId,
+        documentId: documentId,
+      ).watch().map((rows) => rows.map(_toAnchor).toList());
+
+  /// Recale une ancre à la main (page et zone) ; elle n'est plus à vérifier.
+  Future<void> relocateAnchor(
+    String id, {
+    required int page,
+    NormalizedRect? region,
+    Uint8List? snapshot,
+  }) => (_db.update(_db.anchors)..where((a) => a.id.equals(id))).write(
+    AnchorsCompanion(
+      page: Value(page),
+      left: Value(region?.left),
+      top: Value(region?.top),
+      right: Value(region?.right),
+      bottom: Value(region?.bottom),
+      snapshot: snapshot == null ? const Value.absent() : Value(snapshot),
+      needsReview: const Value(false),
+    ),
+  );
+
+  Future<void> deleteAnchor(String id) =>
+      (_db.delete(_db.anchors)..where((a) => a.id.equals(id))).go();
+
   // --- Échange (sauvegarde, modèles) --------------------------------------
 
   /// Sauvegarde complète : structure, connaissances, historique, réglages.
@@ -268,6 +439,8 @@ class VergerStore {
         for (final row in reviews) (itemId: row.itemId, record: _toRecord(row)),
       ],
       settings: await schedulerSettings(),
+      documents: await allDocuments(),
+      anchors: (await _anchorsQuery().get()).map(_toAnchor).toList(),
     );
   }
 
@@ -277,11 +450,38 @@ class VergerStore {
       _db.transaction(() async {
         archive.validate();
         await _db.delete(_db.reviewLogs).go();
+        await _db.delete(_db.anchors).go();
         await _db.delete(_db.items).go();
         await _db.delete(_db.nodes).go();
+        // Les PDF déjà présents sur l'appareil sont conservés s'ils figurent
+        // dans la sauvegarde (qui ne contient pas les fichiers eux-mêmes).
+        final keptDocuments = {for (final d in archive.documents) d.id};
+        await (_db.delete(
+          _db.documents,
+        )..where((d) => d.id.isNotIn(keptDocuments))).go();
+        for (final d in archive.documents) {
+          await _db
+              .into(_db.documents)
+              .insertOnConflictUpdate(
+                DocumentRow(
+                  id: d.id,
+                  title: d.title,
+                  role: d.role,
+                  pageCount: d.pageCount,
+                  contentHash: d.contentHash,
+                  importedAt: d.importedAt.toUtc(),
+                  version: d.version,
+                  fingerprints: _packFingerprints(d.fingerprints),
+                  newPages: jsonEncode(d.newPages),
+                ),
+              );
+        }
         await _insertNodes(archive.nodes);
         for (final item in archive.items) {
           await _db.into(_db.items).insert(_itemCompanion(item));
+        }
+        for (final anchor in archive.anchors) {
+          await _db.into(_db.anchors).insert(_anchorRow(anchor));
         }
         for (final review in archive.reviews) {
           await _insertReview(review.itemId, review.record);
@@ -428,6 +628,90 @@ class VergerStore {
       );
     }
   }
+
+  SimpleSelectStatement<$DocumentsTable, DocumentRow> _documentsQuery() =>
+      _db.select(_db.documents)..orderBy([
+        (d) => OrderingTerm.asc(d.role),
+        (d) => OrderingTerm.asc(d.title),
+      ]);
+
+  SimpleSelectStatement<$AnchorsTable, AnchorRow> _anchorsQuery({
+    String? itemId,
+    String? documentId,
+  }) {
+    final query = _db.select(_db.anchors)
+      ..orderBy([
+        (a) => OrderingTerm.asc(a.role),
+        (a) => OrderingTerm.asc(a.createdAt),
+      ]);
+    if (itemId != null) query.where((a) => a.itemId.equals(itemId));
+    if (documentId != null) query.where((a) => a.documentId.equals(documentId));
+    return query;
+  }
+
+  static Uint8List _packFingerprints(List<Uint8List> fingerprints) {
+    final builder = BytesBuilder(copy: false);
+    for (final f in fingerprints) {
+      builder.add(f);
+    }
+    return builder.takeBytes();
+  }
+
+  static List<Uint8List> _unpackFingerprints(Uint8List packed, int pageCount) {
+    if (pageCount == 0 || packed.isEmpty) return const [];
+    final size = packed.length ~/ pageCount;
+    return [
+      for (var i = 0; i < pageCount; i++)
+        Uint8List.sublistView(packed, i * size, (i + 1) * size),
+    ];
+  }
+
+  static SourceDocument _toDocument(DocumentRow row) => SourceDocument(
+    id: row.id,
+    title: row.title,
+    role: row.role,
+    pageCount: row.pageCount,
+    contentHash: row.contentHash,
+    importedAt: row.importedAt.toUtc(),
+    version: row.version,
+    fingerprints: _unpackFingerprints(row.fingerprints, row.pageCount),
+    newPages: (jsonDecode(row.newPages) as List).cast<int>(),
+  );
+
+  static Anchor _toAnchor(AnchorRow row) => Anchor(
+    id: row.id,
+    itemId: row.itemId,
+    documentId: row.documentId,
+    role: row.role,
+    page: row.page,
+    region:
+        row.left == null ||
+            row.top == null ||
+            row.right == null ||
+            row.bottom == null
+        ? null
+        : NormalizedRect(row.left!, row.top!, row.right!, row.bottom!),
+    textSnippet: row.textSnippet,
+    snapshot: row.snapshot,
+    needsReview: row.needsReview,
+    createdAt: row.createdAt.toUtc(),
+  );
+
+  static AnchorRow _anchorRow(Anchor a) => AnchorRow(
+    id: a.id,
+    itemId: a.itemId,
+    documentId: a.documentId,
+    role: a.role,
+    page: a.page,
+    left: a.region?.left,
+    top: a.region?.top,
+    right: a.region?.right,
+    bottom: a.region?.bottom,
+    textSnippet: a.textSnippet,
+    snapshot: a.snapshot,
+    needsReview: a.needsReview,
+    createdAt: a.createdAt.toUtc(),
+  );
 
   static String? _blankToNull(String? text) =>
       text == null || text.trim().isEmpty ? null : text.trim();

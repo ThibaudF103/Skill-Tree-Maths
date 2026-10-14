@@ -2116,6 +2116,1566 @@ class SettingsCompanion extends UpdateCompanion<SettingRow> {
   }
 }
 
+class $DocumentsTable extends Documents
+    with TableInfo<$DocumentsTable, DocumentRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DocumentsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<DocumentRole, String> role =
+      GeneratedColumn<String>(
+        'role',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      ).withConverter<DocumentRole>($DocumentsTable.$converterrole);
+  static const VerificationMeta _pageCountMeta = const VerificationMeta(
+    'pageCount',
+  );
+  @override
+  late final GeneratedColumn<int> pageCount = GeneratedColumn<int>(
+    'page_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _contentHashMeta = const VerificationMeta(
+    'contentHash',
+  );
+  @override
+  late final GeneratedColumn<String> contentHash = GeneratedColumn<String>(
+    'content_hash',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _importedAtMeta = const VerificationMeta(
+    'importedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> importedAt = GeneratedColumn<DateTime>(
+    'imported_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _versionMeta = const VerificationMeta(
+    'version',
+  );
+  @override
+  late final GeneratedColumn<int> version = GeneratedColumn<int>(
+    'version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _fingerprintsMeta = const VerificationMeta(
+    'fingerprints',
+  );
+  @override
+  late final GeneratedColumn<Uint8List> fingerprints =
+      GeneratedColumn<Uint8List>(
+        'fingerprints',
+        aliasedName,
+        false,
+        type: DriftSqlType.blob,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _newPagesMeta = const VerificationMeta(
+    'newPages',
+  );
+  @override
+  late final GeneratedColumn<String> newPages = GeneratedColumn<String>(
+    'new_pages',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('[]'),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    title,
+    role,
+    pageCount,
+    contentHash,
+    importedAt,
+    version,
+    fingerprints,
+    newPages,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'documents';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DocumentRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('page_count')) {
+      context.handle(
+        _pageCountMeta,
+        pageCount.isAcceptableOrUnknown(data['page_count']!, _pageCountMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_pageCountMeta);
+    }
+    if (data.containsKey('content_hash')) {
+      context.handle(
+        _contentHashMeta,
+        contentHash.isAcceptableOrUnknown(
+          data['content_hash']!,
+          _contentHashMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_contentHashMeta);
+    }
+    if (data.containsKey('imported_at')) {
+      context.handle(
+        _importedAtMeta,
+        importedAt.isAcceptableOrUnknown(data['imported_at']!, _importedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_importedAtMeta);
+    }
+    if (data.containsKey('version')) {
+      context.handle(
+        _versionMeta,
+        version.isAcceptableOrUnknown(data['version']!, _versionMeta),
+      );
+    }
+    if (data.containsKey('fingerprints')) {
+      context.handle(
+        _fingerprintsMeta,
+        fingerprints.isAcceptableOrUnknown(
+          data['fingerprints']!,
+          _fingerprintsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_fingerprintsMeta);
+    }
+    if (data.containsKey('new_pages')) {
+      context.handle(
+        _newPagesMeta,
+        newPages.isAcceptableOrUnknown(data['new_pages']!, _newPagesMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  DocumentRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DocumentRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      role: $DocumentsTable.$converterrole.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}role'],
+        )!,
+      ),
+      pageCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}page_count'],
+      )!,
+      contentHash: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}content_hash'],
+      )!,
+      importedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}imported_at'],
+      )!,
+      version: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}version'],
+      )!,
+      fingerprints: attachedDatabase.typeMapping.read(
+        DriftSqlType.blob,
+        data['${effectivePrefix}fingerprints'],
+      )!,
+      newPages: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}new_pages'],
+      )!,
+    );
+  }
+
+  @override
+  $DocumentsTable createAlias(String alias) {
+    return $DocumentsTable(attachedDatabase, alias);
+  }
+
+  static JsonTypeConverter2<DocumentRole, String, String> $converterrole =
+      const EnumNameConverter<DocumentRole>(DocumentRole.values);
+}
+
+class DocumentRow extends DataClass implements Insertable<DocumentRow> {
+  final String id;
+  final String title;
+  final DocumentRole role;
+  final int pageCount;
+  final String contentHash;
+  final DateTime importedAt;
+  final int version;
+
+  /// Empreintes des pages, concaténées (pageCount × fingerprintSide²).
+  final Uint8List fingerprints;
+
+  /// Pages apparues à la dernière mise à jour (JSON : liste d'entiers).
+  final String newPages;
+  const DocumentRow({
+    required this.id,
+    required this.title,
+    required this.role,
+    required this.pageCount,
+    required this.contentHash,
+    required this.importedAt,
+    required this.version,
+    required this.fingerprints,
+    required this.newPages,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['title'] = Variable<String>(title);
+    {
+      map['role'] = Variable<String>(
+        $DocumentsTable.$converterrole.toSql(role),
+      );
+    }
+    map['page_count'] = Variable<int>(pageCount);
+    map['content_hash'] = Variable<String>(contentHash);
+    map['imported_at'] = Variable<DateTime>(importedAt);
+    map['version'] = Variable<int>(version);
+    map['fingerprints'] = Variable<Uint8List>(fingerprints);
+    map['new_pages'] = Variable<String>(newPages);
+    return map;
+  }
+
+  DocumentsCompanion toCompanion(bool nullToAbsent) {
+    return DocumentsCompanion(
+      id: Value(id),
+      title: Value(title),
+      role: Value(role),
+      pageCount: Value(pageCount),
+      contentHash: Value(contentHash),
+      importedAt: Value(importedAt),
+      version: Value(version),
+      fingerprints: Value(fingerprints),
+      newPages: Value(newPages),
+    );
+  }
+
+  factory DocumentRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DocumentRow(
+      id: serializer.fromJson<String>(json['id']),
+      title: serializer.fromJson<String>(json['title']),
+      role: $DocumentsTable.$converterrole.fromJson(
+        serializer.fromJson<String>(json['role']),
+      ),
+      pageCount: serializer.fromJson<int>(json['pageCount']),
+      contentHash: serializer.fromJson<String>(json['contentHash']),
+      importedAt: serializer.fromJson<DateTime>(json['importedAt']),
+      version: serializer.fromJson<int>(json['version']),
+      fingerprints: serializer.fromJson<Uint8List>(json['fingerprints']),
+      newPages: serializer.fromJson<String>(json['newPages']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'title': serializer.toJson<String>(title),
+      'role': serializer.toJson<String>(
+        $DocumentsTable.$converterrole.toJson(role),
+      ),
+      'pageCount': serializer.toJson<int>(pageCount),
+      'contentHash': serializer.toJson<String>(contentHash),
+      'importedAt': serializer.toJson<DateTime>(importedAt),
+      'version': serializer.toJson<int>(version),
+      'fingerprints': serializer.toJson<Uint8List>(fingerprints),
+      'newPages': serializer.toJson<String>(newPages),
+    };
+  }
+
+  DocumentRow copyWith({
+    String? id,
+    String? title,
+    DocumentRole? role,
+    int? pageCount,
+    String? contentHash,
+    DateTime? importedAt,
+    int? version,
+    Uint8List? fingerprints,
+    String? newPages,
+  }) => DocumentRow(
+    id: id ?? this.id,
+    title: title ?? this.title,
+    role: role ?? this.role,
+    pageCount: pageCount ?? this.pageCount,
+    contentHash: contentHash ?? this.contentHash,
+    importedAt: importedAt ?? this.importedAt,
+    version: version ?? this.version,
+    fingerprints: fingerprints ?? this.fingerprints,
+    newPages: newPages ?? this.newPages,
+  );
+  DocumentRow copyWithCompanion(DocumentsCompanion data) {
+    return DocumentRow(
+      id: data.id.present ? data.id.value : this.id,
+      title: data.title.present ? data.title.value : this.title,
+      role: data.role.present ? data.role.value : this.role,
+      pageCount: data.pageCount.present ? data.pageCount.value : this.pageCount,
+      contentHash: data.contentHash.present
+          ? data.contentHash.value
+          : this.contentHash,
+      importedAt: data.importedAt.present
+          ? data.importedAt.value
+          : this.importedAt,
+      version: data.version.present ? data.version.value : this.version,
+      fingerprints: data.fingerprints.present
+          ? data.fingerprints.value
+          : this.fingerprints,
+      newPages: data.newPages.present ? data.newPages.value : this.newPages,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DocumentRow(')
+          ..write('id: $id, ')
+          ..write('title: $title, ')
+          ..write('role: $role, ')
+          ..write('pageCount: $pageCount, ')
+          ..write('contentHash: $contentHash, ')
+          ..write('importedAt: $importedAt, ')
+          ..write('version: $version, ')
+          ..write('fingerprints: $fingerprints, ')
+          ..write('newPages: $newPages')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    title,
+    role,
+    pageCount,
+    contentHash,
+    importedAt,
+    version,
+    $driftBlobEquality.hash(fingerprints),
+    newPages,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DocumentRow &&
+          other.id == this.id &&
+          other.title == this.title &&
+          other.role == this.role &&
+          other.pageCount == this.pageCount &&
+          other.contentHash == this.contentHash &&
+          other.importedAt == this.importedAt &&
+          other.version == this.version &&
+          $driftBlobEquality.equals(other.fingerprints, this.fingerprints) &&
+          other.newPages == this.newPages);
+}
+
+class DocumentsCompanion extends UpdateCompanion<DocumentRow> {
+  final Value<String> id;
+  final Value<String> title;
+  final Value<DocumentRole> role;
+  final Value<int> pageCount;
+  final Value<String> contentHash;
+  final Value<DateTime> importedAt;
+  final Value<int> version;
+  final Value<Uint8List> fingerprints;
+  final Value<String> newPages;
+  final Value<int> rowid;
+  const DocumentsCompanion({
+    this.id = const Value.absent(),
+    this.title = const Value.absent(),
+    this.role = const Value.absent(),
+    this.pageCount = const Value.absent(),
+    this.contentHash = const Value.absent(),
+    this.importedAt = const Value.absent(),
+    this.version = const Value.absent(),
+    this.fingerprints = const Value.absent(),
+    this.newPages = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  DocumentsCompanion.insert({
+    required String id,
+    required String title,
+    required DocumentRole role,
+    required int pageCount,
+    required String contentHash,
+    required DateTime importedAt,
+    this.version = const Value.absent(),
+    required Uint8List fingerprints,
+    this.newPages = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       title = Value(title),
+       role = Value(role),
+       pageCount = Value(pageCount),
+       contentHash = Value(contentHash),
+       importedAt = Value(importedAt),
+       fingerprints = Value(fingerprints);
+  static Insertable<DocumentRow> custom({
+    Expression<String>? id,
+    Expression<String>? title,
+    Expression<String>? role,
+    Expression<int>? pageCount,
+    Expression<String>? contentHash,
+    Expression<DateTime>? importedAt,
+    Expression<int>? version,
+    Expression<Uint8List>? fingerprints,
+    Expression<String>? newPages,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (title != null) 'title': title,
+      if (role != null) 'role': role,
+      if (pageCount != null) 'page_count': pageCount,
+      if (contentHash != null) 'content_hash': contentHash,
+      if (importedAt != null) 'imported_at': importedAt,
+      if (version != null) 'version': version,
+      if (fingerprints != null) 'fingerprints': fingerprints,
+      if (newPages != null) 'new_pages': newPages,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  DocumentsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? title,
+    Value<DocumentRole>? role,
+    Value<int>? pageCount,
+    Value<String>? contentHash,
+    Value<DateTime>? importedAt,
+    Value<int>? version,
+    Value<Uint8List>? fingerprints,
+    Value<String>? newPages,
+    Value<int>? rowid,
+  }) {
+    return DocumentsCompanion(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      role: role ?? this.role,
+      pageCount: pageCount ?? this.pageCount,
+      contentHash: contentHash ?? this.contentHash,
+      importedAt: importedAt ?? this.importedAt,
+      version: version ?? this.version,
+      fingerprints: fingerprints ?? this.fingerprints,
+      newPages: newPages ?? this.newPages,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (role.present) {
+      map['role'] = Variable<String>(
+        $DocumentsTable.$converterrole.toSql(role.value),
+      );
+    }
+    if (pageCount.present) {
+      map['page_count'] = Variable<int>(pageCount.value);
+    }
+    if (contentHash.present) {
+      map['content_hash'] = Variable<String>(contentHash.value);
+    }
+    if (importedAt.present) {
+      map['imported_at'] = Variable<DateTime>(importedAt.value);
+    }
+    if (version.present) {
+      map['version'] = Variable<int>(version.value);
+    }
+    if (fingerprints.present) {
+      map['fingerprints'] = Variable<Uint8List>(fingerprints.value);
+    }
+    if (newPages.present) {
+      map['new_pages'] = Variable<String>(newPages.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DocumentsCompanion(')
+          ..write('id: $id, ')
+          ..write('title: $title, ')
+          ..write('role: $role, ')
+          ..write('pageCount: $pageCount, ')
+          ..write('contentHash: $contentHash, ')
+          ..write('importedAt: $importedAt, ')
+          ..write('version: $version, ')
+          ..write('fingerprints: $fingerprints, ')
+          ..write('newPages: $newPages, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $DocumentFilesTable extends DocumentFiles
+    with TableInfo<$DocumentFilesTable, DocumentFileRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DocumentFilesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _documentIdMeta = const VerificationMeta(
+    'documentId',
+  );
+  @override
+  late final GeneratedColumn<String> documentId = GeneratedColumn<String>(
+    'document_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES documents (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _bytesMeta = const VerificationMeta('bytes');
+  @override
+  late final GeneratedColumn<Uint8List> bytes = GeneratedColumn<Uint8List>(
+    'bytes',
+    aliasedName,
+    false,
+    type: DriftSqlType.blob,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [documentId, bytes];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'document_files';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DocumentFileRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('document_id')) {
+      context.handle(
+        _documentIdMeta,
+        documentId.isAcceptableOrUnknown(data['document_id']!, _documentIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_documentIdMeta);
+    }
+    if (data.containsKey('bytes')) {
+      context.handle(
+        _bytesMeta,
+        bytes.isAcceptableOrUnknown(data['bytes']!, _bytesMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_bytesMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {documentId};
+  @override
+  DocumentFileRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DocumentFileRow(
+      documentId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}document_id'],
+      )!,
+      bytes: attachedDatabase.typeMapping.read(
+        DriftSqlType.blob,
+        data['${effectivePrefix}bytes'],
+      )!,
+    );
+  }
+
+  @override
+  $DocumentFilesTable createAlias(String alias) {
+    return $DocumentFilesTable(attachedDatabase, alias);
+  }
+}
+
+class DocumentFileRow extends DataClass implements Insertable<DocumentFileRow> {
+  final String documentId;
+  final Uint8List bytes;
+  const DocumentFileRow({required this.documentId, required this.bytes});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['document_id'] = Variable<String>(documentId);
+    map['bytes'] = Variable<Uint8List>(bytes);
+    return map;
+  }
+
+  DocumentFilesCompanion toCompanion(bool nullToAbsent) {
+    return DocumentFilesCompanion(
+      documentId: Value(documentId),
+      bytes: Value(bytes),
+    );
+  }
+
+  factory DocumentFileRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DocumentFileRow(
+      documentId: serializer.fromJson<String>(json['documentId']),
+      bytes: serializer.fromJson<Uint8List>(json['bytes']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'documentId': serializer.toJson<String>(documentId),
+      'bytes': serializer.toJson<Uint8List>(bytes),
+    };
+  }
+
+  DocumentFileRow copyWith({String? documentId, Uint8List? bytes}) =>
+      DocumentFileRow(
+        documentId: documentId ?? this.documentId,
+        bytes: bytes ?? this.bytes,
+      );
+  DocumentFileRow copyWithCompanion(DocumentFilesCompanion data) {
+    return DocumentFileRow(
+      documentId: data.documentId.present
+          ? data.documentId.value
+          : this.documentId,
+      bytes: data.bytes.present ? data.bytes.value : this.bytes,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DocumentFileRow(')
+          ..write('documentId: $documentId, ')
+          ..write('bytes: $bytes')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(documentId, $driftBlobEquality.hash(bytes));
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DocumentFileRow &&
+          other.documentId == this.documentId &&
+          $driftBlobEquality.equals(other.bytes, this.bytes));
+}
+
+class DocumentFilesCompanion extends UpdateCompanion<DocumentFileRow> {
+  final Value<String> documentId;
+  final Value<Uint8List> bytes;
+  final Value<int> rowid;
+  const DocumentFilesCompanion({
+    this.documentId = const Value.absent(),
+    this.bytes = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  DocumentFilesCompanion.insert({
+    required String documentId,
+    required Uint8List bytes,
+    this.rowid = const Value.absent(),
+  }) : documentId = Value(documentId),
+       bytes = Value(bytes);
+  static Insertable<DocumentFileRow> custom({
+    Expression<String>? documentId,
+    Expression<Uint8List>? bytes,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (documentId != null) 'document_id': documentId,
+      if (bytes != null) 'bytes': bytes,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  DocumentFilesCompanion copyWith({
+    Value<String>? documentId,
+    Value<Uint8List>? bytes,
+    Value<int>? rowid,
+  }) {
+    return DocumentFilesCompanion(
+      documentId: documentId ?? this.documentId,
+      bytes: bytes ?? this.bytes,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (documentId.present) {
+      map['document_id'] = Variable<String>(documentId.value);
+    }
+    if (bytes.present) {
+      map['bytes'] = Variable<Uint8List>(bytes.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DocumentFilesCompanion(')
+          ..write('documentId: $documentId, ')
+          ..write('bytes: $bytes, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $AnchorsTable extends Anchors with TableInfo<$AnchorsTable, AnchorRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AnchorsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _itemIdMeta = const VerificationMeta('itemId');
+  @override
+  late final GeneratedColumn<String> itemId = GeneratedColumn<String>(
+    'item_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES items (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _documentIdMeta = const VerificationMeta(
+    'documentId',
+  );
+  @override
+  late final GeneratedColumn<String> documentId = GeneratedColumn<String>(
+    'document_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES documents (id) ON DELETE CASCADE',
+    ),
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<AnchorRole, String> role =
+      GeneratedColumn<String>(
+        'role',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      ).withConverter<AnchorRole>($AnchorsTable.$converterrole);
+  static const VerificationMeta _pageMeta = const VerificationMeta('page');
+  @override
+  late final GeneratedColumn<int> page = GeneratedColumn<int>(
+    'page',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _leftMeta = const VerificationMeta('left');
+  @override
+  late final GeneratedColumn<double> left = GeneratedColumn<double>(
+    'left',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _topMeta = const VerificationMeta('top');
+  @override
+  late final GeneratedColumn<double> top = GeneratedColumn<double>(
+    'top',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _rightMeta = const VerificationMeta('right');
+  @override
+  late final GeneratedColumn<double> right = GeneratedColumn<double>(
+    'right',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _bottomMeta = const VerificationMeta('bottom');
+  @override
+  late final GeneratedColumn<double> bottom = GeneratedColumn<double>(
+    'bottom',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _textSnippetMeta = const VerificationMeta(
+    'textSnippet',
+  );
+  @override
+  late final GeneratedColumn<String> textSnippet = GeneratedColumn<String>(
+    'text_snippet',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _snapshotMeta = const VerificationMeta(
+    'snapshot',
+  );
+  @override
+  late final GeneratedColumn<Uint8List> snapshot = GeneratedColumn<Uint8List>(
+    'snapshot',
+    aliasedName,
+    true,
+    type: DriftSqlType.blob,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _needsReviewMeta = const VerificationMeta(
+    'needsReview',
+  );
+  @override
+  late final GeneratedColumn<bool> needsReview = GeneratedColumn<bool>(
+    'needs_review',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("needs_review" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    itemId,
+    documentId,
+    role,
+    page,
+    left,
+    top,
+    right,
+    bottom,
+    textSnippet,
+    snapshot,
+    needsReview,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'anchors';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AnchorRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('item_id')) {
+      context.handle(
+        _itemIdMeta,
+        itemId.isAcceptableOrUnknown(data['item_id']!, _itemIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_itemIdMeta);
+    }
+    if (data.containsKey('document_id')) {
+      context.handle(
+        _documentIdMeta,
+        documentId.isAcceptableOrUnknown(data['document_id']!, _documentIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_documentIdMeta);
+    }
+    if (data.containsKey('page')) {
+      context.handle(
+        _pageMeta,
+        page.isAcceptableOrUnknown(data['page']!, _pageMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_pageMeta);
+    }
+    if (data.containsKey('left')) {
+      context.handle(
+        _leftMeta,
+        left.isAcceptableOrUnknown(data['left']!, _leftMeta),
+      );
+    }
+    if (data.containsKey('top')) {
+      context.handle(
+        _topMeta,
+        top.isAcceptableOrUnknown(data['top']!, _topMeta),
+      );
+    }
+    if (data.containsKey('right')) {
+      context.handle(
+        _rightMeta,
+        right.isAcceptableOrUnknown(data['right']!, _rightMeta),
+      );
+    }
+    if (data.containsKey('bottom')) {
+      context.handle(
+        _bottomMeta,
+        bottom.isAcceptableOrUnknown(data['bottom']!, _bottomMeta),
+      );
+    }
+    if (data.containsKey('text_snippet')) {
+      context.handle(
+        _textSnippetMeta,
+        textSnippet.isAcceptableOrUnknown(
+          data['text_snippet']!,
+          _textSnippetMeta,
+        ),
+      );
+    }
+    if (data.containsKey('snapshot')) {
+      context.handle(
+        _snapshotMeta,
+        snapshot.isAcceptableOrUnknown(data['snapshot']!, _snapshotMeta),
+      );
+    }
+    if (data.containsKey('needs_review')) {
+      context.handle(
+        _needsReviewMeta,
+        needsReview.isAcceptableOrUnknown(
+          data['needs_review']!,
+          _needsReviewMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  AnchorRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AnchorRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      itemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}item_id'],
+      )!,
+      documentId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}document_id'],
+      )!,
+      role: $AnchorsTable.$converterrole.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}role'],
+        )!,
+      ),
+      page: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}page'],
+      )!,
+      left: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}left'],
+      ),
+      top: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}top'],
+      ),
+      right: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}right'],
+      ),
+      bottom: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}bottom'],
+      ),
+      textSnippet: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}text_snippet'],
+      ),
+      snapshot: attachedDatabase.typeMapping.read(
+        DriftSqlType.blob,
+        data['${effectivePrefix}snapshot'],
+      ),
+      needsReview: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}needs_review'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $AnchorsTable createAlias(String alias) {
+    return $AnchorsTable(attachedDatabase, alias);
+  }
+
+  static JsonTypeConverter2<AnchorRole, String, String> $converterrole =
+      const EnumNameConverter<AnchorRole>(AnchorRole.values);
+}
+
+class AnchorRow extends DataClass implements Insertable<AnchorRow> {
+  final String id;
+  final String itemId;
+  final String documentId;
+  final AnchorRole role;
+  final int page;
+  final double? left;
+  final double? top;
+  final double? right;
+  final double? bottom;
+  final String? textSnippet;
+  final Uint8List? snapshot;
+  final bool needsReview;
+  final DateTime createdAt;
+  const AnchorRow({
+    required this.id,
+    required this.itemId,
+    required this.documentId,
+    required this.role,
+    required this.page,
+    this.left,
+    this.top,
+    this.right,
+    this.bottom,
+    this.textSnippet,
+    this.snapshot,
+    required this.needsReview,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['item_id'] = Variable<String>(itemId);
+    map['document_id'] = Variable<String>(documentId);
+    {
+      map['role'] = Variable<String>($AnchorsTable.$converterrole.toSql(role));
+    }
+    map['page'] = Variable<int>(page);
+    if (!nullToAbsent || left != null) {
+      map['left'] = Variable<double>(left);
+    }
+    if (!nullToAbsent || top != null) {
+      map['top'] = Variable<double>(top);
+    }
+    if (!nullToAbsent || right != null) {
+      map['right'] = Variable<double>(right);
+    }
+    if (!nullToAbsent || bottom != null) {
+      map['bottom'] = Variable<double>(bottom);
+    }
+    if (!nullToAbsent || textSnippet != null) {
+      map['text_snippet'] = Variable<String>(textSnippet);
+    }
+    if (!nullToAbsent || snapshot != null) {
+      map['snapshot'] = Variable<Uint8List>(snapshot);
+    }
+    map['needs_review'] = Variable<bool>(needsReview);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  AnchorsCompanion toCompanion(bool nullToAbsent) {
+    return AnchorsCompanion(
+      id: Value(id),
+      itemId: Value(itemId),
+      documentId: Value(documentId),
+      role: Value(role),
+      page: Value(page),
+      left: left == null && nullToAbsent ? const Value.absent() : Value(left),
+      top: top == null && nullToAbsent ? const Value.absent() : Value(top),
+      right: right == null && nullToAbsent
+          ? const Value.absent()
+          : Value(right),
+      bottom: bottom == null && nullToAbsent
+          ? const Value.absent()
+          : Value(bottom),
+      textSnippet: textSnippet == null && nullToAbsent
+          ? const Value.absent()
+          : Value(textSnippet),
+      snapshot: snapshot == null && nullToAbsent
+          ? const Value.absent()
+          : Value(snapshot),
+      needsReview: Value(needsReview),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory AnchorRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AnchorRow(
+      id: serializer.fromJson<String>(json['id']),
+      itemId: serializer.fromJson<String>(json['itemId']),
+      documentId: serializer.fromJson<String>(json['documentId']),
+      role: $AnchorsTable.$converterrole.fromJson(
+        serializer.fromJson<String>(json['role']),
+      ),
+      page: serializer.fromJson<int>(json['page']),
+      left: serializer.fromJson<double?>(json['left']),
+      top: serializer.fromJson<double?>(json['top']),
+      right: serializer.fromJson<double?>(json['right']),
+      bottom: serializer.fromJson<double?>(json['bottom']),
+      textSnippet: serializer.fromJson<String?>(json['textSnippet']),
+      snapshot: serializer.fromJson<Uint8List?>(json['snapshot']),
+      needsReview: serializer.fromJson<bool>(json['needsReview']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'itemId': serializer.toJson<String>(itemId),
+      'documentId': serializer.toJson<String>(documentId),
+      'role': serializer.toJson<String>(
+        $AnchorsTable.$converterrole.toJson(role),
+      ),
+      'page': serializer.toJson<int>(page),
+      'left': serializer.toJson<double?>(left),
+      'top': serializer.toJson<double?>(top),
+      'right': serializer.toJson<double?>(right),
+      'bottom': serializer.toJson<double?>(bottom),
+      'textSnippet': serializer.toJson<String?>(textSnippet),
+      'snapshot': serializer.toJson<Uint8List?>(snapshot),
+      'needsReview': serializer.toJson<bool>(needsReview),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  AnchorRow copyWith({
+    String? id,
+    String? itemId,
+    String? documentId,
+    AnchorRole? role,
+    int? page,
+    Value<double?> left = const Value.absent(),
+    Value<double?> top = const Value.absent(),
+    Value<double?> right = const Value.absent(),
+    Value<double?> bottom = const Value.absent(),
+    Value<String?> textSnippet = const Value.absent(),
+    Value<Uint8List?> snapshot = const Value.absent(),
+    bool? needsReview,
+    DateTime? createdAt,
+  }) => AnchorRow(
+    id: id ?? this.id,
+    itemId: itemId ?? this.itemId,
+    documentId: documentId ?? this.documentId,
+    role: role ?? this.role,
+    page: page ?? this.page,
+    left: left.present ? left.value : this.left,
+    top: top.present ? top.value : this.top,
+    right: right.present ? right.value : this.right,
+    bottom: bottom.present ? bottom.value : this.bottom,
+    textSnippet: textSnippet.present ? textSnippet.value : this.textSnippet,
+    snapshot: snapshot.present ? snapshot.value : this.snapshot,
+    needsReview: needsReview ?? this.needsReview,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  AnchorRow copyWithCompanion(AnchorsCompanion data) {
+    return AnchorRow(
+      id: data.id.present ? data.id.value : this.id,
+      itemId: data.itemId.present ? data.itemId.value : this.itemId,
+      documentId: data.documentId.present
+          ? data.documentId.value
+          : this.documentId,
+      role: data.role.present ? data.role.value : this.role,
+      page: data.page.present ? data.page.value : this.page,
+      left: data.left.present ? data.left.value : this.left,
+      top: data.top.present ? data.top.value : this.top,
+      right: data.right.present ? data.right.value : this.right,
+      bottom: data.bottom.present ? data.bottom.value : this.bottom,
+      textSnippet: data.textSnippet.present
+          ? data.textSnippet.value
+          : this.textSnippet,
+      snapshot: data.snapshot.present ? data.snapshot.value : this.snapshot,
+      needsReview: data.needsReview.present
+          ? data.needsReview.value
+          : this.needsReview,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AnchorRow(')
+          ..write('id: $id, ')
+          ..write('itemId: $itemId, ')
+          ..write('documentId: $documentId, ')
+          ..write('role: $role, ')
+          ..write('page: $page, ')
+          ..write('left: $left, ')
+          ..write('top: $top, ')
+          ..write('right: $right, ')
+          ..write('bottom: $bottom, ')
+          ..write('textSnippet: $textSnippet, ')
+          ..write('snapshot: $snapshot, ')
+          ..write('needsReview: $needsReview, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    itemId,
+    documentId,
+    role,
+    page,
+    left,
+    top,
+    right,
+    bottom,
+    textSnippet,
+    $driftBlobEquality.hash(snapshot),
+    needsReview,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AnchorRow &&
+          other.id == this.id &&
+          other.itemId == this.itemId &&
+          other.documentId == this.documentId &&
+          other.role == this.role &&
+          other.page == this.page &&
+          other.left == this.left &&
+          other.top == this.top &&
+          other.right == this.right &&
+          other.bottom == this.bottom &&
+          other.textSnippet == this.textSnippet &&
+          $driftBlobEquality.equals(other.snapshot, this.snapshot) &&
+          other.needsReview == this.needsReview &&
+          other.createdAt == this.createdAt);
+}
+
+class AnchorsCompanion extends UpdateCompanion<AnchorRow> {
+  final Value<String> id;
+  final Value<String> itemId;
+  final Value<String> documentId;
+  final Value<AnchorRole> role;
+  final Value<int> page;
+  final Value<double?> left;
+  final Value<double?> top;
+  final Value<double?> right;
+  final Value<double?> bottom;
+  final Value<String?> textSnippet;
+  final Value<Uint8List?> snapshot;
+  final Value<bool> needsReview;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const AnchorsCompanion({
+    this.id = const Value.absent(),
+    this.itemId = const Value.absent(),
+    this.documentId = const Value.absent(),
+    this.role = const Value.absent(),
+    this.page = const Value.absent(),
+    this.left = const Value.absent(),
+    this.top = const Value.absent(),
+    this.right = const Value.absent(),
+    this.bottom = const Value.absent(),
+    this.textSnippet = const Value.absent(),
+    this.snapshot = const Value.absent(),
+    this.needsReview = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AnchorsCompanion.insert({
+    required String id,
+    required String itemId,
+    required String documentId,
+    required AnchorRole role,
+    required int page,
+    this.left = const Value.absent(),
+    this.top = const Value.absent(),
+    this.right = const Value.absent(),
+    this.bottom = const Value.absent(),
+    this.textSnippet = const Value.absent(),
+    this.snapshot = const Value.absent(),
+    this.needsReview = const Value.absent(),
+    required DateTime createdAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       itemId = Value(itemId),
+       documentId = Value(documentId),
+       role = Value(role),
+       page = Value(page),
+       createdAt = Value(createdAt);
+  static Insertable<AnchorRow> custom({
+    Expression<String>? id,
+    Expression<String>? itemId,
+    Expression<String>? documentId,
+    Expression<String>? role,
+    Expression<int>? page,
+    Expression<double>? left,
+    Expression<double>? top,
+    Expression<double>? right,
+    Expression<double>? bottom,
+    Expression<String>? textSnippet,
+    Expression<Uint8List>? snapshot,
+    Expression<bool>? needsReview,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (itemId != null) 'item_id': itemId,
+      if (documentId != null) 'document_id': documentId,
+      if (role != null) 'role': role,
+      if (page != null) 'page': page,
+      if (left != null) 'left': left,
+      if (top != null) 'top': top,
+      if (right != null) 'right': right,
+      if (bottom != null) 'bottom': bottom,
+      if (textSnippet != null) 'text_snippet': textSnippet,
+      if (snapshot != null) 'snapshot': snapshot,
+      if (needsReview != null) 'needs_review': needsReview,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AnchorsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? itemId,
+    Value<String>? documentId,
+    Value<AnchorRole>? role,
+    Value<int>? page,
+    Value<double?>? left,
+    Value<double?>? top,
+    Value<double?>? right,
+    Value<double?>? bottom,
+    Value<String?>? textSnippet,
+    Value<Uint8List?>? snapshot,
+    Value<bool>? needsReview,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return AnchorsCompanion(
+      id: id ?? this.id,
+      itemId: itemId ?? this.itemId,
+      documentId: documentId ?? this.documentId,
+      role: role ?? this.role,
+      page: page ?? this.page,
+      left: left ?? this.left,
+      top: top ?? this.top,
+      right: right ?? this.right,
+      bottom: bottom ?? this.bottom,
+      textSnippet: textSnippet ?? this.textSnippet,
+      snapshot: snapshot ?? this.snapshot,
+      needsReview: needsReview ?? this.needsReview,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (itemId.present) {
+      map['item_id'] = Variable<String>(itemId.value);
+    }
+    if (documentId.present) {
+      map['document_id'] = Variable<String>(documentId.value);
+    }
+    if (role.present) {
+      map['role'] = Variable<String>(
+        $AnchorsTable.$converterrole.toSql(role.value),
+      );
+    }
+    if (page.present) {
+      map['page'] = Variable<int>(page.value);
+    }
+    if (left.present) {
+      map['left'] = Variable<double>(left.value);
+    }
+    if (top.present) {
+      map['top'] = Variable<double>(top.value);
+    }
+    if (right.present) {
+      map['right'] = Variable<double>(right.value);
+    }
+    if (bottom.present) {
+      map['bottom'] = Variable<double>(bottom.value);
+    }
+    if (textSnippet.present) {
+      map['text_snippet'] = Variable<String>(textSnippet.value);
+    }
+    if (snapshot.present) {
+      map['snapshot'] = Variable<Uint8List>(snapshot.value);
+    }
+    if (needsReview.present) {
+      map['needs_review'] = Variable<bool>(needsReview.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AnchorsCompanion(')
+          ..write('id: $id, ')
+          ..write('itemId: $itemId, ')
+          ..write('documentId: $documentId, ')
+          ..write('role: $role, ')
+          ..write('page: $page, ')
+          ..write('left: $left, ')
+          ..write('top: $top, ')
+          ..write('right: $right, ')
+          ..write('bottom: $bottom, ')
+          ..write('textSnippet: $textSnippet, ')
+          ..write('snapshot: $snapshot, ')
+          ..write('needsReview: $needsReview, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$VergerDatabase extends GeneratedDatabase {
   _$VergerDatabase(QueryExecutor e) : super(e);
   $VergerDatabaseManager get managers => $VergerDatabaseManager(this);
@@ -2123,6 +3683,9 @@ abstract class _$VergerDatabase extends GeneratedDatabase {
   late final $ItemsTable items = $ItemsTable(this);
   late final $ReviewLogsTable reviewLogs = $ReviewLogsTable(this);
   late final $SettingsTable settings = $SettingsTable(this);
+  late final $DocumentsTable documents = $DocumentsTable(this);
+  late final $DocumentFilesTable documentFiles = $DocumentFilesTable(this);
+  late final $AnchorsTable anchors = $AnchorsTable(this);
   late final Index nodesParent = Index(
     'nodes_parent',
     'CREATE INDEX nodes_parent ON nodes (parent_id)',
@@ -2139,6 +3702,14 @@ abstract class _$VergerDatabase extends GeneratedDatabase {
     'review_logs_item',
     'CREATE INDEX review_logs_item ON review_logs (item_id)',
   );
+  late final Index anchorsItem = Index(
+    'anchors_item',
+    'CREATE INDEX anchors_item ON anchors (item_id)',
+  );
+  late final Index anchorsDocument = Index(
+    'anchors_document',
+    'CREATE INDEX anchors_document ON anchors (document_id)',
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2148,10 +3719,15 @@ abstract class _$VergerDatabase extends GeneratedDatabase {
     items,
     reviewLogs,
     settings,
+    documents,
+    documentFiles,
+    anchors,
     nodesParent,
     itemsNode,
     itemsDue,
     reviewLogsItem,
+    anchorsItem,
+    anchorsDocument,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -2161,6 +3737,27 @@ abstract class _$VergerDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('review_logs', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'documents',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('document_files', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'items',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('anchors', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'documents',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('anchors', kind: UpdateKind.delete)],
     ),
   ]);
   @override
@@ -2687,6 +4284,25 @@ final class $$ItemsTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$AnchorsTable, List<AnchorRow>> _anchorsRefsTable(
+    _$VergerDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.anchors,
+    aliasName: 'items__id__anchors__item_id',
+  );
+
+  $$AnchorsTableProcessedTableManager get anchorsRefs {
+    final manager = $$AnchorsTableTableManager(
+      $_db,
+      $_db.anchors,
+    ).filter((f) => f.itemId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_anchorsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$ItemsTableFilterComposer
@@ -2814,6 +4430,31 @@ class $$ItemsTableFilterComposer
           }) => $$ReviewLogsTableFilterComposer(
             $db: $db,
             $table: $db.reviewLogs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> anchorsRefs(
+    Expression<bool> Function($$AnchorsTableFilterComposer f) f,
+  ) {
+    final $$AnchorsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.anchors,
+      getReferencedColumn: (t) => t.itemId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AnchorsTableFilterComposer(
+            $db: $db,
+            $table: $db.anchors,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -3037,6 +4678,31 @@ class $$ItemsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> anchorsRefs<T extends Object>(
+    Expression<T> Function($$AnchorsTableAnnotationComposer a) f,
+  ) {
+    final $$AnchorsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.anchors,
+      getReferencedColumn: (t) => t.itemId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AnchorsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.anchors,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$ItemsTableTableManager
@@ -3052,7 +4718,11 @@ class $$ItemsTableTableManager
           $$ItemsTableUpdateCompanionBuilder,
           (ItemRow, $$ItemsTableReferences),
           ItemRow,
-          PrefetchHooks Function({bool nodeId, bool reviewLogsRefs})
+          PrefetchHooks Function({
+            bool nodeId,
+            bool reviewLogsRefs,
+            bool anchorsRefs,
+          })
         > {
   $$ItemsTableTableManager(_$VergerDatabase db, $ItemsTable table)
     : super(
@@ -3149,63 +4819,90 @@ class $$ItemsTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({nodeId = false, reviewLogsRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [if (reviewLogsRefs) db.reviewLogs],
-              addJoins:
-                  <
-                    T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic
-                    >
-                  >(state) {
-                    if (nodeId) {
-                      state =
-                          state.withJoin(
-                                currentTable: table,
-                                currentColumn: table.nodeId,
-                                referencedTable: $$ItemsTableReferences
-                                    ._nodeIdTable(db),
-                                referencedColumn: $$ItemsTableReferences
-                                    ._nodeIdTable(db)
-                                    .id,
-                              )
-                              as T;
-                    }
+          prefetchHooksCallback:
+              ({nodeId = false, reviewLogsRefs = false, anchorsRefs = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (reviewLogsRefs) db.reviewLogs,
+                    if (anchorsRefs) db.anchors,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (nodeId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.nodeId,
+                                    referencedTable: $$ItemsTableReferences
+                                        ._nodeIdTable(db),
+                                    referencedColumn: $$ItemsTableReferences
+                                        ._nodeIdTable(db)
+                                        .id,
+                                  )
+                                  as T;
+                        }
 
-                    return state;
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (reviewLogsRefs)
+                        await $_getPrefetchedData<
+                          ItemRow,
+                          $ItemsTable,
+                          ReviewLogRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ItemsTableReferences
+                              ._reviewLogsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ItemsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).reviewLogsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.itemId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (anchorsRefs)
+                        await $_getPrefetchedData<
+                          ItemRow,
+                          $ItemsTable,
+                          AnchorRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ItemsTableReferences
+                              ._anchorsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ItemsTableReferences(db, table, p0).anchorsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.itemId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
                   },
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (reviewLogsRefs)
-                    await $_getPrefetchedData<
-                      ItemRow,
-                      $ItemsTable,
-                      ReviewLogRow
-                    >(
-                      currentTable: table,
-                      referencedTable: $$ItemsTableReferences
-                          ._reviewLogsRefsTable(db),
-                      managerFromTypedResult: (p0) =>
-                          $$ItemsTableReferences(db, table, p0).reviewLogsRefs,
-                      referencedItemsForCurrentItem: (item, referencedItems) =>
-                          referencedItems.where((e) => e.itemId == item.id),
-                      typedResults: items,
-                    ),
-                ];
+                );
               },
-            );
-          },
         ),
       );
 }
@@ -3222,7 +4919,11 @@ typedef $$ItemsTableProcessedTableManager =
       $$ItemsTableUpdateCompanionBuilder,
       (ItemRow, $$ItemsTableReferences),
       ItemRow,
-      PrefetchHooks Function({bool nodeId, bool reviewLogsRefs})
+      PrefetchHooks Function({
+        bool nodeId,
+        bool reviewLogsRefs,
+        bool anchorsRefs,
+      })
     >;
 typedef $$ReviewLogsTableCreateCompanionBuilder =
     ReviewLogsCompanion Function({
@@ -3757,6 +5458,1313 @@ typedef $$SettingsTableProcessedTableManager =
       SettingRow,
       PrefetchHooks Function()
     >;
+typedef $$DocumentsTableCreateCompanionBuilder =
+    DocumentsCompanion Function({
+      required String id,
+      required String title,
+      required DocumentRole role,
+      required int pageCount,
+      required String contentHash,
+      required DateTime importedAt,
+      Value<int> version,
+      required Uint8List fingerprints,
+      Value<String> newPages,
+      Value<int> rowid,
+    });
+typedef $$DocumentsTableUpdateCompanionBuilder =
+    DocumentsCompanion Function({
+      Value<String> id,
+      Value<String> title,
+      Value<DocumentRole> role,
+      Value<int> pageCount,
+      Value<String> contentHash,
+      Value<DateTime> importedAt,
+      Value<int> version,
+      Value<Uint8List> fingerprints,
+      Value<String> newPages,
+      Value<int> rowid,
+    });
+
+final class $$DocumentsTableReferences
+    extends BaseReferences<_$VergerDatabase, $DocumentsTable, DocumentRow> {
+  $$DocumentsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static MultiTypedResultKey<$DocumentFilesTable, List<DocumentFileRow>>
+  _documentFilesRefsTable(_$VergerDatabase db) => MultiTypedResultKey.fromTable(
+    db.documentFiles,
+    aliasName: 'documents__id__document_files__document_id',
+  );
+
+  $$DocumentFilesTableProcessedTableManager get documentFilesRefs {
+    final manager = $$DocumentFilesTableTableManager(
+      $_db,
+      $_db.documentFiles,
+    ).filter((f) => f.documentId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_documentFilesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$AnchorsTable, List<AnchorRow>> _anchorsRefsTable(
+    _$VergerDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.anchors,
+    aliasName: 'documents__id__anchors__document_id',
+  );
+
+  $$AnchorsTableProcessedTableManager get anchorsRefs {
+    final manager = $$AnchorsTableTableManager(
+      $_db,
+      $_db.anchors,
+    ).filter((f) => f.documentId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_anchorsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$DocumentsTableFilterComposer
+    extends Composer<_$VergerDatabase, $DocumentsTable> {
+  $$DocumentsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<DocumentRole, DocumentRole, String> get role =>
+      $composableBuilder(
+        column: $table.role,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  ColumnFilters<int> get pageCount => $composableBuilder(
+    column: $table.pageCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get contentHash => $composableBuilder(
+    column: $table.contentHash,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get importedAt => $composableBuilder(
+    column: $table.importedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<Uint8List> get fingerprints => $composableBuilder(
+    column: $table.fingerprints,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get newPages => $composableBuilder(
+    column: $table.newPages,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> documentFilesRefs(
+    Expression<bool> Function($$DocumentFilesTableFilterComposer f) f,
+  ) {
+    final $$DocumentFilesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.documentFiles,
+      getReferencedColumn: (t) => t.documentId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DocumentFilesTableFilterComposer(
+            $db: $db,
+            $table: $db.documentFiles,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> anchorsRefs(
+    Expression<bool> Function($$AnchorsTableFilterComposer f) f,
+  ) {
+    final $$AnchorsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.anchors,
+      getReferencedColumn: (t) => t.documentId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AnchorsTableFilterComposer(
+            $db: $db,
+            $table: $db.anchors,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$DocumentsTableOrderingComposer
+    extends Composer<_$VergerDatabase, $DocumentsTable> {
+  $$DocumentsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get role => $composableBuilder(
+    column: $table.role,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get pageCount => $composableBuilder(
+    column: $table.pageCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get contentHash => $composableBuilder(
+    column: $table.contentHash,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get importedAt => $composableBuilder(
+    column: $table.importedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<Uint8List> get fingerprints => $composableBuilder(
+    column: $table.fingerprints,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get newPages => $composableBuilder(
+    column: $table.newPages,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$DocumentsTableAnnotationComposer
+    extends Composer<_$VergerDatabase, $DocumentsTable> {
+  $$DocumentsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<DocumentRole, String> get role =>
+      $composableBuilder(column: $table.role, builder: (column) => column);
+
+  GeneratedColumn<int> get pageCount =>
+      $composableBuilder(column: $table.pageCount, builder: (column) => column);
+
+  GeneratedColumn<String> get contentHash => $composableBuilder(
+    column: $table.contentHash,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get importedAt => $composableBuilder(
+    column: $table.importedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get version =>
+      $composableBuilder(column: $table.version, builder: (column) => column);
+
+  GeneratedColumn<Uint8List> get fingerprints => $composableBuilder(
+    column: $table.fingerprints,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get newPages =>
+      $composableBuilder(column: $table.newPages, builder: (column) => column);
+
+  Expression<T> documentFilesRefs<T extends Object>(
+    Expression<T> Function($$DocumentFilesTableAnnotationComposer a) f,
+  ) {
+    final $$DocumentFilesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.documentFiles,
+      getReferencedColumn: (t) => t.documentId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DocumentFilesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.documentFiles,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> anchorsRefs<T extends Object>(
+    Expression<T> Function($$AnchorsTableAnnotationComposer a) f,
+  ) {
+    final $$AnchorsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.anchors,
+      getReferencedColumn: (t) => t.documentId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AnchorsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.anchors,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$DocumentsTableTableManager
+    extends
+        RootTableManager<
+          _$VergerDatabase,
+          $DocumentsTable,
+          DocumentRow,
+          $$DocumentsTableFilterComposer,
+          $$DocumentsTableOrderingComposer,
+          $$DocumentsTableAnnotationComposer,
+          $$DocumentsTableCreateCompanionBuilder,
+          $$DocumentsTableUpdateCompanionBuilder,
+          (DocumentRow, $$DocumentsTableReferences),
+          DocumentRow,
+          PrefetchHooks Function({bool documentFilesRefs, bool anchorsRefs})
+        > {
+  $$DocumentsTableTableManager(_$VergerDatabase db, $DocumentsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DocumentsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DocumentsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DocumentsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<DocumentRole> role = const Value.absent(),
+                Value<int> pageCount = const Value.absent(),
+                Value<String> contentHash = const Value.absent(),
+                Value<DateTime> importedAt = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<Uint8List> fingerprints = const Value.absent(),
+                Value<String> newPages = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DocumentsCompanion(
+                id: id,
+                title: title,
+                role: role,
+                pageCount: pageCount,
+                contentHash: contentHash,
+                importedAt: importedAt,
+                version: version,
+                fingerprints: fingerprints,
+                newPages: newPages,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String title,
+                required DocumentRole role,
+                required int pageCount,
+                required String contentHash,
+                required DateTime importedAt,
+                Value<int> version = const Value.absent(),
+                required Uint8List fingerprints,
+                Value<String> newPages = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DocumentsCompanion.insert(
+                id: id,
+                title: title,
+                role: role,
+                pageCount: pageCount,
+                contentHash: contentHash,
+                importedAt: importedAt,
+                version: version,
+                fingerprints: fingerprints,
+                newPages: newPages,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$DocumentsTable, DocumentRow>(table),
+                  $$DocumentsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({documentFilesRefs = false, anchorsRefs = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (documentFilesRefs) db.documentFiles,
+                    if (anchorsRefs) db.anchors,
+                  ],
+                  addJoins: null,
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (documentFilesRefs)
+                        await $_getPrefetchedData<
+                          DocumentRow,
+                          $DocumentsTable,
+                          DocumentFileRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$DocumentsTableReferences
+                              ._documentFilesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$DocumentsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).documentFilesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.documentId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (anchorsRefs)
+                        await $_getPrefetchedData<
+                          DocumentRow,
+                          $DocumentsTable,
+                          AnchorRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$DocumentsTableReferences
+                              ._anchorsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$DocumentsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).anchorsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.documentId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$DocumentsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$VergerDatabase,
+      $DocumentsTable,
+      DocumentRow,
+      $$DocumentsTableFilterComposer,
+      $$DocumentsTableOrderingComposer,
+      $$DocumentsTableAnnotationComposer,
+      $$DocumentsTableCreateCompanionBuilder,
+      $$DocumentsTableUpdateCompanionBuilder,
+      (DocumentRow, $$DocumentsTableReferences),
+      DocumentRow,
+      PrefetchHooks Function({bool documentFilesRefs, bool anchorsRefs})
+    >;
+typedef $$DocumentFilesTableCreateCompanionBuilder =
+    DocumentFilesCompanion Function({
+      required String documentId,
+      required Uint8List bytes,
+      Value<int> rowid,
+    });
+typedef $$DocumentFilesTableUpdateCompanionBuilder =
+    DocumentFilesCompanion Function({
+      Value<String> documentId,
+      Value<Uint8List> bytes,
+      Value<int> rowid,
+    });
+
+final class $$DocumentFilesTableReferences
+    extends
+        BaseReferences<_$VergerDatabase, $DocumentFilesTable, DocumentFileRow> {
+  $$DocumentFilesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $DocumentsTable _documentIdTable(_$VergerDatabase db) =>
+      db.documents.createAlias('document_files__document_id__documents__id');
+
+  $$DocumentsTableProcessedTableManager get documentId {
+    final $_column = $_itemColumn<String>('document_id')!;
+
+    final manager = $$DocumentsTableTableManager(
+      $_db,
+      $_db.documents,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_documentIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$DocumentFilesTableFilterComposer
+    extends Composer<_$VergerDatabase, $DocumentFilesTable> {
+  $$DocumentFilesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<Uint8List> get bytes => $composableBuilder(
+    column: $table.bytes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$DocumentsTableFilterComposer get documentId {
+    final $$DocumentsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.documentId,
+      referencedTable: $db.documents,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DocumentsTableFilterComposer(
+            $db: $db,
+            $table: $db.documents,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$DocumentFilesTableOrderingComposer
+    extends Composer<_$VergerDatabase, $DocumentFilesTable> {
+  $$DocumentFilesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<Uint8List> get bytes => $composableBuilder(
+    column: $table.bytes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$DocumentsTableOrderingComposer get documentId {
+    final $$DocumentsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.documentId,
+      referencedTable: $db.documents,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DocumentsTableOrderingComposer(
+            $db: $db,
+            $table: $db.documents,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$DocumentFilesTableAnnotationComposer
+    extends Composer<_$VergerDatabase, $DocumentFilesTable> {
+  $$DocumentFilesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<Uint8List> get bytes =>
+      $composableBuilder(column: $table.bytes, builder: (column) => column);
+
+  $$DocumentsTableAnnotationComposer get documentId {
+    final $$DocumentsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.documentId,
+      referencedTable: $db.documents,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DocumentsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.documents,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$DocumentFilesTableTableManager
+    extends
+        RootTableManager<
+          _$VergerDatabase,
+          $DocumentFilesTable,
+          DocumentFileRow,
+          $$DocumentFilesTableFilterComposer,
+          $$DocumentFilesTableOrderingComposer,
+          $$DocumentFilesTableAnnotationComposer,
+          $$DocumentFilesTableCreateCompanionBuilder,
+          $$DocumentFilesTableUpdateCompanionBuilder,
+          (DocumentFileRow, $$DocumentFilesTableReferences),
+          DocumentFileRow,
+          PrefetchHooks Function({bool documentId})
+        > {
+  $$DocumentFilesTableTableManager(
+    _$VergerDatabase db,
+    $DocumentFilesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DocumentFilesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DocumentFilesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DocumentFilesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> documentId = const Value.absent(),
+                Value<Uint8List> bytes = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DocumentFilesCompanion(
+                documentId: documentId,
+                bytes: bytes,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String documentId,
+                required Uint8List bytes,
+                Value<int> rowid = const Value.absent(),
+              }) => DocumentFilesCompanion.insert(
+                documentId: documentId,
+                bytes: bytes,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$DocumentFilesTable, DocumentFileRow>(table),
+                  $$DocumentFilesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({documentId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (documentId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.documentId,
+                                referencedTable: $$DocumentFilesTableReferences
+                                    ._documentIdTable(db),
+                                referencedColumn: $$DocumentFilesTableReferences
+                                    ._documentIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$DocumentFilesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$VergerDatabase,
+      $DocumentFilesTable,
+      DocumentFileRow,
+      $$DocumentFilesTableFilterComposer,
+      $$DocumentFilesTableOrderingComposer,
+      $$DocumentFilesTableAnnotationComposer,
+      $$DocumentFilesTableCreateCompanionBuilder,
+      $$DocumentFilesTableUpdateCompanionBuilder,
+      (DocumentFileRow, $$DocumentFilesTableReferences),
+      DocumentFileRow,
+      PrefetchHooks Function({bool documentId})
+    >;
+typedef $$AnchorsTableCreateCompanionBuilder =
+    AnchorsCompanion Function({
+      required String id,
+      required String itemId,
+      required String documentId,
+      required AnchorRole role,
+      required int page,
+      Value<double?> left,
+      Value<double?> top,
+      Value<double?> right,
+      Value<double?> bottom,
+      Value<String?> textSnippet,
+      Value<Uint8List?> snapshot,
+      Value<bool> needsReview,
+      required DateTime createdAt,
+      Value<int> rowid,
+    });
+typedef $$AnchorsTableUpdateCompanionBuilder =
+    AnchorsCompanion Function({
+      Value<String> id,
+      Value<String> itemId,
+      Value<String> documentId,
+      Value<AnchorRole> role,
+      Value<int> page,
+      Value<double?> left,
+      Value<double?> top,
+      Value<double?> right,
+      Value<double?> bottom,
+      Value<String?> textSnippet,
+      Value<Uint8List?> snapshot,
+      Value<bool> needsReview,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+
+final class $$AnchorsTableReferences
+    extends BaseReferences<_$VergerDatabase, $AnchorsTable, AnchorRow> {
+  $$AnchorsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $ItemsTable _itemIdTable(_$VergerDatabase db) =>
+      db.items.createAlias('anchors__item_id__items__id');
+
+  $$ItemsTableProcessedTableManager get itemId {
+    final $_column = $_itemColumn<String>('item_id')!;
+
+    final manager = $$ItemsTableTableManager(
+      $_db,
+      $_db.items,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_itemIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $DocumentsTable _documentIdTable(_$VergerDatabase db) =>
+      db.documents.createAlias('anchors__document_id__documents__id');
+
+  $$DocumentsTableProcessedTableManager get documentId {
+    final $_column = $_itemColumn<String>('document_id')!;
+
+    final manager = $$DocumentsTableTableManager(
+      $_db,
+      $_db.documents,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_documentIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$AnchorsTableFilterComposer
+    extends Composer<_$VergerDatabase, $AnchorsTable> {
+  $$AnchorsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<AnchorRole, AnchorRole, String> get role =>
+      $composableBuilder(
+        column: $table.role,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  ColumnFilters<int> get page => $composableBuilder(
+    column: $table.page,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get left => $composableBuilder(
+    column: $table.left,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get top => $composableBuilder(
+    column: $table.top,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get right => $composableBuilder(
+    column: $table.right,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get bottom => $composableBuilder(
+    column: $table.bottom,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get textSnippet => $composableBuilder(
+    column: $table.textSnippet,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<Uint8List> get snapshot => $composableBuilder(
+    column: $table.snapshot,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get needsReview => $composableBuilder(
+    column: $table.needsReview,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$ItemsTableFilterComposer get itemId {
+    final $$ItemsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.itemId,
+      referencedTable: $db.items,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemsTableFilterComposer(
+            $db: $db,
+            $table: $db.items,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$DocumentsTableFilterComposer get documentId {
+    final $$DocumentsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.documentId,
+      referencedTable: $db.documents,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DocumentsTableFilterComposer(
+            $db: $db,
+            $table: $db.documents,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$AnchorsTableOrderingComposer
+    extends Composer<_$VergerDatabase, $AnchorsTable> {
+  $$AnchorsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get role => $composableBuilder(
+    column: $table.role,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get page => $composableBuilder(
+    column: $table.page,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get left => $composableBuilder(
+    column: $table.left,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get top => $composableBuilder(
+    column: $table.top,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get right => $composableBuilder(
+    column: $table.right,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get bottom => $composableBuilder(
+    column: $table.bottom,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get textSnippet => $composableBuilder(
+    column: $table.textSnippet,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<Uint8List> get snapshot => $composableBuilder(
+    column: $table.snapshot,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get needsReview => $composableBuilder(
+    column: $table.needsReview,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$ItemsTableOrderingComposer get itemId {
+    final $$ItemsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.itemId,
+      referencedTable: $db.items,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemsTableOrderingComposer(
+            $db: $db,
+            $table: $db.items,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$DocumentsTableOrderingComposer get documentId {
+    final $$DocumentsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.documentId,
+      referencedTable: $db.documents,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DocumentsTableOrderingComposer(
+            $db: $db,
+            $table: $db.documents,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$AnchorsTableAnnotationComposer
+    extends Composer<_$VergerDatabase, $AnchorsTable> {
+  $$AnchorsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<AnchorRole, String> get role =>
+      $composableBuilder(column: $table.role, builder: (column) => column);
+
+  GeneratedColumn<int> get page =>
+      $composableBuilder(column: $table.page, builder: (column) => column);
+
+  GeneratedColumn<double> get left =>
+      $composableBuilder(column: $table.left, builder: (column) => column);
+
+  GeneratedColumn<double> get top =>
+      $composableBuilder(column: $table.top, builder: (column) => column);
+
+  GeneratedColumn<double> get right =>
+      $composableBuilder(column: $table.right, builder: (column) => column);
+
+  GeneratedColumn<double> get bottom =>
+      $composableBuilder(column: $table.bottom, builder: (column) => column);
+
+  GeneratedColumn<String> get textSnippet => $composableBuilder(
+    column: $table.textSnippet,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<Uint8List> get snapshot =>
+      $composableBuilder(column: $table.snapshot, builder: (column) => column);
+
+  GeneratedColumn<bool> get needsReview => $composableBuilder(
+    column: $table.needsReview,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$ItemsTableAnnotationComposer get itemId {
+    final $$ItemsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.itemId,
+      referencedTable: $db.items,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.items,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$DocumentsTableAnnotationComposer get documentId {
+    final $$DocumentsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.documentId,
+      referencedTable: $db.documents,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DocumentsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.documents,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$AnchorsTableTableManager
+    extends
+        RootTableManager<
+          _$VergerDatabase,
+          $AnchorsTable,
+          AnchorRow,
+          $$AnchorsTableFilterComposer,
+          $$AnchorsTableOrderingComposer,
+          $$AnchorsTableAnnotationComposer,
+          $$AnchorsTableCreateCompanionBuilder,
+          $$AnchorsTableUpdateCompanionBuilder,
+          (AnchorRow, $$AnchorsTableReferences),
+          AnchorRow,
+          PrefetchHooks Function({bool itemId, bool documentId})
+        > {
+  $$AnchorsTableTableManager(_$VergerDatabase db, $AnchorsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AnchorsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AnchorsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AnchorsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> itemId = const Value.absent(),
+                Value<String> documentId = const Value.absent(),
+                Value<AnchorRole> role = const Value.absent(),
+                Value<int> page = const Value.absent(),
+                Value<double?> left = const Value.absent(),
+                Value<double?> top = const Value.absent(),
+                Value<double?> right = const Value.absent(),
+                Value<double?> bottom = const Value.absent(),
+                Value<String?> textSnippet = const Value.absent(),
+                Value<Uint8List?> snapshot = const Value.absent(),
+                Value<bool> needsReview = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => AnchorsCompanion(
+                id: id,
+                itemId: itemId,
+                documentId: documentId,
+                role: role,
+                page: page,
+                left: left,
+                top: top,
+                right: right,
+                bottom: bottom,
+                textSnippet: textSnippet,
+                snapshot: snapshot,
+                needsReview: needsReview,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String itemId,
+                required String documentId,
+                required AnchorRole role,
+                required int page,
+                Value<double?> left = const Value.absent(),
+                Value<double?> top = const Value.absent(),
+                Value<double?> right = const Value.absent(),
+                Value<double?> bottom = const Value.absent(),
+                Value<String?> textSnippet = const Value.absent(),
+                Value<Uint8List?> snapshot = const Value.absent(),
+                Value<bool> needsReview = const Value.absent(),
+                required DateTime createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => AnchorsCompanion.insert(
+                id: id,
+                itemId: itemId,
+                documentId: documentId,
+                role: role,
+                page: page,
+                left: left,
+                top: top,
+                right: right,
+                bottom: bottom,
+                textSnippet: textSnippet,
+                snapshot: snapshot,
+                needsReview: needsReview,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$AnchorsTable, AnchorRow>(table),
+                  $$AnchorsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({itemId = false, documentId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (itemId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.itemId,
+                                referencedTable: $$AnchorsTableReferences
+                                    ._itemIdTable(db),
+                                referencedColumn: $$AnchorsTableReferences
+                                    ._itemIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+                    if (documentId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.documentId,
+                                referencedTable: $$AnchorsTableReferences
+                                    ._documentIdTable(db),
+                                referencedColumn: $$AnchorsTableReferences
+                                    ._documentIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$AnchorsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$VergerDatabase,
+      $AnchorsTable,
+      AnchorRow,
+      $$AnchorsTableFilterComposer,
+      $$AnchorsTableOrderingComposer,
+      $$AnchorsTableAnnotationComposer,
+      $$AnchorsTableCreateCompanionBuilder,
+      $$AnchorsTableUpdateCompanionBuilder,
+      (AnchorRow, $$AnchorsTableReferences),
+      AnchorRow,
+      PrefetchHooks Function({bool itemId, bool documentId})
+    >;
 
 class $VergerDatabaseManager {
   final _$VergerDatabase _db;
@@ -3769,4 +6777,10 @@ class $VergerDatabaseManager {
       $$ReviewLogsTableTableManager(_db, _db.reviewLogs);
   $$SettingsTableTableManager get settings =>
       $$SettingsTableTableManager(_db, _db.settings);
+  $$DocumentsTableTableManager get documents =>
+      $$DocumentsTableTableManager(_db, _db.documents);
+  $$DocumentFilesTableTableManager get documentFiles =>
+      $$DocumentFilesTableTableManager(_db, _db.documentFiles);
+  $$AnchorsTableTableManager get anchors =>
+      $$AnchorsTableTableManager(_db, _db.anchors);
 }
