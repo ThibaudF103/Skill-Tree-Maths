@@ -1,0 +1,13 @@
+name: verger_core
+description: Logique métier pure du Verger (domaine, ordonnancement, progression), sans dépendance Flutter.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.6

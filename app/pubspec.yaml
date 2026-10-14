@@ -1,0 +1,21 @@
+name: verger
+description: "Verger de connaissances : suivi de progression et répétition espacée."
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  verger_core:
+    path: ../packages/verger_core
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
