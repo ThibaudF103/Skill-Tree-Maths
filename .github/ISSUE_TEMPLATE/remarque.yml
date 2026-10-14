@@ -1,0 +1,35 @@
+name: Remarque
+description: Remarque d'UX, bug ou idée sur le Verger
+body:
+  - type: dropdown
+    id: type
+    attributes:
+      label: Type
+      options:
+        - UX / ergonomie
+        - Bug
+        - Idée de fonctionnalité
+    validations:
+      required: true
+  - type: dropdown
+    id: priorite
+    attributes:
+      label: Priorité
+      options:
+        - Pas prioritaire
+        - Gênant
+        - Bloquant
+    validations:
+      required: true
+  - type: input
+    id: ecran
+    attributes:
+      label: Écran concerné
+      placeholder: "ex. Révisions, session de révision, Arbres, Verger…"
+  - type: textarea
+    id: remarque
+    attributes:
+      label: Remarque
+      description: Ce qui se passe, ce que tu attendais. Une capture d'écran aide beaucoup.
+    validations:
+      required: true

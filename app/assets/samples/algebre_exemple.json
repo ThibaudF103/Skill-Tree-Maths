@@ -1,0 +1,268 @@
+{
+ "format": "verger",
+ "version": 1,
+ "title": "Algèbre — exemple",
+ "nodes": [
+  {
+   "id": "alg",
+   "parentId": null,
+   "title": "Algèbre (exemple)",
+   "sortIndex": 0,
+   "curriculumKey": "alg",
+   "origin": "official"
+  },
+  {
+   "id": "ev",
+   "parentId": "alg",
+   "title": "Espaces vectoriels de dimension finie",
+   "sortIndex": 0,
+   "curriculumKey": "alg.ev",
+   "origin": "official"
+  },
+  {
+   "id": "ev.base",
+   "parentId": "ev",
+   "title": "Bases et dimension",
+   "sortIndex": 0,
+   "curriculumKey": "alg.ev.base",
+   "origin": "official"
+  },
+  {
+   "id": "ev.rang",
+   "parentId": "ev",
+   "title": "Rang et applications linéaires",
+   "sortIndex": 1,
+   "curriculumKey": "alg.ev.rang",
+   "origin": "official"
+  },
+  {
+   "id": "red",
+   "parentId": "alg",
+   "title": "Réduction des endomorphismes",
+   "sortIndex": 1,
+   "curriculumKey": "alg.red",
+   "origin": "official"
+  },
+  {
+   "id": "red.poly",
+   "parentId": "red",
+   "title": "Polynômes d'endomorphismes",
+   "sortIndex": 0,
+   "curriculumKey": "alg.red.poly",
+   "origin": "official"
+  },
+  {
+   "id": "red.diag",
+   "parentId": "red",
+   "title": "Diagonalisation et trigonalisation",
+   "sortIndex": 1,
+   "curriculumKey": "alg.red.diag",
+   "origin": "official"
+  },
+  {
+   "id": "bil",
+   "parentId": "alg",
+   "title": "Formes bilinéaires et quadratiques",
+   "sortIndex": 2,
+   "curriculumKey": "alg.bil",
+   "origin": "official"
+  },
+  {
+   "id": "grp",
+   "parentId": "alg",
+   "title": "Groupes",
+   "sortIndex": 3,
+   "curriculumKey": "alg.grp",
+   "origin": "official"
+  },
+  {
+   "id": "grp.act",
+   "parentId": "grp",
+   "title": "Actions de groupe",
+   "sortIndex": 0,
+   "curriculumKey": "alg.grp.act",
+   "origin": "official"
+  },
+  {
+   "id": "grp.sym",
+   "parentId": "grp",
+   "title": "Groupe symétrique",
+   "sortIndex": 1,
+   "curriculumKey": "alg.grp.sym",
+   "origin": "official"
+  }
+ ],
+ "items": [
+  {
+   "id": "i1",
+   "nodeId": "ev.base",
+   "kind": "definition",
+   "title": "Famille libre, famille génératrice, base",
+   "body": "Une base est une famille libre et génératrice."
+  },
+  {
+   "id": "i2",
+   "nodeId": "ev.base",
+   "kind": "theorem",
+   "title": "Théorème de la base incomplète",
+   "body": "Toute famille libre se complète en une base à l'aide de vecteurs d'une famille génératrice."
+  },
+  {
+   "id": "i3",
+   "nodeId": "ev.base",
+   "kind": "proposition",
+   "title": "Invariance de la dimension",
+   "body": "Toutes les bases d'un espace de dimension finie ont le même cardinal."
+  },
+  {
+   "id": "i4",
+   "nodeId": "ev.base",
+   "kind": "exercise",
+   "title": "Dimension de l'espace des matrices symétriques",
+   "body": "Montrer que dim S_n(K) = n(n+1)/2."
+  },
+  {
+   "id": "i5",
+   "nodeId": "ev.rang",
+   "kind": "theorem",
+   "title": "Théorème du rang",
+   "body": "dim E = dim Ker u + rg u."
+  },
+  {
+   "id": "i6",
+   "nodeId": "ev.rang",
+   "kind": "corollary",
+   "title": "Injectif ⇔ surjectif ⇔ bijectif en dimension égale"
+  },
+  {
+   "id": "i7",
+   "nodeId": "ev.rang",
+   "kind": "exercise",
+   "title": "Rang d'une matrice de rang 1",
+   "body": "Montrer qu'une matrice de rang 1 s'écrit X·ᵗY."
+  },
+  {
+   "id": "i8",
+   "nodeId": "red.poly",
+   "kind": "definition",
+   "title": "Polynôme minimal",
+   "body": "Générateur unitaire de l'idéal annulateur de u."
+  },
+  {
+   "id": "i9",
+   "nodeId": "red.poly",
+   "kind": "theorem",
+   "title": "Théorème de Cayley-Hamilton",
+   "body": "Le polynôme caractéristique de u annule u."
+  },
+  {
+   "id": "i10",
+   "nodeId": "red.poly",
+   "kind": "lemma",
+   "title": "Lemme des noyaux",
+   "body": "Si P = P₁…P_r avec P_i premiers entre eux deux à deux, Ker P(u) = ⊕ Ker P_i(u)."
+  },
+  {
+   "id": "i11",
+   "nodeId": "red.diag",
+   "kind": "definition",
+   "title": "Endomorphisme diagonalisable",
+   "body": "Il existe une base de vecteurs propres."
+  },
+  {
+   "id": "i12",
+   "nodeId": "red.diag",
+   "kind": "theorem",
+   "title": "Critère de diagonalisabilité",
+   "body": "u est diagonalisable ⇔ son polynôme minimal est scindé à racines simples."
+  },
+  {
+   "id": "i13",
+   "nodeId": "red.diag",
+   "kind": "theorem",
+   "title": "Trigonalisation",
+   "body": "u est trigonalisable ⇔ son polynôme caractéristique est scindé."
+  },
+  {
+   "id": "i14",
+   "nodeId": "red.diag",
+   "kind": "proposition",
+   "title": "Décomposition de Dunford",
+   "body": "u = d + n avec d diagonalisable, n nilpotent, dn = nd, d et n polynômes en u."
+  },
+  {
+   "id": "i15",
+   "nodeId": "red.diag",
+   "kind": "exercise",
+   "title": "Diagonaliser une matrice compagnon"
+  },
+  {
+   "id": "i16",
+   "nodeId": "red.diag",
+   "kind": "exercise",
+   "title": "Commutant d'un endomorphisme diagonalisable"
+  },
+  {
+   "id": "i17",
+   "nodeId": "bil",
+   "kind": "definition",
+   "title": "Forme quadratique non dégénérée"
+  },
+  {
+   "id": "i18",
+   "nodeId": "bil",
+   "kind": "theorem",
+   "title": "Théorème spectral",
+   "body": "Tout endomorphisme autoadjoint d'un espace euclidien est diagonalisable en base orthonormée."
+  },
+  {
+   "id": "i19",
+   "nodeId": "bil",
+   "kind": "theorem",
+   "title": "Loi d'inertie de Sylvester",
+   "body": "La signature d'une forme quadratique réelle ne dépend pas de la base orthogonale choisie."
+  },
+  {
+   "id": "i20",
+   "nodeId": "bil",
+   "kind": "exercise",
+   "title": "Réduction de Gauss d'une forme quadratique"
+  },
+  {
+   "id": "i21",
+   "nodeId": "grp.act",
+   "kind": "definition",
+   "title": "Action de groupe, orbite, stabilisateur"
+  },
+  {
+   "id": "i22",
+   "nodeId": "grp.act",
+   "kind": "property",
+   "title": "Formule des classes"
+  },
+  {
+   "id": "i23",
+   "nodeId": "grp.act",
+   "kind": "theorem",
+   "title": "Théorèmes de Sylow"
+  },
+  {
+   "id": "i24",
+   "nodeId": "grp.sym",
+   "kind": "definition",
+   "title": "Signature d'une permutation"
+  },
+  {
+   "id": "i25",
+   "nodeId": "grp.sym",
+   "kind": "proposition",
+   "title": "Les transpositions engendrent S_n"
+  },
+  {
+   "id": "i26",
+   "nodeId": "grp.sym",
+   "kind": "exercise",
+   "title": "Centre de S_n"
+  }
+ ]
+}

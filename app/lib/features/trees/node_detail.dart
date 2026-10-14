@@ -1,0 +1,292 @@
+import 'package:flutter/material.dart';
+import 'package:verger_core/verger_core.dart';
+
+import '../../app/app_scope.dart';
+import '../../ui/dialogs.dart';
+import '../../ui/item_glyph.dart';
+import '../items/item_detail_page.dart';
+import '../items/item_editor.dart';
+import '../items/item_tile.dart';
+import 'tree_data.dart';
+
+/// Contenu d'un nœud : chemin, sous-branches et connaissances.
+class NodeDetail extends StatelessWidget {
+  const NodeDetail({
+    super.key,
+    required this.data,
+    required this.nodeId,
+    required this.onSelect,
+  });
+
+  final TreeData data;
+  final String nodeId;
+
+  /// Navigation vers un autre nœud (`null` : retour à la liste des arbres).
+  final ValueChanged<String?> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final node = data.byId[nodeId];
+    if (node == null) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    final path = data.pathTo(nodeId);
+    final children = data.children(nodeId);
+    final items = data.itemsIn(nodeId);
+    final progress = data.progress[nodeId]!;
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 48),
+      children: [
+        _Breadcrumb(path: path, onSelect: onSelect),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            Expanded(
+              child: Text(node.title, style: theme.textTheme.headlineMedium),
+            ),
+            _NodeMenu(data: data, node: node, onSelect: onSelect),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          _summary(progress),
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.outline,
+          ),
+        ),
+        const SizedBox(height: 24),
+        _SectionHeader(
+          title: node.isTree ? 'Branches' : 'Sous-branches',
+          action: TextButton.icon(
+            onPressed: () => addChildNode(context, node),
+            icon: const Icon(Icons.add),
+            label: const Text('Branche'),
+          ),
+        ),
+        if (children.isEmpty)
+          _Hint(
+            node.isTree
+                ? 'Organisez ce domaine en branches (ex. « Réduction des endomorphismes »).'
+                : 'Aucune sous-branche.',
+          )
+        else
+          for (final child in children)
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+              leading: Icon(
+                Icons.subdirectory_arrow_right,
+                color: theme.colorScheme.outline,
+              ),
+              title: Text(child.title),
+              subtitle: Text(_summary(data.progress[child.id]!)),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => onSelect(child.id),
+            ),
+        const SizedBox(height: 24),
+        _SectionHeader(
+          title: 'Connaissances',
+          action: MenuAnchor(
+            builder: (context, controller, _) => FilledButton.tonalIcon(
+              onPressed: () =>
+                  controller.isOpen ? controller.close() : controller.open(),
+              icon: const Icon(Icons.add),
+              label: const Text('Ajouter'),
+            ),
+            menuChildren: [
+              for (final family in ItemFamily.values)
+                MenuItemButton(
+                  leadingIcon: ItemGlyph(
+                    family: family,
+                    stage: GrowthStage.mature,
+                    size: 22,
+                  ),
+                  onPressed: () =>
+                      showItemEditor(context, nodeId: node.id, family: family),
+                  child: Text(switch (family) {
+                    ItemFamily.definition => 'Définition',
+                    ItemFamily.statement => 'Propriété / théorème',
+                    ItemFamily.exercise => 'Exercice',
+                  }),
+                ),
+            ],
+          ),
+        ),
+        if (items.isEmpty)
+          const _Hint(
+            'Aucune connaissance ici pour l\'instant : un rameau en hiver.',
+          )
+        else
+          for (final item in items)
+            ItemTile(
+              item: item,
+              now: data.now,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => ItemDetailPage(
+                    itemId: item.id,
+                    path: path.map((n) => n.title).join(' › '),
+                  ),
+                ),
+              ),
+            ),
+      ],
+    );
+  }
+
+  static String _summary(NodeProgress p) {
+    if (p.isEmpty) return 'Aucune connaissance';
+    final parts = [
+      p.itemCount == 1 ? '1 connaissance' : '${p.itemCount} connaissances',
+      if (p.dueCount > 0) '${p.dueCount} à réviser',
+      'maîtrise ${(p.meanMastery * 100).round()} %',
+    ];
+    return parts.join(' · ');
+  }
+}
+
+/// Demande un nom puis crée un sous-nœud de [parent].
+Future<void> addChildNode(BuildContext context, KnowledgeNode parent) async {
+  final store = AppScope.of(context).store;
+  final name = await askName(
+    context,
+    title: 'Nouvelle branche dans « ${parent.title} »',
+    hint: 'Espaces vectoriels de dimension finie',
+    confirm: 'Créer',
+  );
+  if (name != null) await store.createNode(title: name, parentId: parent.id);
+}
+
+class _NodeMenu extends StatelessWidget {
+  const _NodeMenu({
+    required this.data,
+    required this.node,
+    required this.onSelect,
+  });
+
+  final TreeData data;
+  final KnowledgeNode node;
+  final ValueChanged<String?> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final store = AppScope.of(context).store;
+    return PopupMenuButton<String>(
+      tooltip: 'Actions',
+      onSelected: (action) async {
+        switch (action) {
+          case 'rename':
+            final name = await askName(
+              context,
+              title: 'Renommer',
+              initial: node.title,
+            );
+            if (name != null) await store.renameNode(node.id, name);
+          case 'delete':
+            final branches = _descendantCount(node.id);
+            final items = data.progress[node.id]!.itemCount;
+            final empty = branches == 0 && items == 0;
+            final ok = await confirmDestructive(
+              context,
+              title: 'Supprimer « ${node.title} » ?',
+              message: empty
+                  ? 'Cette branche est vide.'
+                  : 'Seront aussi supprimés définitivement : '
+                        '$branches sous-branche(s) et $items connaissance(s), '
+                        'avec leur historique de révision.',
+            );
+            if (!ok) return;
+            onSelect(node.parentId);
+            await store.deleteNode(node.id, recursive: true);
+        }
+      },
+      itemBuilder: (context) => const [
+        PopupMenuItem(value: 'rename', child: Text('Renommer')),
+        PopupMenuItem(value: 'delete', child: Text('Supprimer')),
+      ],
+    );
+  }
+
+  int _descendantCount(String id) {
+    var count = 0;
+    for (final child in data.children(id)) {
+      count += 1 + _descendantCount(child.id);
+    }
+    return count;
+  }
+}
+
+class _Breadcrumb extends StatelessWidget {
+  const _Breadcrumb({required this.path, required this.onSelect});
+
+  final List<KnowledgeNode> path;
+  final ValueChanged<String?> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = Theme.of(context).textTheme.labelLarge?.copyWith(
+      color: Theme.of(context).colorScheme.outline,
+    );
+    if (path.length < 2) return const SizedBox(height: 20);
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        for (final (i, node) in path.take(path.length - 1).indexed) ...[
+          if (i > 0) Text(' › ', style: style),
+          InkWell(
+            borderRadius: BorderRadius.circular(4),
+            onTap: () => onSelect(node.id),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 2),
+              child: Text(node.title, style: style),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.title, required this.action});
+  final String title;
+  final Widget action;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+            action,
+          ],
+        ),
+        const Divider(),
+      ],
+    );
+  }
+}
+
+class _Hint extends StatelessWidget {
+  const _Hint(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      child: Text(
+        text,
+        style: theme.textTheme.bodyMedium?.copyWith(
+          color: theme.colorScheme.outline,
+        ),
+      ),
+    );
+  }
+}
