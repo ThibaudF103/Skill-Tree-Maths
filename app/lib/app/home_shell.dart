@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:verger_core/verger_core.dart';
 
+import '../features/orchard/orchard_page.dart';
 import '../features/review/reviews_page.dart';
 import '../features/trees/trees_page.dart';
 import 'app_scope.dart';
@@ -69,7 +70,7 @@ class _HomeShellState extends State<HomeShell> {
     final page = switch (_index) {
       1 => const ReviewsPage(),
       2 => const TreesPage(),
-      _ => _PlaceholderPage(title: _destinations[_index].label),
+      _ => const OrchardPage(),
     };
 
     if (wide) {
@@ -108,33 +109,6 @@ class _HomeShellState extends State<HomeShell> {
               label: d.label,
             ),
         ],
-      ),
-    );
-  }
-}
-
-class _PlaceholderPage extends StatelessWidget {
-  const _PlaceholderPage({required this.title});
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return SafeArea(
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(title, style: theme.textTheme.headlineMedium),
-            const SizedBox(height: 8),
-            Text(
-              'À venir',
-              style: theme.textTheme.bodyLarge?.copyWith(
-                color: theme.colorScheme.outline,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

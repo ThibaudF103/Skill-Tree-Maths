@@ -53,6 +53,20 @@ class TreeData {
 
   List<KnowledgeItem> itemsIn(String id) => itemsOf[id] ?? const [];
 
+  /// Connaissances du nœud et de toute sa descendance.
+  List<KnowledgeItem> subtreeItems(String id) {
+    final result = <KnowledgeItem>[];
+    final pending = [id];
+    final seen = <String>{};
+    while (pending.isNotEmpty) {
+      final current = pending.removeLast();
+      if (!seen.add(current)) continue;
+      result.addAll(itemsIn(current));
+      pending.addAll(children(current).map((n) => n.id));
+    }
+    return result;
+  }
+
   /// Chemin depuis la racine jusqu'au nœud inclus.
   List<KnowledgeNode> pathTo(String id) {
     final path = <KnowledgeNode>[];
