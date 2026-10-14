@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:verger_core/verger_core.dart';
 
-import 'app_scope.dart';
+import '../features/trees/trees_page.dart';
 
 /// Navigation principale : rail latéral sur grand écran (iPad, PC),
 /// barre inférieure sur téléphone.
@@ -32,7 +31,7 @@ class _HomeShellState extends State<HomeShell> {
   Widget build(BuildContext context) {
     final wide = MediaQuery.sizeOf(context).width >= 700;
     final page = _index == 2
-        ? const _TreesSummaryPage()
+        ? const TreesPage()
         : _PlaceholderPage(title: _destinations[_index].label);
 
     if (wide) {
@@ -97,44 +96,6 @@ class _PlaceholderPage extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Provisoire (étape 2) : vérifie que la base locale est accessible.
-class _TreesSummaryPage extends StatelessWidget {
-  const _TreesSummaryPage();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return SafeArea(
-      child: Center(
-        child: StreamBuilder<List<KnowledgeNode>>(
-          stream: AppScope.storeOf(context).watchNodes(),
-          builder: (context, snapshot) {
-            final trees = snapshot.data?.where((n) => n.isTree).length;
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Arbres', style: theme.textTheme.headlineMedium),
-                const SizedBox(height: 8),
-                Text(
-                  switch (trees) {
-                    null => 'Ouverture de la base…',
-                    0 => 'Base locale prête — aucun arbre pour l\'instant',
-                    1 => '1 arbre',
-                    final n => '$n arbres',
-                  },
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    color: theme.colorScheme.outline,
-                  ),
-                ),
-              ],
-            );
-          },
         ),
       ),
     );

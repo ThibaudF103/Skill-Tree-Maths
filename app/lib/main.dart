@@ -4,15 +4,19 @@ import 'package:verger_data/verger_data.dart';
 
 import 'app/verger_app.dart';
 
-void main() {
-  final database = VergerDatabase(
-    driftDatabase(
-      name: 'verger',
-      web: DriftWebOptions(
-        sqlite3Wasm: Uri.parse('sqlite3.wasm'),
-        driftWorker: Uri.parse('drift_worker.js'),
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final store = VergerStore(
+    VergerDatabase(
+      driftDatabase(
+        name: 'verger',
+        web: DriftWebOptions(
+          sqlite3Wasm: Uri.parse('sqlite3.wasm'),
+          driftWorker: Uri.parse('drift_worker.js'),
+        ),
       ),
     ),
   );
-  runApp(VergerApp(store: VergerStore(database)));
+  final settings = await store.schedulerSettings();
+  runApp(VergerApp(store: store, scheduler: settings.build()));
 }

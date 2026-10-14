@@ -187,7 +187,7 @@ Indicateur séparé « à arroser » : échéance dépassée.
 | 0 | Squelette Flutter, package core, CI (tests + exécutable Windows) ✅ |
 | 1 | Domaine, adaptateur FSRS, maîtrise, file de révision + tests ✅ |
 | 2 | Persistance drift + dépôts + tests ✅ |
-| 3 | Vue Arbre (plan) : création d'arbres, nœuds, items |
+| 3 | Vue Arbres (plan) : création d'arbres, nœuds, items ✅ |
 | 4 | Révisions : file + session |
 | 5 | Verger v0 (CustomPainter, descente par niveaux) |
 | 6 | Export/import JSON + données d'exemple |
