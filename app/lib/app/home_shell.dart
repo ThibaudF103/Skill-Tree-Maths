@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:verger_core/verger_core.dart';
 
+import '../features/review/reviews_page.dart';
 import '../features/trees/trees_page.dart';
+import 'app_scope.dart';
 
 /// Navigation principale : rail latéral sur grand écran (iPad, PC),
 /// barre inférieure sur téléphone.
@@ -26,13 +29,48 @@ const _destinations = [
 
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
+  Stream<List<KnowledgeItem>>? _items;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _items ??= AppScope.of(context).store.watchItems();
+  }
+
+  /// Icône avec, pour « Révisions », le nombre de connaissances dues.
+  Widget _icon(int index, IconData icon) {
+    if (index != 1) return Icon(icon);
+    return StreamBuilder<List<KnowledgeItem>>(
+      stream: _items,
+      builder: (context, snapshot) {
+        final tomorrow = DayWindow.around(DateTime.now()).startOfTomorrow;
+        final due =
+            snapshot.data
+                ?.where(
+                  (i) =>
+                      !i.suspended &&
+                      !i.scheduling.isNew &&
+                      i.scheduling.due!.isBefore(tomorrow),
+                )
+                .length ??
+            0;
+        return Badge(
+          isLabelVisible: due > 0,
+          label: Text('$due'),
+          child: Icon(icon),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final wide = MediaQuery.sizeOf(context).width >= 700;
-    final page = _index == 2
-        ? const TreesPage()
-        : _PlaceholderPage(title: _destinations[_index].label);
+    final page = switch (_index) {
+      1 => const ReviewsPage(),
+      2 => const TreesPage(),
+      _ => _PlaceholderPage(title: _destinations[_index].label),
+    };
 
     if (wide) {
       return Scaffold(
@@ -43,10 +81,10 @@ class _HomeShellState extends State<HomeShell> {
               onDestinationSelected: (i) => setState(() => _index = i),
               labelType: NavigationRailLabelType.all,
               destinations: [
-                for (final d in _destinations)
+                for (final (i, d) in _destinations.indexed)
                   NavigationRailDestination(
-                    icon: Icon(d.icon),
-                    selectedIcon: Icon(d.selectedIcon),
+                    icon: _icon(i, d.icon),
+                    selectedIcon: _icon(i, d.selectedIcon),
                     label: Text(d.label),
                   ),
               ],
@@ -63,10 +101,10 @@ class _HomeShellState extends State<HomeShell> {
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),
         destinations: [
-          for (final d in _destinations)
+          for (final (i, d) in _destinations.indexed)
             NavigationDestination(
-              icon: Icon(d.icon),
-              selectedIcon: Icon(d.selectedIcon),
+              icon: _icon(i, d.icon),
+              selectedIcon: _icon(i, d.selectedIcon),
               label: d.label,
             ),
         ],

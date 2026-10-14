@@ -105,4 +105,32 @@ void main() {
       expect(queue.map((e) => e.id), ['n0', 'n1']);
     });
   });
+
+  group('groupReviewList', () {
+    test('répartit et trie chaque groupe', () {
+      final groups = groupReviewList(
+        [
+          c('nouvelle-recente', SchedulingState.initial, age: 5),
+          c('apres-demain', reviewDue(DateTime(2026, 3, 7, 9))),
+          c('demain', reviewDue(DateTime(2026, 3, 5, 9))),
+          c('retard-leger', reviewDue(DateTime(2026, 3, 3, 9), stability: 30)),
+          c('retard-fort', reviewDue(DateTime(2026, 2, 20, 9), stability: 3)),
+          c('ce-soir', reviewDue(DateTime(2026, 3, 4, 20))),
+          c('ce-matin', reviewDue(DateTime(2026, 3, 4, 8))),
+          c('nouvelle-ancienne', SchedulingState.initial, age: 1),
+        ],
+        now: now,
+        scheduler: scheduler,
+      );
+      List<String> ids(ReviewBucket b) => groups[b]!.map((e) => e.id).toList();
+      expect(ids(ReviewBucket.overdue), ['retard-fort', 'retard-leger']);
+      expect(ids(ReviewBucket.today), ['ce-matin', 'ce-soir']);
+      expect(ids(ReviewBucket.tomorrow), ['demain']);
+      expect(ids(ReviewBucket.later), ['apres-demain']);
+      expect(ids(ReviewBucket.newItem), [
+        'nouvelle-ancienne',
+        'nouvelle-recente',
+      ]);
+    });
+  });
 }

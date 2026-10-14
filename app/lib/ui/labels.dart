@@ -86,3 +86,23 @@ String formatDue(DateTime due, DateTime now) {
       24;
   return days < 60 ? 'dans $days j' : 'le ${formatDate(due, now: now)}';
 }
+
+/// Intervalle court et lisible : « 10 min », « 6 h », « 4 j », « 3 mois ».
+String formatInterval(Duration d) {
+  if (d.inMinutes < 60) return '${d.inMinutes} min';
+  if (d.inHours < 24) return '${d.inHours} h';
+  final days = (d.inHours / 24).round();
+  if (days < 31) return '$days j';
+  if (days < 365) return '${(days / 30.4).round()} mois';
+  final years = days / 365;
+  return years < 10
+      ? '${years.toStringAsFixed(1).replaceAll('.', ',')} an${years >= 2 ? 's' : ''}'
+      : '${years.round()} ans';
+}
+
+/// Durée de session : « 45 s », « 12 min », « 1 h 05 ».
+String formatElapsed(Duration d) {
+  if (d.inSeconds < 60) return '${d.inSeconds} s';
+  if (d.inMinutes < 60) return '${d.inMinutes} min';
+  return '${d.inHours} h ${(d.inMinutes % 60).toString().padLeft(2, '0')}';
+}

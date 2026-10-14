@@ -92,3 +92,46 @@ List<QueueEntry<T>> buildReviewQueue<T>(
     for (final c in fresh.take(newLimit ?? fresh.length)) entry(c, 0),
   ];
 }
+
+/// Regroupe les connaissances pour la liste des révisions :
+/// - en retard : la probabilité de rappel la plus faible d'abord ;
+/// - aujourd'hui, demain, plus tard : par échéance ;
+/// - nouvelles : les plus anciennes d'abord.
+Map<ReviewBucket, List<QueueEntry<T>>> groupReviewList<T>(
+  Iterable<ReviewCandidate<T>> candidates, {
+  required DateTime now,
+  required Scheduler scheduler,
+}) {
+  final window = DayWindow.around(now);
+  final groups = {
+    for (final b in ReviewBucket.values) b: <ReviewCandidate<T>>[],
+  };
+  final r = <T, double>{};
+  for (final c in candidates) {
+    groups[bucketOf(c.state, window)]!.add(c);
+    r[c.id] = scheduler.retrievability(c.state, now);
+  }
+  int byDue(ReviewCandidate<T> a, ReviewCandidate<T> b) =>
+      a.state.due!.compareTo(b.state.due!);
+  groups[ReviewBucket.overdue]!.sort((a, b) {
+    final byR = r[a.id]!.compareTo(r[b.id]!);
+    return byR != 0 ? byR : byDue(a, b);
+  });
+  for (final b in [
+    ReviewBucket.today,
+    ReviewBucket.tomorrow,
+    ReviewBucket.later,
+  ]) {
+    groups[b]!.sort(byDue);
+  }
+  groups[ReviewBucket.newItem]!.sort(
+    (a, b) => a.createdAt.compareTo(b.createdAt),
+  );
+  return {
+    for (final MapEntry(key: bucket, value: list) in groups.entries)
+      bucket: [
+        for (final c in list)
+          (id: c.id, bucket: bucket, retrievability: r[c.id]!),
+      ],
+  };
+}
