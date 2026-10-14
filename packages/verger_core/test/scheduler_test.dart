@@ -115,7 +115,7 @@ void main() {
       );
       expect(record.before, SchedulingState.initial);
       expect(record.after.reps, 1);
-      expect(record.schedulerId, 'fsrs-6/r0.90');
+      expect(record.schedulerId, 'fsrs-6/r0.90/l1m,10m/rl10m');
       expect(record.duration, const Duration(seconds: 40));
     });
 
@@ -126,6 +126,51 @@ void main() {
         s = capped.review(s, Rating.easy, s.due ?? t0);
       }
       expect(s.due!.difference(s.lastReview!).inDays, 10);
+    });
+  });
+
+  group('SchedulerSettings', () {
+    test(
+      'par défaut : 6 h et 1 jour, en apprentissage comme après un oubli',
+      () {
+        final scheduler = const SchedulerSettings().build();
+        expect(scheduler.id, 'fsrs-6/r0.90/l6h,1d/rl6h,1d');
+
+        // Première révision d'une connaissance nouvelle.
+        final first = scheduler.preview(SchedulingState.initial, t0);
+        Duration delay(Rating r) => first[r]!.due!.difference(t0);
+        expect(delay(Rating.again), const Duration(hours: 6));
+        expect(delay(Rating.hard), const Duration(hours: 15));
+        expect(delay(Rating.good), const Duration(days: 1));
+        expect(first[Rating.easy]!.phase, LearningPhase.review);
+
+        // Oubliée puis retrouvée : 6 h, puis 1 jour, puis révision espacée.
+        var s = first[Rating.again]!;
+        s = scheduler.review(s, Rating.good, s.due!);
+        expect(s.phase, LearningPhase.learning);
+        expect(s.due!.difference(s.lastReview!), const Duration(days: 1));
+        s = scheduler.review(s, Rating.good, s.due!);
+        expect(s.phase, LearningPhase.review);
+
+        // Oubli en révision espacée : même schéma.
+        s = scheduler.review(s, Rating.again, s.due!);
+        expect(s.phase, LearningPhase.relearning);
+        expect(s.due!.difference(s.lastReview!), const Duration(hours: 6));
+        s = scheduler.review(s, Rating.good, s.due!);
+        expect(s.due!.difference(s.lastReview!), const Duration(days: 1));
+      },
+    );
+
+    test('aller-retour JSON', () {
+      const settings = SchedulerSettings(
+        desiredRetention: 0.85,
+        learningSteps: [Duration(minutes: 30)],
+        relearningSteps: [],
+        maximumInterval: 200,
+      );
+      final copy = SchedulerSettings.fromJson(settings.toJson());
+      expect(copy.toJson(), settings.toJson());
+      expect(copy.build().id, 'fsrs-6/r0.85/l30m/rl');
     });
   });
 }

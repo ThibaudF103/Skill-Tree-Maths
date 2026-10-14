@@ -7,10 +7,14 @@ environment:
   sdk: ^3.9.0
 
 dependencies:
+  drift: ^2.35.2
+  drift_flutter: ^0.3.1
   flutter:
     sdk: flutter
   verger_core:
     path: ../packages/verger_core
+  verger_data:
+    path: ../packages/verger_data
 
 dev_dependencies:
   flutter_test:

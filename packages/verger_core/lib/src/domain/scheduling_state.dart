@@ -44,6 +44,32 @@ final class SchedulingState {
 
   bool get isNew => phase == LearningPhase.newItem;
 
+  factory SchedulingState.fromJson(Map<String, Object?> json) {
+    DateTime? date(Object? value) =>
+        value == null ? null : DateTime.parse(value as String);
+    return SchedulingState(
+      phase: LearningPhase.values.byName(json['phase'] as String),
+      step: json['step'] as int?,
+      stability: (json['stability'] as num?)?.toDouble(),
+      difficulty: (json['difficulty'] as num?)?.toDouble(),
+      due: date(json['due']),
+      lastReview: date(json['lastReview']),
+      reps: json['reps'] as int? ?? 0,
+      lapses: json['lapses'] as int? ?? 0,
+    );
+  }
+
+  Map<String, Object?> toJson() => {
+    'phase': phase.name,
+    'step': step,
+    'stability': stability,
+    'difficulty': difficulty,
+    'due': due?.toUtc().toIso8601String(),
+    'lastReview': lastReview?.toUtc().toIso8601String(),
+    'reps': reps,
+    'lapses': lapses,
+  };
+
   @override
   bool operator ==(Object other) =>
       other is SchedulingState &&

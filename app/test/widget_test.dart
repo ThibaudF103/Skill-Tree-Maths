@@ -1,18 +1,24 @@
+import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:verger/app/verger_app.dart';
+import 'package:verger_data/verger_data.dart';
 
 void main() {
-  testWidgets('la navigation principale affiche les trois sections', (
+  testWidgets('navigation principale et lecture de la base locale', (
     tester,
   ) async {
-    await tester.pumpWidget(const VergerApp());
+    final store = VergerStore(VergerDatabase(NativeDatabase.memory()));
+    await tester.runAsync(() => store.createNode(title: 'Algèbre'));
 
+    await tester.pumpWidget(VergerApp(store: store));
     expect(find.text('Verger'), findsWidgets);
     expect(find.text('Révisions'), findsOneWidget);
-    expect(find.text('Arbres'), findsOneWidget);
 
-    await tester.tap(find.text('Révisions'));
+    await tester.tap(find.text('Arbres'));
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
     await tester.pumpAndSettle();
-    expect(find.text('Révisions'), findsNWidgets(2));
+    expect(find.text('1 arbre'), findsOneWidget);
+
+    await tester.runAsync(store.close);
   });
 }

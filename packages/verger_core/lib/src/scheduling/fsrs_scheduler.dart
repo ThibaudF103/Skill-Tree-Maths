@@ -60,8 +60,21 @@ final class FsrsScheduler implements Scheduler {
   late final double _decay;
   late final double _factor;
 
+  /// Ex. `fsrs-6/r0.90/l6h,1d/rl6h`.
   @override
-  String get id => 'fsrs-6/r${desiredRetention.toStringAsFixed(2)}';
+  String get id =>
+      'fsrs-6/r${desiredRetention.toStringAsFixed(2)}'
+      '/l${_formatSteps(learningSteps)}/rl${_formatSteps(relearningSteps)}';
+
+  static String _formatSteps(List<Duration> steps) => steps
+      .map(
+        (d) => d.inMinutes % 1440 == 0
+            ? '${d.inDays}d'
+            : d.inMinutes % 60 == 0
+            ? '${d.inHours}h'
+            : '${d.inMinutes}m',
+      )
+      .join(',');
 
   @override
   double retrievability(SchedulingState state, DateTime at) {

@@ -49,14 +49,18 @@ packages/core/        Dart pur, aucune dépendance Flutter
   review_queue/       priorisation des révisions
   interchange/        DTO JSON (export/import, arbres partageables)
 
+packages/verger_data/ persistance : schéma drift (SQLite), VergerStore (seule API vue par l'app)
+
 app/                  application Flutter
-  lib/data/           base drift, dépôts (repositories), mapping vers les types du core
   lib/features/       orchard, tree, review, item, documents, settings
   lib/orchard/        géométrie pure (layout) + rendu CustomPainter
 ```
 
 - La logique métier ne voit que des types valeur ; drift n'est qu'un détail
-  de persistance.
+  de persistance, testé en Dart pur (`dart test`, base en mémoire et fichier).
+- Base ouverte via `drift_flutter` : fichier SQLite natif (Windows, iOS,
+  Android), SQLite WebAssembly sur le web (`web/sqlite3.wasm`,
+  `web/drift_worker.js`, versions alignées sur les packages `sqlite3` et `drift`).
 - Gestion d'état : `ChangeNotifier`/`ValueNotifier` + streams drift, sans
   framework supplémentaire tant que ce n'est pas nécessaire.
 
@@ -65,11 +69,9 @@ app/                  application Flutter
 Noms génériques (pas spécifiques à l'agrégation) pour l'app universelle.
 
 ```
-KnowledgeTree          un domaine (Algèbre, Analyse…) = un arbre du verger
-  id, title, sortIndex, createdAt
-
 KnowledgeNode          structure, profondeur libre (liste d'adjacence)
-  id, treeId, parentId?, title, sortIndex
+                       un nœud sans parent = un arbre du verger (Algèbre, Analyse…)
+  id, parentId?, title, sortIndex, createdAt
   curriculumKey?       clé stable pour ré-importer un programme sans rien perdre
   origin               official | user
 
@@ -82,7 +84,9 @@ KnowledgeItem          ce que j'ai décidé d'apprendre
 
 ReviewLog              append-only, source de vérité (permet de rejouer l'historique)
   id, itemId, reviewedAt, rating, durationMs?,
-  état avant/après (stabilité, difficulté, phase, échéance), schedulerId
+  stateBefore / stateAfter (JSON de SchedulingState), schedulerId
+
+Settings               clé → JSON (réglages de révision : SchedulerSettings)
 
 Document               PDF importé (copie dans la bibliothèque de l'app)
   id, title, role (course|notes), storedFile, pageCount, contentHash, importedAt, version
@@ -102,8 +106,14 @@ nécessite aucune migration.
 ## FSRS
 
 - `FsrsScheduler` est un portage fidèle de l'ordonnanceur de py-fsrs 6.3.2
-  (paramètres par défaut, étapes d'apprentissage 1 min / 10 min, réapprentissage
-  10 min, rétention visée 0,90).
+  (mêmes valeurs par défaut que py-fsrs, utilisées par le test de référence).
+- Réglages de l'application (`SchedulerSettings`, persistés) : rétention 0,90,
+  étapes d'apprentissage **6 h, 1 j** et de réapprentissage **6 h, 1 j**.
+  Première révision d'une connaissance nouvelle : Again → 6 h, Hard → 15 h,
+  Good → 1 j, Easy → directement en révision espacée.
+- Les poids FSRS par défaut conviennent tant que l'historique est court ; après
+  quelques centaines de révisions, ils pourront être ré-optimisés sur
+  l'historique personnel (optimiseur de py-fsrs, hors application).
 - `test/fsrs_reference_test.dart` rejoue 8 scénarios calculés par py-fsrs
   (`tool/generate_fsrs_reference.py`) : stabilité, difficulté, phase et
   échéance concordent exactement. À relancer à chaque montée de version.
@@ -150,6 +160,15 @@ selon la journée locale.
 
 Indicateur séparé « à arroser » : échéance dépassée.
 
+## Persistance
+
+- `VergerStore` : nœuds (création, renommage, déplacement avec contrôle des
+  cycles, suppression refusée si non vide sauf en récursif), connaissances,
+  révisions (trace + nouvel état dans une même transaction, refus d'une
+  révision calculée sur un état périmé), réglages.
+- Schéma versionné (`schemaVersion`) ; schémas exportés dans
+  `packages/verger_data/drift_schemas/` pour tester les migrations futures.
+
 ## PDF et notes manuscrites : recto / verso
 
 - **Recto** : ancre `source` sur le PDF de cours (énoncé).
@@ -165,9 +184,9 @@ Indicateur séparé « à arroser » : échéance dépassée.
 
 | Étape | Contenu |
 |---|---|
-| 0 | Squelette Flutter, package core, CI (tests + exécutable Windows) |
-| 1 | Domaine, adaptateur FSRS, maîtrise, file de révision + tests |
-| 2 | Persistance drift + dépôts + tests |
+| 0 | Squelette Flutter, package core, CI (tests + exécutable Windows) ✅ |
+| 1 | Domaine, adaptateur FSRS, maîtrise, file de révision + tests ✅ |
+| 2 | Persistance drift + dépôts + tests ✅ |
 | 3 | Vue Arbre (plan) : création d'arbres, nœuds, items |
 | 4 | Révisions : file + session |
 | 5 | Verger v0 (CustomPainter, descente par niveaux) |

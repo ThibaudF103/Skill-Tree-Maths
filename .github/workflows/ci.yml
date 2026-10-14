@@ -26,6 +26,13 @@ jobs:
           dart format --output=none --set-exit-if-changed .
           dart analyze --fatal-infos
           dart test
+      - name: verger_data
+        working-directory: packages/verger_data
+        run: |
+          dart pub get
+          dart format --output=none --set-exit-if-changed .
+          dart analyze --fatal-infos
+          dart test
       - name: app
         working-directory: app
         run: |
