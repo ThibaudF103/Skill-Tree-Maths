@@ -2,3 +2,13 @@
 library;
 
 export 'src/domain/item_kind.dart';
+export 'src/domain/learning_phase.dart';
+export 'src/domain/rating.dart';
+export 'src/domain/review_record.dart';
+export 'src/domain/scheduling_state.dart';
+export 'src/progress/growth_stage.dart';
+export 'src/progress/mastery.dart';
+export 'src/progress/tree_progress.dart';
+export 'src/review_queue/review_queue.dart';
+export 'src/scheduling/fsrs_scheduler.dart';
+export 'src/scheduling/scheduler.dart';

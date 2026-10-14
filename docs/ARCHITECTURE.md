@@ -31,7 +31,7 @@ peuvent être remplacés sans toucher au stockage.
 | Build sans Mac | GitHub Actions : exécutable Windows téléchargeable. iOS plus tard (Apple Developer + Codemagic/TestFlight) |
 | Développement | Dans l'environnement cloud de Claude Code ; le PC sert uniquement à tester les builds |
 | Persistance | SQLite local via `drift`, 100 % hors ligne. Export/import JSON |
-| FSRS | Package `fsrs` (port officiel de py-fsrs, MIT, FSRS-6), derrière une interface `Scheduler` |
+| FSRS | **Portage FSRS-6 de py-fsrs 6.3.2** (MIT) derrière l'interface `Scheduler`, validé contre des valeurs de référence. Le package Dart `fsrs` 2.0.1 a été écarté : il diverge de l'implémentation officielle (voir « FSRS » ci-dessous) |
 | Stratégie de révision | Paramètres FSRS par défaut (rétention 0,90). `LearningPlan` (date cible, rétention) prévu mais non utilisé |
 | Rattachement des items | À n'importe quel nœud de l'arbre |
 | Maîtrise initiale | Évaluation initiale facultative = première révision FSRS (pas de curseur manuel) |
@@ -44,7 +44,7 @@ peuvent être remplacés sans toucher au stockage.
 ```
 packages/core/        Dart pur, aucune dépendance Flutter
   domain/             types valeur : ItemKind, Rating, SchedulingState, ReviewRecord…
-  scheduling/         interface Scheduler + FsrsScheduler (seul fichier qui importe `fsrs`)
+  scheduling/         interface Scheduler + FsrsScheduler (portage FSRS-6)
   progress/           maîtrise, stades de croissance, agrégats par nœud
   review_queue/       priorisation des révisions
   interchange/        DTO JSON (export/import, arbres partageables)
@@ -98,6 +98,44 @@ LearningPlan           (prévu, non utilisé dans le MVP) par arbre : date cible
 La maîtrise n'est **pas** stockée : elle est calculée à partir de l'état FSRS
 (rétention actuelle R(t) et stabilité). Changer la règle de croissance ne
 nécessite aucune migration.
+
+## FSRS
+
+- `FsrsScheduler` est un portage fidèle de l'ordonnanceur de py-fsrs 6.3.2
+  (paramètres par défaut, étapes d'apprentissage 1 min / 10 min, réapprentissage
+  10 min, rétention visée 0,90).
+- `test/fsrs_reference_test.dart` rejoue 8 scénarios calculés par py-fsrs
+  (`tool/generate_fsrs_reference.py`) : stabilité, difficulté, phase et
+  échéance concordent exactement. À relancer à chaque montée de version.
+- Le package Dart `fsrs` 2.0.1 a été écarté après comparaison : il laisse
+  « Hard » faire baisser la stabilité en apprentissage et borne la difficulté
+  cible, contrairement à py-fsrs actuel ; ses paramètres par défaut sont aussi
+  plus anciens.
+- Aléa des intervalles (« fuzz ») déterministe, initialisé par l'identifiant de
+  la connaissance : l'intervalle affiché sur chaque bouton est exactement celui
+  appliqué, et des connaissances créées ensemble sont dispersées.
+- Chaque révision est enregistrée avec l'état avant/après et l'identifiant de
+  l'ordonnanceur (`fsrs-6/r0.90`) ; `replay` recalcule l'état depuis l'historique.
+
+## Maîtrise
+
+```
+maîtrise = R(t) × min(1, ln(1 + S) / ln(1 + 90 j))
+```
+
+R(t) : probabilité de rappel actuelle (baisse si on tarde à réviser) ;
+S : stabilité, sur une échelle logarithmique, avec une cible de 90 jours
+(réglable). Une connaissance nouvelle a une maîtrise nulle.
+
+## File de révision
+
+1. Étapes d'apprentissage / réapprentissage arrivées à échéance.
+2. Révisions dues avant la fin de la journée, probabilité de rappel la plus
+   faible d'abord.
+3. Nouvelles connaissances, les plus anciennes d'abord (limite facultative).
+
+Liste des révisions : En retard / Aujourd'hui / Demain / Plus tard / Nouvelles,
+selon la journée locale.
 
 ## Stades de croissance (première version, ajustable)
 
