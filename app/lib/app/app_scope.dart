@@ -9,12 +9,16 @@ class AppScope extends InheritedWidget {
     required this.store,
     required this.scheduler,
     this.mastery = const MasteryModel(),
+    required this.reloadSettings,
     required super.child,
   });
 
   final VergerStore store;
   final Scheduler scheduler;
   final MasteryModel mastery;
+
+  /// Relit les réglages enregistrés (après une restauration, par exemple).
+  final Future<void> Function() reloadSettings;
 
   static AppScope of(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<AppScope>()!;

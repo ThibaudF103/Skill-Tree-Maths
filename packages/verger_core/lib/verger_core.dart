@@ -16,3 +16,4 @@ export 'src/review_queue/review_queue.dart';
 export 'src/scheduling/fsrs_scheduler.dart';
 export 'src/scheduling/scheduler.dart';
 export 'src/scheduling/scheduler_settings.dart';
+export 'src/interchange/verger_archive.dart';

@@ -15,6 +15,12 @@ une fleur ou un fruit qui grandit au rythme de la répétition espacée (FSRS).
 3. Lancer `verger.exe` (Windows SmartScreen peut demander « Exécuter quand même » :
    l'exécutable n'est pas signé).
 
+## Sauvegarde
+
+Onglet **Arbres** → menu ⋮ : exporter une sauvegarde (fichier JSON), la
+restaurer, importer un arbre modèle ou ajouter l'exemple « Algèbre ».
+Les données restent sur l'appareil : pensez à exporter régulièrement.
+
 ## Développement
 
 ```sh

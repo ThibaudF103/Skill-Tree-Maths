@@ -169,6 +169,21 @@ Indicateur séparé « à arroser » : échéance dépassée.
 - Schéma versionné (`schemaVersion`) ; schémas exportés dans
   `packages/verger_data/drift_schemas/` pour tester les migrations futures.
 
+## Échange JSON (`VergerArchive`)
+
+Un seul format (`{"format": "verger", "version": 1, …}`) pour deux usages :
+
+- **Sauvegarde** : nœuds, connaissances (avec état FSRS), historique complet,
+  réglages. « Restaurer » remplace toutes les données en conservant les
+  identifiants.
+- **Modèle d'arbre** (partage, programme officiel, exemple « Algèbre ») :
+  nœuds et connaissances seulement ; à l'import, nouveaux identifiants et
+  aucune progression. Champs facultatifs : `curriculumKey`, `body`, dates.
+
+Validation à la lecture : format, version, références, cycles.
+`packages/verger_core/tool/generate_demo_backup.dart` produit une sauvegarde
+de démonstration (deux mois de révisions simulées).
+
 ## PDF et notes manuscrites : recto / verso
 
 - **Recto** : ancre `source` sur le PDF de cours (énoncé).
@@ -190,5 +205,5 @@ Indicateur séparé « à arroser » : échéance dépassée.
 | 3 | Vue Arbres (plan) : création d'arbres, nœuds, items ✅ |
 | 4 | Révisions : file + session ✅ |
 | 5 | Verger v0 (CustomPainter, descente par niveaux) ✅ |
-| 6 | Export/import JSON + données d'exemple |
+| 6 | Export/import JSON + données d'exemple ✅ |
 | post-MVP | PDF recto/verso, statistiques, LaTeX, programme officiel, iOS, Android… |

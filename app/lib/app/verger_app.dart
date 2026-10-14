@@ -6,17 +6,30 @@ import 'app_scope.dart';
 import 'home_shell.dart';
 import 'theme.dart';
 
-class VergerApp extends StatelessWidget {
+class VergerApp extends StatefulWidget {
   const VergerApp({super.key, required this.store, required this.scheduler});
 
   final VergerStore store;
   final Scheduler scheduler;
 
   @override
+  State<VergerApp> createState() => _VergerAppState();
+}
+
+class _VergerAppState extends State<VergerApp> {
+  late Scheduler _scheduler = widget.scheduler;
+
+  Future<void> _reloadSettings() async {
+    final settings = await widget.store.schedulerSettings();
+    if (mounted) setState(() => _scheduler = settings.build());
+  }
+
+  @override
   Widget build(BuildContext context) {
     return AppScope(
-      store: store,
-      scheduler: scheduler,
+      store: widget.store,
+      scheduler: _scheduler,
+      reloadSettings: _reloadSettings,
       child: MaterialApp(
         title: 'Verger',
         debugShowCheckedModeBanner: false,

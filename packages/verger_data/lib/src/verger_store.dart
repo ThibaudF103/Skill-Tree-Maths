@@ -217,20 +217,7 @@ class VergerStore {
         if (current.scheduling != record.before) {
           throw StaleReviewException(itemId);
         }
-        await _db
-            .into(_db.reviewLogs)
-            .insert(
-              ReviewLogRow(
-                id: newId(),
-                itemId: itemId,
-                reviewedAt: record.reviewedAt.toUtc(),
-                rating: record.rating,
-                durationMs: record.duration?.inMilliseconds,
-                schedulerId: record.schedulerId,
-                stateBefore: jsonEncode(record.before.toJson()),
-                stateAfter: jsonEncode(record.after.toJson()),
-              ),
-            );
+        await _insertReview(itemId, record);
         await (_db.update(_db.items)..where((i) => i.id.equals(itemId))).write(
           _schedulingCompanion(record.after),
         );
@@ -243,23 +230,7 @@ class VergerStore {
               ..where((r) => r.itemId.equals(itemId))
               ..orderBy([(r) => OrderingTerm.asc(r.reviewedAt)]))
             .get();
-    return [
-      for (final row in rows)
-        ReviewRecord(
-          rating: row.rating,
-          reviewedAt: row.reviewedAt.toUtc(),
-          before: SchedulingState.fromJson(
-            jsonDecode(row.stateBefore) as Map<String, Object?>,
-          ),
-          after: SchedulingState.fromJson(
-            jsonDecode(row.stateAfter) as Map<String, Object?>,
-          ),
-          schedulerId: row.schedulerId,
-          duration: row.durationMs == null
-              ? null
-              : Duration(milliseconds: row.durationMs!),
-        ),
-    ];
+    return rows.map(_toRecord).toList();
   }
 
   // --- Réglages ------------------------------------------------------------
@@ -282,6 +253,147 @@ class VergerStore {
       .insertOnConflictUpdate(
         SettingRow(key: _schedulerKey, value: jsonEncode(settings.toJson())),
       );
+
+  // --- Échange (sauvegarde, modèles) --------------------------------------
+
+  /// Sauvegarde complète : structure, connaissances, historique, réglages.
+  Future<VergerArchive> exportArchive() async {
+    final reviews = await (_db.select(
+      _db.reviewLogs,
+    )..orderBy([(r) => OrderingTerm.asc(r.reviewedAt)])).get();
+    return VergerArchive(
+      nodes: await allNodes(),
+      items: await allItems(),
+      reviews: [
+        for (final row in reviews) (itemId: row.itemId, record: _toRecord(row)),
+      ],
+      settings: await schedulerSettings(),
+    );
+  }
+
+  /// Remplace **toutes** les données par celles de l'archive (restauration
+  /// d'une sauvegarde), en conservant identifiants et dates.
+  Future<void> restoreArchive(VergerArchive archive) =>
+      _db.transaction(() async {
+        archive.validate();
+        await _db.delete(_db.reviewLogs).go();
+        await _db.delete(_db.items).go();
+        await _db.delete(_db.nodes).go();
+        await _insertNodes(archive.nodes);
+        for (final item in archive.items) {
+          await _db.into(_db.items).insert(_itemCompanion(item));
+        }
+        for (final review in archive.reviews) {
+          await _insertReview(review.itemId, review.record);
+        }
+        if (archive.settings != null) {
+          await saveSchedulerSettings(archive.settings!);
+        }
+      });
+
+  /// Ajoute le contenu d'un modèle (arbres et connaissances) à côté des
+  /// données existantes : nouveaux identifiants, aucune progression reprise.
+  /// Renvoie les arbres créés.
+  Future<List<KnowledgeNode>> importTemplate(VergerArchive archive) =>
+      _db.transaction(() async {
+        archive.validate();
+        final now = _now();
+        final newIds = {for (final n in archive.nodes) n.id: newId()};
+        final trees = await _siblings(null);
+        var nextTreeIndex = trees.length;
+        final nodes = [
+          for (final n in archive.nodes)
+            KnowledgeNode(
+              id: newIds[n.id]!,
+              parentId: n.parentId == null ? null : newIds[n.parentId],
+              title: n.title,
+              sortIndex: n.parentId == null ? nextTreeIndex++ : n.sortIndex,
+              curriculumKey: n.curriculumKey,
+              origin: n.origin,
+              createdAt: now,
+            ),
+        ];
+        await _insertNodes(nodes);
+        for (final (i, item) in archive.items.indexed) {
+          // Décalage d'une milliseconde : conserve l'ordre du modèle.
+          final created = now.add(Duration(milliseconds: i));
+          await _db
+              .into(_db.items)
+              .insert(
+                _itemCompanion(
+                  KnowledgeItem(
+                    id: newId(),
+                    nodeId: newIds[item.nodeId]!,
+                    kind: item.kind,
+                    title: item.title,
+                    body: item.body,
+                    createdAt: created,
+                    updatedAt: created,
+                  ),
+                ),
+              );
+        }
+        return nodes.where((n) => n.isTree).toList();
+      });
+
+  /// Insère des nœuds parents avant enfants (clés étrangères).
+  Future<void> _insertNodes(List<KnowledgeNode> nodes) async {
+    final pending = [...nodes];
+    final inserted = <String>{};
+    while (pending.isNotEmpty) {
+      final ready = pending
+          .where((n) => n.parentId == null || inserted.contains(n.parentId))
+          .toList();
+      if (ready.isEmpty) throw StateError('Hiérarchie incohérente');
+      for (final n in ready) {
+        await _db
+            .into(_db.nodes)
+            .insert(
+              NodeRow(
+                id: n.id,
+                parentId: n.parentId,
+                title: n.title,
+                sortIndex: n.sortIndex,
+                curriculumKey: n.curriculumKey,
+                origin: n.origin,
+                createdAt: n.createdAt.toUtc(),
+              ),
+            );
+        inserted.add(n.id);
+        pending.remove(n);
+      }
+    }
+  }
+
+  Future<void> _insertReview(String itemId, ReviewRecord record) => _db
+      .into(_db.reviewLogs)
+      .insert(
+        ReviewLogRow(
+          id: newId(),
+          itemId: itemId,
+          reviewedAt: record.reviewedAt.toUtc(),
+          rating: record.rating,
+          durationMs: record.duration?.inMilliseconds,
+          schedulerId: record.schedulerId,
+          stateBefore: jsonEncode(record.before.toJson()),
+          stateAfter: jsonEncode(record.after.toJson()),
+        ),
+      );
+
+  static ReviewRecord _toRecord(ReviewLogRow row) => ReviewRecord(
+    rating: row.rating,
+    reviewedAt: row.reviewedAt.toUtc(),
+    before: SchedulingState.fromJson(
+      jsonDecode(row.stateBefore) as Map<String, Object?>,
+    ),
+    after: SchedulingState.fromJson(
+      jsonDecode(row.stateAfter) as Map<String, Object?>,
+    ),
+    schedulerId: row.schedulerId,
+    duration: row.durationMs == null
+        ? null
+        : Duration(milliseconds: row.durationMs!),
+  );
 
   // --- Interne -------------------------------------------------------------
 

@@ -3,6 +3,7 @@ import 'package:verger_core/verger_core.dart';
 
 import '../../app/app_scope.dart';
 import '../../ui/dialogs.dart';
+import '../data/data_actions.dart';
 import 'node_detail.dart';
 import 'tree_data.dart';
 
@@ -182,6 +183,7 @@ class _Outline extends StatelessWidget {
                   icon: const Icon(Icons.add),
                   onPressed: onCreateTree,
                 ),
+                const DataMenuButton(),
               ],
             ),
           ),
@@ -299,6 +301,15 @@ class _EmptyOrchard extends StatelessWidget {
                 onPressed: onCreate,
                 icon: const Icon(Icons.add),
                 label: const Text('Planter un arbre'),
+              ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: () => loadSample(context),
+                child: const Text('Essayer avec l\'exemple « Algèbre »'),
+              ),
+              TextButton(
+                onPressed: () => restoreBackup(context),
+                child: const Text('Restaurer une sauvegarde'),
               ),
             ],
           ),
