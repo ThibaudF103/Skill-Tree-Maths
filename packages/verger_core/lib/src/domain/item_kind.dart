@@ -1,6 +1,9 @@
 /// Nature d'une connaissance.
 enum ItemKind {
   definition,
+
+  /// Énoncé sans précision (théorème, proposition… facultatif).
+  statement,
   theorem,
   proposition,
   lemma,
@@ -18,3 +21,6 @@ enum ItemKind {
 
 /// Les trois grandes familles de connaissances.
 enum ItemFamily { definition, statement, exercise }
+
+/// Difficulté facultative d'un exercice.
+enum ExerciseLevel { easy, medium, hard }

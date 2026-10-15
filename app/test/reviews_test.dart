@@ -132,4 +132,83 @@ void main() {
     await settle(tester);
     await unmountTestApp(tester);
   });
+
+  testWidgets('révisions ciblées sur des arbres / branches (#8)', (
+    tester,
+  ) async {
+    final store = await pumpTestApp(
+      tester,
+      seed: (s) async {
+        final algebra = await s.createNode(title: 'Algèbre');
+        final groups = await s.createNode(
+          title: 'Groupes',
+          parentId: algebra.id,
+        );
+        final analysis = await s.createNode(title: 'Analyse');
+        for (final (node, title) in [
+          (algebra, 'Cayley-Hamilton'),
+          (groups, 'Sylow'),
+          (analysis, 'Rolle'),
+        ]) {
+          await s.createItem(
+            nodeId: node.id,
+            kind: ItemKind.theorem,
+            title: title,
+          );
+        }
+      },
+    );
+    await tester.tap(find.text('Révisions'));
+    await settle(tester);
+    expect(find.text('Commencer (3)'), findsOneWidget);
+
+    // Cibler « Algèbre » : sa branche « Groupes » est couverte.
+    await tester.tap(find.text('Tout le verger'));
+    await settle(tester);
+    Finder inDialog(Finder f) =>
+        find.descendant(of: find.byType(AlertDialog), matching: f);
+    await tester.tap(inDialog(find.text('Algèbre')));
+    await tester.tap(inDialog(find.byTooltip('Déplier')).first);
+    await tester.pump();
+    final groupsBox = tester.widget<Checkbox>(
+      find.descendant(
+        of: find
+            .ancestor(
+              of: inDialog(find.text('Groupes')),
+              matching: find.byType(Row),
+            )
+            .first,
+        matching: find.byType(Checkbox),
+      ),
+    );
+    expect((groupsBox.value, groupsBox.onChanged), (true, null));
+    await tester.tap(find.text('Valider'));
+    await settle(tester);
+    expect(find.text('Commencer (2)'), findsOneWidget);
+    expect(find.text('Rolle'), findsNothing);
+    expect(
+      await tester.runAsync(() => store.watchReviewScope().first),
+      hasLength(1),
+    );
+
+    // Retirer la puce : retour à tout le verger.
+    await tester.tap(find.byTooltip('Retirer de la sélection'));
+    await settle(tester);
+    expect(find.text('Commencer (3)'), findsOneWidget);
+
+    // Depuis l'onglet Arbres : « Réviser cet arbre ».
+    await tester.tap(find.text('Arbres'));
+    await settle(tester);
+    await tester.tap(find.text('Analyse').first);
+    await settle(tester);
+    await tester.tap(find.byTooltip('Actions'));
+    await settle(tester);
+    await tester.tap(find.text('Réviser cet arbre'));
+    await settle(tester);
+    expect(find.text('Rolle'), findsOneWidget);
+    expect(find.text('Révéler'), findsOneWidget);
+    await tester.tap(find.byTooltip('Terminer'));
+    await settle(tester);
+    await unmountTestApp(tester);
+  });
 }

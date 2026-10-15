@@ -28,9 +28,11 @@ void main() {
     final item = KnowledgeItem(
       id: 'i1',
       nodeId: 'n2',
-      kind: ItemKind.theorem,
+      kind: ItemKind.exercise,
       title: 'Cayley-Hamilton',
       body: 'χ_u(u) = 0',
+      level: ExerciseLevel.medium,
+      sortIndex: 2,
       createdAt: t,
       updatedAt: t,
       scheduling: record.after,
@@ -64,6 +66,19 @@ void main() {
       items: [item],
       documents: [doc],
       anchors: [anchor],
+      notes: [
+        Note(
+          id: 'note1',
+          body: r'Preuve : on pose $P = \chi_u$.',
+          documentId: 'd1',
+          page: 2,
+          region: const NormalizedRect(0, 0.1, 1, 0.4),
+          snapshot: Uint8List.fromList([1, 2, 3]),
+          itemId: 'i1',
+          createdAt: t,
+          updatedAt: t.add(const Duration(hours: 1)),
+        ),
+      ],
       reviews: [(itemId: 'i1', record: record)],
       settings: const SchedulerSettings(desiredRetention: 0.88),
       title: 'Test',
@@ -81,6 +96,8 @@ void main() {
     expect(copy.nodes[1].curriculumKey, 'alg.reduction');
     expect(copy.nodes[1].origin, NodeOrigin.official);
     expect(copy.items.single.body, 'χ_u(u) = 0');
+    expect(copy.items.single.level, ExerciseLevel.medium);
+    expect(copy.items.single.sortIndex, 2);
     expect(copy.items.single.scheduling, original.items.single.scheduling);
     expect(
       copy.reviews.single.record.after,
@@ -99,6 +116,13 @@ void main() {
     expect(anchor.region, const NormalizedRect(0.1, 0.2, 0.5, 0.6));
     expect(anchor.snapshot, [137, 80, 78, 71]);
     expect(anchor.role, AnchorRole.work);
+    final note = copy.notes.single;
+    expect(note.body, r'Preuve : on pose $P = \chi_u$.');
+    expect(note.headline, r'Preuve : on pose P = \chi_u.');
+    expect((note.documentId, note.page, note.itemId), ('d1', 2, 'i1'));
+    expect(note.region, const NormalizedRect(0, 0.1, 1, 0.4));
+    expect(note.snapshot, [1, 2, 3]);
+    expect(note.updatedAt, t.add(const Duration(hours: 1)));
   });
 
   test('un modèle minimal (sans état ni dates) est accepté', () {
@@ -165,6 +189,47 @@ void main() {
         ],
       }),
       throwsA(isA<ArchiveFormatException>()),
+    );
+  });
+
+  test('titre lisible d\'une note', () {
+    Note note(String body) =>
+        Note(id: 'n', body: body, createdAt: t, updatedAt: t);
+    expect(
+      note('\n\n# Théorème spectral\nPreuve…').headline,
+      'Théorème spectral',
+    );
+    expect(note(r'- Soit $x_n \to 0$').headline, r'Soit x_n \to 0');
+    expect(note('   ').headline, '');
+  });
+
+  test('refuse des réglages hors bornes et des identifiants en double', () {
+    final base = sample().toJson();
+    final badSettings = {
+      ...base,
+      'settings': {
+        ...(base['settings']! as Map<String, Object?>),
+        'desiredRetention': 1,
+      },
+    };
+    expect(
+      () => VergerArchive.fromJson(badSettings),
+      throwsA(isA<ArchiveFormatException>()),
+    );
+    final notes = base['notes']! as List;
+    final duplicated = {
+      ...base,
+      'notes': [notes.first, notes.first],
+    };
+    expect(
+      () => VergerArchive.fromJson(duplicated),
+      throwsA(isA<ArchiveFormatException>()),
+    );
+    expect(const SchedulerSettings(desiredRetention: 0.9).isValid, isTrue);
+    expect(const SchedulerSettings(desiredRetention: 90).isValid, isFalse);
+    expect(
+      const SchedulerSettings(learningSteps: [Duration.zero]).isValid,
+      isFalse,
     );
   });
 }

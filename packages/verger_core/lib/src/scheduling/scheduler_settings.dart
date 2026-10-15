@@ -19,13 +19,25 @@ final class SchedulerSettings {
       for (final minutes in (value as List).cast<int>())
         Duration(minutes: minutes),
     ];
-    return SchedulerSettings(
+    final settings = SchedulerSettings(
       desiredRetention: (json['desiredRetention'] as num).toDouble(),
       learningSteps: steps(json['learningStepsMinutes']),
       relearningSteps: steps(json['relearningStepsMinutes']),
       maximumInterval: json['maximumInterval'] as int,
     );
+    if (!settings.isValid) {
+      throw FormatException('Réglages de révision invalides : $json');
+    }
+    return settings;
   }
+
+  /// Valeurs acceptées par l'ordonnanceur.
+  bool get isValid =>
+      desiredRetention > 0 &&
+      desiredRetention < 1 &&
+      maximumInterval >= 1 &&
+      learningSteps.every((d) => d > Duration.zero) &&
+      relearningSteps.every((d) => d > Duration.zero);
 
   final double desiredRetention;
   final List<Duration> learningSteps;

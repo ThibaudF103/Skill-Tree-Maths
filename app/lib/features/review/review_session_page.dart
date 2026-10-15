@@ -6,6 +6,7 @@ import 'package:verger_data/verger_data.dart';
 import '../../app/app_scope.dart';
 import '../../ui/item_glyph.dart';
 import '../../ui/labels.dart';
+import '../../ui/math_text.dart';
 import '../items/anchors_section.dart';
 
 /// Session de révision façon cartes : on lit le titre, on tente de se
@@ -31,6 +32,7 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
   KnowledgeItem? _item;
   List<ReviewRecord> _history = const [];
   List<Anchor> _anchors = const [];
+  List<Note> _notes = const [];
   var _index = 0;
   var _revealed = false;
   var _busy = false;
@@ -71,12 +73,16 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
     final anchors = item == null
         ? const <Anchor>[]
         : await _store.anchorsOf(item.id);
+    final notes = item == null
+        ? const <Note>[]
+        : await _store.notes(itemId: item.id);
     if (!mounted) return;
     setState(() {
       _index = i;
       _item = i < widget.itemIds.length ? item : null;
       _history = history;
       _anchors = anchors;
+      _notes = notes;
       _revealed = false;
       _busy = false;
     });
@@ -103,6 +109,14 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
       _results.add(rating);
     } on StaleReviewException {
       // Révisée ailleurs entre-temps : on passe simplement à la suivante.
+    } catch (e) {
+      // Connaissance supprimée entre-temps, erreur de base… : on prévient
+      // et on passe à la suivante plutôt que de bloquer la session.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Révision non enregistrée : $e')),
+        );
+      }
     }
     await _show(_index + 1);
   }
@@ -211,7 +225,7 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
                         ),
                         const SizedBox(width: 12),
                         Text(
-                          item.kind.label,
+                          item.typeLabel,
                           style: theme.textTheme.titleMedium?.copyWith(
                             color: theme.colorScheme.primary,
                           ),
@@ -245,6 +259,23 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
                         AnchorSnapshot(anchor: anchor, maxHeight: 640),
                         const SizedBox(height: 16),
                       ],
+                      // Verso : les notes rédigées dans l'application.
+                      for (final note in _notes.where(
+                        (n) => n.body.trim().isNotEmpty,
+                      )) ...[
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: theme.colorScheme.outlineVariant,
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: MathText(note.body),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
                       if (item.body != null)
                         Container(
                           width: double.infinity,
@@ -253,12 +284,17 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
                             color: theme.colorScheme.surfaceContainerLow,
                             borderRadius: BorderRadius.circular(16),
                           ),
-                          child: SelectableText(
-                            item.body!,
-                            style: theme.textTheme.bodyLarge,
+                          child: SelectionArea(
+                            child: MathText(
+                              item.body!,
+                              style: theme.textTheme.bodyLarge,
+                            ),
                           ),
                         )
-                      else if (!_anchors.any((a) => a.role == AnchorRole.work))
+                      else if (!_anchors.any(
+                            (a) => a.role == AnchorRole.work,
+                          ) &&
+                          !_notes.any((n) => n.body.trim().isNotEmpty))
                         Text(
                           'Pas de contenu enregistré : comparez avec vos notes.',
                           style: theme.textTheme.bodyLarge?.copyWith(

@@ -5,17 +5,17 @@ import '../../app/app_scope.dart';
 import '../../ui/dialogs.dart';
 import '../../ui/item_glyph.dart';
 import '../../ui/labels.dart';
+import '../../ui/math_text.dart';
+import '../notes/note_page.dart';
+import '../trees/node_picker.dart';
 import 'anchors_section.dart';
 import 'item_editor.dart';
 
 /// Fiche d'une connaissance : contenu, état de révision, historique.
 class ItemDetailPage extends StatefulWidget {
-  const ItemDetailPage({super.key, required this.itemId, this.path = ''});
+  const ItemDetailPage({super.key, required this.itemId});
 
   final String itemId;
-
-  /// Chemin lisible dans l'arbre (« Algèbre › Réduction »).
-  final String path;
 
   @override
   State<ItemDetailPage> createState() => _ItemDetailPageState();
@@ -23,6 +23,7 @@ class ItemDetailPage extends StatefulWidget {
 
 class _ItemDetailPageState extends State<ItemDetailPage> {
   Stream<List<KnowledgeItem>>? _items;
+  Stream<List<KnowledgeNode>>? _nodes;
   Future<List<ReviewRecord>>? _history;
 
   @override
@@ -30,6 +31,7 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
     super.didChangeDependencies();
     final store = AppScope.of(context).store;
     _items ??= store.watchItems();
+    _nodes ??= store.watchNodes();
     _history ??= store.history(widget.itemId);
   }
 
@@ -65,7 +67,7 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(item.kind.label),
+        title: Text(item.typeLabel),
         actions: [
           IconButton(
             tooltip: 'Modifier',
@@ -76,6 +78,15 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
           PopupMenuButton<String>(
             onSelected: (action) async {
               switch (action) {
+                case 'move':
+                  final node = await pickNode(
+                    context,
+                    title: 'Déplacer « ${item.title} » dans…',
+                    initialId: item.nodeId,
+                  );
+                  if (node != null && node.id != item.nodeId) {
+                    await scope.store.moveItem(item.id, nodeId: node.id);
+                  }
                 case 'suspend':
                   await scope.store.updateItem(
                     item.id,
@@ -96,6 +107,7 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
               }
             },
             itemBuilder: (context) => [
+              const PopupMenuItem(value: 'move', child: Text('Déplacer vers…')),
               PopupMenuItem(
                 value: 'suspend',
                 child: Text(
@@ -116,13 +128,19 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (widget.path.isNotEmpty)
-                    Text(
-                      widget.path,
+                  // Chemin dans l'arbre, à jour après un déplacement.
+                  StreamBuilder<List<KnowledgeNode>>(
+                    stream: _nodes,
+                    builder: (context, snapshot) => Text(
+                      nodePath({
+                        for (final n in snapshot.data ?? <KnowledgeNode>[])
+                          n.id: n,
+                      }, item.nodeId),
                       style: theme.textTheme.labelLarge?.copyWith(
                         color: theme.colorScheme.outline,
                       ),
                     ),
+                  ),
                   const SizedBox(height: 8),
                   Row(
                     children: [
@@ -142,15 +160,22 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                   ),
                   if (item.body != null) ...[
                     const SizedBox(height: 20),
-                    SelectableText(
-                      item.body!,
-                      style: theme.textTheme.bodyLarge,
+                    SelectionArea(
+                      child: MathText(
+                        item.body!,
+                        style: theme.textTheme.bodyLarge,
+                      ),
                     ),
                   ],
                   const SizedBox(height: 28),
                   _Section(
                     title: 'Recto / verso',
                     child: AnchorsSection(item: item),
+                  ),
+                  const SizedBox(height: 28),
+                  _Section(
+                    title: 'Notes',
+                    child: ItemNotesSection(item: item),
                   ),
                   const SizedBox(height: 28),
                   _Section(

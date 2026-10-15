@@ -66,6 +66,7 @@ void main() {
     await settle(tester);
     await tester.tap(find.text('Propriété / théorème'));
     await settle(tester);
+    await tester.tap(find.text('Théorème'));
     await tester.tap(find.text('Connue'));
     await typeAndConfirm(tester, 'Théorème de Cayley-Hamilton', 'Ajouter');
     expect(find.textContaining('Théorème · Pousse · demain'), findsOneWidget);

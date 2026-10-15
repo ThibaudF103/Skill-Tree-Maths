@@ -77,9 +77,15 @@ Future<Uint8List?> renderRegionPng(
 }) async {
   final r = region ?? const NormalizedRect(0, 0, 1, 1);
   if (r.width <= 0 || r.height <= 0) return null;
-  // Échelle : la zone fait [targetWidth] pixels de large.
-  final fullWidth = targetWidth / r.width;
-  final fullHeight = fullWidth * page.height / page.width;
+  // Échelle : la zone fait [targetWidth] pixels de large, sans dépasser
+  // 4000 pixels dans aucune dimension (zones hautes et étroites).
+  var fullWidth = targetWidth / r.width;
+  var fullHeight = fullWidth * page.height / page.width;
+  final tallest = r.height * fullHeight;
+  if (tallest > 4000) {
+    fullWidth *= 4000 / tallest;
+    fullHeight *= 4000 / tallest;
+  }
   final width = (r.width * fullWidth).round().clamp(1, 4000);
   final height = (r.height * fullHeight).round().clamp(1, 4000);
   final image = await page.render(
@@ -103,25 +109,86 @@ Future<Uint8List?> renderRegionPng(
 }
 
 /// Texte de la page situé dans [region] (PDF de cours), ou `null`.
+///
+/// Décision par ligne : une ligne est retenue si au moins la moitié de sa
+/// hauteur est dans la zone (sinon, un bord passant au milieu d'une ligne
+/// laisserait passer ses seules lettres basses : « e », « a »…), puis ses
+/// caractères dont le centre est dans la largeur de la zone.
 Future<String?> extractRegionText(PdfPage page, NormalizedRect region) async {
   final text = await page.loadText();
   if (text == null || text.fullText.isEmpty) return null;
+  final chars = text.fullText;
+  final count = chars.length < text.charRects.length
+      ? chars.length
+      : text.charRects.length;
   final buffer = StringBuffer();
-  for (var i = 0; i < text.fullText.length && i < text.charRects.length; i++) {
-    final rect = text.charRects[i];
-    // Coordonnées PDF : origine en bas à gauche.
-    final cx = (rect.left + rect.right) / 2 / page.width;
-    final cy = 1 - (rect.top + rect.bottom) / 2 / page.height;
-    final char = text.fullText[i];
-    final inside =
-        cx >= region.left &&
-        cx <= region.right &&
-        cy >= region.top &&
-        cy <= region.bottom;
-    if (inside || (char == '\n' || char == ' ') && buffer.isNotEmpty) {
-      buffer.write(inside ? char : ' ');
+  var start = 0;
+  while (start < count) {
+    var end = start;
+    while (end < count && chars[end] != '\n') {
+      end++;
     }
+    // Étendue verticale de la ligne (coordonnées PDF : origine en bas).
+    double? top, bottom;
+    for (var i = start; i < end; i++) {
+      final r = text.charRects[i];
+      if (r.top == r.bottom || chars[i].trim().isEmpty) continue;
+      final t = 1 - r.top / page.height;
+      final b = 1 - r.bottom / page.height;
+      top = top == null || t < top ? t : top;
+      bottom = bottom == null || b > bottom ? b : bottom;
+    }
+    if (top != null && bottom != null) {
+      final overlap =
+          (bottom < region.bottom ? bottom : region.bottom) -
+          (top > region.top ? top : region.top);
+      if (overlap >= (bottom - top) / 2) {
+        for (var i = start; i < end; i++) {
+          final r = text.charRects[i];
+          final cx = (r.left + r.right) / 2 / page.width;
+          final inside = cx >= region.left && cx <= region.right;
+          buffer.write(inside ? chars[i] : ' ');
+        }
+        buffer.write(' ');
+      }
+    }
+    start = end + 1;
   }
   final result = buffer.toString().replaceAll(RegExp(r'\s+'), ' ').trim();
   return result.isEmpty ? null : result;
 }
+
+/// Bornes `[début, fin[` du mot contenant le caractère [index], sans sortir
+/// de `[from, to[`. Un mot s'arrête aux espaces, à la ponctuation, ou à un
+/// écart visuel entre deux caractères (PDF sans caractères d'espace, où un
+/// « fragment » couvre parfois une ligne entière).
+(int, int) wordBounds(
+  String chars,
+  List<({double left, double right, double height})> boxes,
+  int index, {
+  int from = 0,
+  int? to,
+}) {
+  final end = to ?? chars.length;
+  bool separator(int i) => _wordSeparators.contains(chars[i]);
+  bool gap(int i) {
+    // Écart entre les caractères i et i + 1.
+    final a = boxes[i];
+    final b = boxes[i + 1];
+    final h = a.height > b.height ? a.height : b.height;
+    return b.left - a.right > 0.25 * h;
+  }
+
+  if (separator(index)) return (index, index + 1);
+  var start = index;
+  while (start > from && !separator(start - 1) && !gap(start - 1)) {
+    start--;
+  }
+  var stop = index + 1;
+  while (stop < end && !separator(stop) && !gap(stop - 1)) {
+    stop++;
+  }
+  return (start, stop);
+}
+
+const _wordSeparators = ' \t\r\n.,;:!?()[]{}«»"\'’';

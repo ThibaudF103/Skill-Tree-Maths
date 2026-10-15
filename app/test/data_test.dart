@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:verger/features/documents/pickers.dart';
 import 'package:verger_core/verger_core.dart';
 
 import 'test_app.dart';
@@ -43,5 +44,10 @@ void main() {
     expect(find.text('Algèbre (exemple)'), findsOneWidget);
     expect(find.text('26 connaissances · maîtrise 0 %'), findsOneWidget);
     await unmountTestApp(tester);
+  });
+
+  test('recherche : accents et ligatures ignorés', () {
+    expect(normalizeForSearch('Nœuds et Æther'), 'noeuds et aether');
+    expect(normalizeForSearch('Théorème'), 'theoreme');
   });
 }

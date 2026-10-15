@@ -11,11 +11,15 @@ class ItemTile extends StatelessWidget {
     required this.item,
     required this.now,
     this.onTap,
+    this.dragHandle,
   });
 
   final KnowledgeItem item;
   final DateTime now;
   final VoidCallback? onTap;
+
+  /// Poignée de déplacement affichée en fin de ligne.
+  final Widget? dragHandle;
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +32,7 @@ class ItemTile extends StatelessWidget {
         due != null &&
         due.isBefore(DayWindow.around(now).startOfTomorrow);
     final parts = [
-      item.kind.label,
+      item.typeLabel,
       stage.label,
       if (item.suspended) 'suspendue' else if (due != null) formatDue(due, now),
     ];
@@ -37,9 +41,14 @@ class ItemTile extends StatelessWidget {
       leading: ItemGlyph(family: item.kind.family, stage: stage, size: 32),
       title: Text(item.title),
       subtitle: Text(parts.join(' · ')),
-      trailing: isDue && !item.suspended
-          ? Icon(Icons.water_drop, size: 18, color: theme.colorScheme.primary)
-          : null,
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (isDue && !item.suspended)
+            Icon(Icons.water_drop, size: 18, color: theme.colorScheme.primary),
+          ?dragHandle,
+        ],
+      ),
     );
   }
 }

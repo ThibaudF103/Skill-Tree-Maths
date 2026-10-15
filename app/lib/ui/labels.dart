@@ -1,9 +1,11 @@
+import 'package:flutter/widgets.dart' show StringCharacters;
 import 'package:verger_core/verger_core.dart';
 
 /// Libellés français de l'interface.
 extension ItemKindLabel on ItemKind {
   String get label => switch (this) {
     ItemKind.definition => 'Définition',
+    ItemKind.statement => 'Énoncé',
     ItemKind.theorem => 'Théorème',
     ItemKind.proposition => 'Proposition',
     ItemKind.lemma => 'Lemme',
@@ -11,6 +13,24 @@ extension ItemKindLabel on ItemKind {
     ItemKind.corollary => 'Corollaire',
     ItemKind.exercise => 'Exercice',
   };
+}
+
+extension ExerciseLevelLabel on ExerciseLevel {
+  String get label => switch (this) {
+    ExerciseLevel.easy => 'Facile',
+    ExerciseLevel.medium => 'Moyen',
+    ExerciseLevel.hard => 'Difficile',
+  };
+}
+
+extension ItemTypeLabel on KnowledgeItem {
+  /// Type affiché, avec la difficulté d'un exercice : « Exercice · difficile ».
+  String get typeLabel {
+    final level = this.level;
+    return level == null
+        ? kind.label
+        : '${kind.label} · ${level.label.toLowerCase()}';
+  }
 }
 
 extension ItemFamilyLabel on ItemFamily {
@@ -62,14 +82,22 @@ String formatDate(DateTime date, {DateTime? now}) {
   return local.year == ref.year ? base : '$base ${local.year}';
 }
 
+/// Nombre de jours de calendrier de [from] à [to] (indépendant des
+/// changements d'heure).
+int _calendarDays(DateTime from, DateTime to) => DateTime.utc(
+  to.year,
+  to.month,
+  to.day,
+).difference(DateTime.utc(from.year, from.month, from.day)).inDays;
+
 /// Échéance relative : « en retard de 2 j », « aujourd'hui », « dans 5 h »,
 /// « demain », « dans 12 j »…
 String formatDue(DateTime due, DateTime now) {
   final window = DayWindow.around(now);
   final local = due.toLocal();
   if (local.isBefore(window.startOfToday)) {
-    final days = window.startOfToday.difference(local).inHours ~/ 24 + 1;
-    return 'en retard de $days j';
+    final days = _calendarDays(local, window.startOfToday);
+    return 'en retard de ${days < 1 ? 1 : days} j';
   }
   if (local.isBefore(window.startOfTomorrow)) {
     if (!local.isAfter(now)) return 'maintenant';
@@ -105,4 +133,22 @@ String formatElapsed(Duration d) {
   if (d.inSeconds < 60) return '${d.inSeconds} s';
   if (d.inMinutes < 60) return '${d.inMinutes} min';
   return '${d.inHours} h ${(d.inMinutes % 60).toString().padLeft(2, '0')}';
+}
+
+/// Raccourcit un titre à [max] caractères (points de suspension).
+String shortenTitle(String text, {int max = 80}) {
+  final chars = text.trim().characters;
+  return chars.length <= max ? chars.toString() : '${chars.take(max - 1)}…';
+}
+
+/// Première phrase d'un texte extrait d'un PDF, raccourcie : bon titre par
+/// défaut pour une connaissance.
+String? suggestTitle(String? text) {
+  if (text == null) return null;
+  final sentence = text
+      .split(RegExp(r'(?<=[.:])\s'))
+      .first
+      .trim()
+      .replaceFirst(RegExp(r'[.:]$'), '');
+  return shortenTitle(sentence);
 }

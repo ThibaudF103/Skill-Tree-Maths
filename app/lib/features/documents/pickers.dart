@@ -8,9 +8,9 @@ import '../../ui/labels.dart';
 
 /// Minuscules sans accents, pour une recherche tolérante.
 String normalizeForSearch(String text) {
-  const from = 'àâäáãåçéèêëíìîïñóòôöõúùûüýÿœæ';
-  const to = 'aaaaaaceeeeiiiinooooouuuuyyoa';
-  final lower = text.toLowerCase();
+  const from = 'àâäáãåçéèêëíìîïñóòôöõúùûüýÿ';
+  const to = 'aaaaaaceeeeiiiinooooouuuuyy';
+  final lower = text.toLowerCase().replaceAll('œ', 'oe').replaceAll('æ', 'ae');
   final buffer = StringBuffer();
   for (final char in lower.split('')) {
     final i = from.indexOf(char);
@@ -47,7 +47,7 @@ Future<KnowledgeItem?> pickItem(BuildContext context, {required String title}) {
             (
               value: item,
               title: item.title,
-              subtitle: '${item.kind.label} · ${paths[item.nodeId] ?? ''}',
+              subtitle: '${item.typeLabel} · ${paths[item.nodeId] ?? ''}',
               leading: ItemGlyph(
                 family: item.kind.family,
                 stage: GrowthStage.of(item.scheduling),
@@ -56,41 +56,6 @@ Future<KnowledgeItem?> pickItem(BuildContext context, {required String title}) {
               indent: 0,
             ),
         ];
-      },
-    ),
-  );
-}
-
-/// Choisit un nœud (arbre ou branche).
-Future<KnowledgeNode?> pickNode(BuildContext context, {required String title}) {
-  return showDialog<KnowledgeNode>(
-    context: context,
-    builder: (_) => _PickerDialog<KnowledgeNode>(
-      title: title,
-      hint: 'Rechercher une branche',
-      load: (store) async {
-        final nodes = await store.allNodes();
-        final paths = _paths(nodes);
-        final children = <String?, List<KnowledgeNode>>{};
-        for (final n in nodes) {
-          (children[n.parentId] ??= []).add(n);
-        }
-        final rows = <_Row<KnowledgeNode>>[];
-        void visit(String? parent, int depth) {
-          for (final n in children[parent] ?? const <KnowledgeNode>[]) {
-            rows.add((
-              value: n,
-              title: n.title,
-              subtitle: paths[n.id]!,
-              leading: null,
-              indent: depth,
-            ));
-            visit(n.id, depth + 1);
-          }
-        }
-
-        visit(null, 0);
-        return rows;
       },
     ),
   );

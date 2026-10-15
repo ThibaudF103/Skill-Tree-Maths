@@ -4,44 +4,100 @@ import 'package:verger_core/verger_core.dart';
 import '../../app/app_scope.dart';
 import '../../ui/item_glyph.dart';
 import '../../ui/labels.dart';
+import '../trees/node_picker.dart';
 import '../trees/tree_data.dart';
 import 'review_session_page.dart';
 
-/// Vue « Révisions » : connaissances à réviser, triées par priorité.
-class ReviewsPage extends StatelessWidget {
+/// File d'une session lancée maintenant parmi [items] (dues et nouvelles).
+List<String> reviewQueueOf(Iterable<KnowledgeItem> items, Scheduler scheduler) {
+  final queue = buildReviewQueue(
+    [
+      for (final item in items)
+        if (!item.suspended)
+          (id: item.id, state: item.scheduling, createdAt: item.createdAt),
+    ],
+    now: DateTime.now(),
+    scheduler: scheduler,
+  );
+  return [for (final e in queue) e.id];
+}
+
+/// Ouvre une session de révision sur [ids], dans cet ordre.
+void startReviewSession(BuildContext context, List<String> ids) {
+  Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      fullscreenDialog: true,
+      builder: (_) => ReviewSessionPage(itemIds: ids),
+    ),
+  );
+}
+
+/// Vue « Révisions » : connaissances à réviser, triées par priorité, dans
+/// tout le verger ou dans les arbres / branches ciblés.
+class ReviewsPage extends StatefulWidget {
   const ReviewsPage({super.key});
 
   @override
+  State<ReviewsPage> createState() => _ReviewsPageState();
+}
+
+class _ReviewsPageState extends State<ReviewsPage> {
+  Stream<Set<String>>? _scope;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _scope ??= AppScope.of(context).store.watchReviewScope();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return TreeDataBuilder(
-      builder: (context, data) {
-        final scheduler = AppScope.of(context).scheduler;
-        final active = [
-          for (final item in data.items)
-            if (!item.suspended) item,
-        ];
-        final byId = {for (final item in active) item.id: item};
-        final candidates = [
-          for (final item in active)
-            (id: item.id, state: item.scheduling, createdAt: item.createdAt),
-        ];
-        final groups = groupReviewList(
-          candidates,
-          now: data.now,
-          scheduler: scheduler,
-        );
-        final queue = buildReviewQueue(
-          candidates,
-          now: data.now,
-          scheduler: scheduler,
-        );
-        return _ReviewList(
-          data: data,
-          byId: byId,
-          groups: groups,
-          queue: [for (final e in queue) e.id],
-        );
-      },
+    return StreamBuilder<Set<String>>(
+      stream: _scope,
+      builder: (context, snapshot) => TreeDataBuilder(
+        builder: (context, data) =>
+            _build(context, data, snapshot.data ?? const {}),
+      ),
+    );
+  }
+
+  Widget _build(BuildContext context, TreeData data, Set<String> savedScope) {
+    final scheduler = AppScope.of(context).scheduler;
+    // Nœuds ciblés encore existants (vide : tout le verger).
+    final scope = [
+      for (final node in data.nodes)
+        if (savedScope.contains(node.id)) node,
+    ];
+    final scopeIds = {for (final n in scope) n.id};
+    bool inScope(KnowledgeItem item) =>
+        scopeIds.isEmpty ||
+        data.pathTo(item.nodeId).any((n) => scopeIds.contains(n.id));
+    final active = [
+      for (final item in data.items)
+        if (!item.suspended && inScope(item)) item,
+    ];
+    final byId = {for (final item in active) item.id: item};
+    final candidates = [
+      for (final item in active)
+        (id: item.id, state: item.scheduling, createdAt: item.createdAt),
+    ];
+    final groups = groupReviewList(
+      candidates,
+      now: data.now,
+      scheduler: scheduler,
+    );
+    final queue = buildReviewQueue(
+      candidates,
+      now: data.now,
+      scheduler: scheduler,
+    );
+    return _ReviewList(
+      data: data,
+      byId: byId,
+      groups: groups,
+      queue: [for (final e in queue) e.id],
+      scope: scope,
+      onScopeChanged: (ids) => AppScope.of(context).store.setReviewScope(ids),
     );
   }
 }
@@ -52,6 +108,8 @@ class _ReviewList extends StatelessWidget {
     required this.byId,
     required this.groups,
     required this.queue,
+    required this.scope,
+    required this.onScopeChanged,
   });
 
   final TreeData data;
@@ -61,12 +119,44 @@ class _ReviewList extends StatelessWidget {
   /// File d'une session lancée maintenant (connaissances dues et nouvelles).
   final List<String> queue;
 
-  void _start(BuildContext context, List<String> ids) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        fullscreenDialog: true,
-        builder: (_) => ReviewSessionPage(itemIds: ids),
-      ),
+  /// Nœuds ciblés (vide : tout le verger).
+  final List<KnowledgeNode> scope;
+  final ValueChanged<Set<String>> onScopeChanged;
+
+  void _start(BuildContext context, List<String> ids) =>
+      startReviewSession(context, ids);
+
+  Future<void> _pickScope(BuildContext context) async {
+    final ids = await pickNodes(
+      context,
+      title: 'Réviser seulement…',
+      initial: {for (final n in scope) n.id},
+    );
+    if (ids != null) onScopeChanged(ids);
+  }
+
+  Widget _scopeBar(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        OutlinedButton.icon(
+          onPressed: () => _pickScope(context),
+          icon: const Icon(Icons.filter_alt_outlined),
+          label: Text(scope.isEmpty ? 'Tout le verger' : 'Cibler'),
+        ),
+        for (final node in scope)
+          InputChip(
+            label: Text(node.title),
+            tooltip: data.pathTo(node.id).map((n) => n.title).join(' › '),
+            deleteButtonTooltipMessage: 'Retirer de la sélection',
+            onDeleted: () => onScopeChanged({
+              for (final n in scope)
+                if (n.id != node.id) n.id,
+            }),
+          ),
+      ],
     );
   }
 
@@ -101,7 +191,9 @@ class _ReviewList extends StatelessWidget {
                             const SizedBox(height: 4),
                             Text(
                               queue.isEmpty
-                                  ? 'Rien à réviser pour le moment.'
+                                  ? scope.isEmpty
+                                        ? 'Rien à réviser pour le moment.'
+                                        : 'Rien à réviser dans la sélection.'
                                   : [
                                       if (dueNow > 0) '$dueNow à réviser',
                                       if (fresh > 0)
@@ -123,7 +215,9 @@ class _ReviewList extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
+                  if (data.items.isNotEmpty) _scopeBar(context),
+                  const SizedBox(height: 16),
                   for (final bucket in const [
                     ReviewBucket.overdue,
                     ReviewBucket.today,
@@ -259,7 +353,7 @@ class _ReviewRow extends StatelessWidget {
         'retard : ${formatDue(due!, now).replaceFirst('en retard de ', '')}',
       ReviewBucket.today => 'prévu ${formatDue(due!, now)}',
       ReviewBucket.tomorrow => 'prévu demain',
-      ReviewBucket.newItem => item.kind.label,
+      ReviewBucket.newItem => item.typeLabel,
       ReviewBucket.later => formatDue(due!, now),
     };
     return ListTile(

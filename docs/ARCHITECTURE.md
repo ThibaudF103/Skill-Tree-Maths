@@ -76,8 +76,9 @@ KnowledgeNode          structure, profondeur libre (liste d'adjacence)
   origin               official | user
 
 KnowledgeItem          ce que j'ai décidé d'apprendre
-  id, nodeId, kind, title, body?, createdAt, updatedAt, suspended
-  kind                 definition | statement(theorem|proposition|lemma|property|corollary) | exercise
+  id, nodeId, kind, title, body?, level?, sortIndex, createdAt, updatedAt, suspended
+  kind                 definition | statement (précision facultative : theorem|proposition|lemma|property|corollary) | exercise
+  level                difficulté facultative d'un exercice : easy | medium | hard
   — état d'ordonnancement, aplati pour pouvoir trier/filtrer —
   due, stability?, difficulty?, phase (new|learning|review|relearning),
   step?, lastReview?, reps, lapses
@@ -169,6 +170,32 @@ Indicateur séparé « à arroser » : échéance dépassée.
 - Schéma versionné (`schemaVersion`) ; schémas exportés dans
   `packages/verger_data/drift_schemas/` pour tester les migrations futures.
 
+## Notes de travail et LaTeX (étape 8)
+
+- **Note** : texte avec formules LaTeX (`$…$` dans le texte, `$$…$$`
+  centrées, `\$` pour un dollar), éventuellement attachée à une zone d'un
+  PDF (page, rectangle, miniature) et à une connaissance, dont elle devient
+  le **verso** (affiché en révision). Une note survit à la suppression du
+  PDF ou de la connaissance (liens mis à `NULL`). Prévue pour accueillir
+  l'encre au stylet plus tard.
+- **Visionneuse** : miniatures des pages et sommaire du PDF (panneau
+  latéral), recherche dans le texte, reprise à la dernière page lue
+  (`documents.last_page`), panneau de notes à droite (écran partagé sur
+  grand écran, plein écran sur téléphone) ouvert par le bouton, un balayage
+  depuis le bord droit ou un marqueur de note sur la page. Encadrer une
+  zone → « Prendre une note sur cette zone ». Liens du PDF actifs (renvois
+  internes via `goToDest`, liens web via url_launcher) ; l'appui long
+  sélectionne un mot (`wordBounds`, coupure aux écarts visuels pour les PDF
+  sans caractères d'espace) ; ouvrir un panneau garde la page ajustée à la
+  largeur.
+- **Depuis une note** : « Créer une connaissance » ou « Lier à une
+  connaissance » ; la note devient le verso et, pour un cours, la zone
+  devient le recto.
+- **Fiche** : section Notes (rendu LaTeX, nouvelle note libre).
+- Rendu LaTeX : `MathText` (flutter_math_fork, Apache 2.0), aussi pour le
+  contenu des connaissances et l'aperçu dans l'éditeur.
+- Schéma v4, migrations version par version (`stepByStep`). v4 : difficulté des exercices et ordre manuel des connaissances (`sortIndex`, l'ordre de création départage).
+
 ## Échange JSON (`VergerArchive`)
 
 Un seul format (`{"format": "verger", "version": 1, …}`) pour deux usages :
@@ -227,4 +254,5 @@ de démonstration (deux mois de révisions simulées).
 | 5 | Verger v0 (CustomPainter, descente par niveaux) ✅ |
 | 6 | Export/import JSON + données d'exemple ✅ |
 | 7 | PDF recto/verso ✅ |
+| 8 | Visionneuse améliorée, notes liées au PDF, LaTeX ✅ |
 | ensuite | Déplacement par l'interface, LaTeX, statistiques, programme officiel, verger, iPad… |

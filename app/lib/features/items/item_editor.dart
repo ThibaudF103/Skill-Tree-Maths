@@ -4,6 +4,9 @@ import 'package:verger_core/verger_core.dart';
 import '../../app/app_scope.dart';
 import '../../ui/item_glyph.dart';
 import '../../ui/labels.dart';
+import '../../ui/latex_input.dart';
+import '../../ui/math_text.dart';
+import '../trees/node_picker.dart';
 
 /// Évaluation facultative à la création : compte comme première révision.
 enum _InitialLevel {
@@ -17,6 +20,7 @@ enum _InitialLevel {
   final Rating? rating;
 }
 
+/// Précisions facultatives d'un énoncé (aucune : « Énoncé »).
 const _statementKinds = [
   ItemKind.theorem,
   ItemKind.proposition,
@@ -25,12 +29,14 @@ const _statementKinds = [
   ItemKind.corollary,
 ];
 
-/// Crée une connaissance dans [nodeId] ([item] nul) ou modifie [item].
+/// Crée une connaissance ([item] nul) ou modifie [item].
 ///
-/// Renvoie la connaissance créée (ou `null` en modification / annulation).
+/// La branche de création est [nodeId], ou à défaut la dernière utilisée ;
+/// elle reste modifiable dans le formulaire. Renvoie la connaissance créée
+/// (ou `null` en modification / annulation).
 Future<KnowledgeItem?> showItemEditor(
   BuildContext context, {
-  required String nodeId,
+  String? nodeId,
   KnowledgeItem? item,
   ItemFamily? family,
   String? initialTitle,
@@ -51,14 +57,14 @@ Future<KnowledgeItem?> showItemEditor(
 class ItemEditor extends StatefulWidget {
   const ItemEditor({
     super.key,
-    required this.nodeId,
+    this.nodeId,
     this.item,
     this.family,
     this.initialTitle,
     this.initialBody,
   });
 
-  final String nodeId;
+  final String? nodeId;
   final KnowledgeItem? item;
   final ItemFamily? family;
   final String? initialTitle;
@@ -72,8 +78,13 @@ class _ItemEditorState extends State<ItemEditor> {
   late final TextEditingController _title;
   late final TextEditingController _body;
   late ItemKind _kind;
-  var _level = _InitialLevel.none;
+  var _initial = _InitialLevel.none;
+  ExerciseLevel? _exerciseLevel;
   var _saving = false;
+  KnowledgeNode? _node;
+  var _nodePath = '';
+  var _nodeLoaded = false;
+  var _nodeResolved = false;
 
   bool get _editing => widget.item != null;
 
@@ -88,10 +99,47 @@ class _ItemEditorState extends State<ItemEditor> {
     _kind =
         item?.kind ??
         switch (widget.family) {
-          ItemFamily.statement => ItemKind.theorem,
+          ItemFamily.statement => ItemKind.statement,
           ItemFamily.exercise => ItemKind.exercise,
           _ => ItemKind.definition,
         };
+    _exerciseLevel = item?.level;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_nodeLoaded) {
+      _nodeLoaded = true;
+      _loadNode();
+    }
+  }
+
+  Future<void> _loadNode() async {
+    final store = AppScope.of(context).store;
+    final id = widget.item?.nodeId ?? widget.nodeId;
+    final node = id != null ? await store.node(id) : await store.lastNode();
+    await _setNode(node);
+  }
+
+  Future<void> _setNode(KnowledgeNode? node) async {
+    final store = AppScope.of(context).store;
+    final byId = {for (final n in await store.allNodes()) n.id: n};
+    if (!mounted) return;
+    setState(() {
+      _node = node;
+      _nodeResolved = true;
+      _nodePath = node == null ? '' : nodePath(byId, node.id);
+    });
+  }
+
+  Future<void> _changeNode() async {
+    final node = await pickNode(
+      context,
+      title: 'Dans quelle branche ?',
+      initialId: _node?.id,
+    );
+    if (node != null && mounted) await _setNode(node);
   }
 
   @override
@@ -103,7 +151,8 @@ class _ItemEditorState extends State<ItemEditor> {
 
   Future<void> _save() async {
     final title = _title.text.trim();
-    if (title.isEmpty || _saving) return;
+    final node = _node;
+    if (title.isEmpty || node == null || _saving) return;
     setState(() => _saving = true);
     final scope = AppScope.of(context);
     final item = widget.item;
@@ -114,15 +163,19 @@ class _ItemEditorState extends State<ItemEditor> {
         title: title,
         body: () => _body.text,
         kind: _kind,
+        level: () => _exerciseLevel,
+        nodeId: node.id != item.nodeId ? node.id : null,
       );
     } else {
       created = await scope.store.createItem(
-        nodeId: widget.nodeId,
+        nodeId: node.id,
         kind: _kind,
         title: title,
         body: _body.text,
+        level: _exerciseLevel,
       );
-      final rating = _level.rating;
+      await scope.store.setLastNode(node.id);
+      final rating = _initial.rating;
       if (rating != null) {
         await scope.store.applyReview(
           created.id,
@@ -153,6 +206,8 @@ class _ItemEditorState extends State<ItemEditor> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              _branchRow(theme),
+              const SizedBox(height: 12),
               SegmentedButton<ItemFamily>(
                 segments: [
                   for (final f in ItemFamily.values)
@@ -171,7 +226,7 @@ class _ItemEditorState extends State<ItemEditor> {
                 onSelectionChanged: (selection) => setState(() {
                   _kind = switch (selection.first) {
                     ItemFamily.definition => ItemKind.definition,
-                    ItemFamily.statement => ItemKind.theorem,
+                    ItemFamily.statement => ItemKind.statement,
                     ItemFamily.exercise => ItemKind.exercise,
                   };
                 }),
@@ -186,10 +241,32 @@ class _ItemEditorState extends State<ItemEditor> {
                       ChoiceChip(
                         label: Text(kind.label),
                         selected: _kind == kind,
-                        onSelected: (_) => setState(() => _kind = kind),
+                        // Un second appui retire la précision.
+                        onSelected: (selected) => setState(
+                          () => _kind = selected ? kind : ItemKind.statement,
+                        ),
                       ),
                   ],
                 ),
+                _hint(theme, 'Précision facultative'),
+              ],
+              if (family == ItemFamily.exercise) ...[
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: [
+                    for (final level in ExerciseLevel.values)
+                      ChoiceChip(
+                        label: Text(level.label),
+                        selected: _exerciseLevel == level,
+                        onSelected: (selected) => setState(
+                          () => _exerciseLevel = selected ? level : null,
+                        ),
+                      ),
+                  ],
+                ),
+                _hint(theme, 'Difficulté facultative'),
               ],
               const SizedBox(height: 16),
               TextField(
@@ -206,14 +283,31 @@ class _ItemEditorState extends State<ItemEditor> {
               const SizedBox(height: 12),
               TextField(
                 controller: _body,
+                inputFormatters: const [LatexAutoCloseFormatter()],
                 minLines: 3,
                 maxLines: 8,
                 decoration: const InputDecoration(
                   labelText: 'Contenu (facultatif)',
-                  hintText: 'Énoncé, hypothèses, remarques…',
+                  hintText:
+                      r'Énoncé, remarques… Formules : $x^2$ ou $$\int_0^1 f$$',
                   border: OutlineInputBorder(),
                   alignLabelWithHint: true,
                 ),
+              ),
+              // Aperçu des formules pendant la saisie.
+              ListenableBuilder(
+                listenable: _body,
+                builder: (context, _) => _body.text.contains(r'$')
+                    ? Container(
+                        margin: const EdgeInsets.only(top: 8),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surfaceContainerLow,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: MathText(_body.text),
+                      )
+                    : const SizedBox.shrink(),
               ),
               if (!_editing) ...[
                 const SizedBox(height: 16),
@@ -224,15 +318,15 @@ class _ItemEditorState extends State<ItemEditor> {
                     for (final level in _InitialLevel.values)
                       ButtonSegment(value: level, label: Text(level.label)),
                   ],
-                  selected: {_level},
+                  selected: {_initial},
                   showSelectedIcon: false,
-                  onSelectionChanged: (s) => setState(() => _level = s.first),
+                  onSelectionChanged: (s) => setState(() => _initial = s.first),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  _level == _InitialLevel.none
+                  _initial == _InitialLevel.none
                       ? 'Elle apparaîtra comme un bourgeon, à réviser.'
-                      : 'Compte comme une première révision « ${_level.rating!.label} ».',
+                      : 'Compte comme une première révision « ${_initial.rating!.label} ».',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.outline,
                   ),
@@ -250,11 +344,69 @@ class _ItemEditorState extends State<ItemEditor> {
         ListenableBuilder(
           listenable: _title,
           builder: (context, _) => FilledButton(
-            onPressed: _title.text.trim().isEmpty || _saving ? null : _save,
+            onPressed: _title.text.trim().isEmpty || _node == null || _saving
+                ? null
+                : _save,
             child: Text(_editing ? 'Enregistrer' : 'Ajouter'),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _hint(ThemeData theme, String text) => Padding(
+    padding: const EdgeInsets.only(top: 4),
+    child: Text(
+      text,
+      style: theme.textTheme.bodySmall?.copyWith(
+        color: theme.colorScheme.outline,
+      ),
+    ),
+  );
+
+  Widget _branchRow(ThemeData theme) {
+    final node = _node;
+    return Material(
+      color: theme.colorScheme.surfaceContainerLow,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: _changeNode,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 6, 4, 6),
+          child: Row(
+            children: [
+              Icon(
+                Icons.account_tree_outlined,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Branche', style: theme.textTheme.labelSmall),
+                    Text(
+                      node == null
+                          ? (_nodeResolved ? 'Aucune branche choisie' : '…')
+                          : _nodePath,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: node == null
+                          ? TextStyle(color: theme.colorScheme.error)
+                          : null,
+                    ),
+                  ],
+                ),
+              ),
+              TextButton(
+                onPressed: _changeNode,
+                child: Text(node == null ? 'Choisir' : 'Changer'),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

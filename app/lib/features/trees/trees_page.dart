@@ -5,6 +5,7 @@ import '../../app/app_scope.dart';
 import '../../ui/dialogs.dart';
 import '../data/data_actions.dart';
 import 'node_detail.dart';
+import 'reorder.dart';
 import 'tree_data.dart';
 
 /// Vue « Arbres » : plan hiérarchique à gauche, contenu du nœud à droite sur
@@ -62,6 +63,7 @@ class _TreesPageState extends State<TreesPage> {
             ),
             onSelect: (id) => _openPage(context, id),
             onCreateTree: () => _createTree(data),
+            onExpand: (id) => setState(() => _expanded.add(id)),
           );
         }
         final selected = data.byId.containsKey(_selected)
@@ -84,6 +86,7 @@ class _TreesPageState extends State<TreesPage> {
                 ),
                 onSelect: (id) => _select(data, id),
                 onCreateTree: () => _createTree(data),
+                onExpand: (id) => setState(() => _expanded.add(id)),
               ),
             ),
             const VerticalDivider(width: 1),
@@ -145,6 +148,7 @@ class _Outline extends StatelessWidget {
     required this.onToggle,
     required this.onSelect,
     required this.onCreateTree,
+    required this.onExpand,
   });
 
   final TreeData data;
@@ -154,8 +158,12 @@ class _Outline extends StatelessWidget {
   final ValueChanged<String> onSelect;
   final VoidCallback onCreateTree;
 
+  /// Déplie un nœud (après y avoir déposé un élément).
+  final ValueChanged<String> onExpand;
+
   @override
   Widget build(BuildContext context) {
+    final store = AppScope.of(context).store;
     final rows = <(KnowledgeNode, int)>[];
     void visit(String? parentId, int depth) {
       for (final node in data.children(parentId)) {
@@ -195,7 +203,7 @@ class _Outline extends StatelessWidget {
                 final hasChildren = data.children(node.id).isNotEmpty;
                 final progress = data.progress[node.id]!;
                 final isSelected = node.id == selected;
-                return Material(
+                final row = Material(
                   color: isSelected
                       ? theme.colorScheme.secondaryContainer
                       : Colors.transparent,
@@ -204,7 +212,7 @@ class _Outline extends StatelessWidget {
                     child: Padding(
                       padding: EdgeInsets.only(
                         left: 8.0 + depth * 18,
-                        right: 16,
+                        right: 4,
                       ),
                       child: SizedBox(
                         height: 44,
@@ -250,11 +258,20 @@ class _Outline extends StatelessWidget {
                                   color: theme.colorScheme.outline,
                                 ),
                               ),
+                            TreeDragHandle(drag: NodeDrag(node)),
                           ],
                         ),
                       ),
                     ),
                   ),
+                );
+                return TreeDropTarget(
+                  places: (drag) => nodeDropPlaces(data, node, drag),
+                  onDrop: (drag, place) async {
+                    await dropOnNode(store, data, node, drag, place);
+                    if (place == DropPlace.inside) onExpand(node.id);
+                  },
+                  child: TreeDraggable(drag: NodeDrag(node), child: row),
                 );
               },
             ),

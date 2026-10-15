@@ -534,6 +534,27 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  @override
+  late final GeneratedColumnWithTypeConverter<ExerciseLevel?, String> level =
+      GeneratedColumn<String>(
+        'level',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      ).withConverter<ExerciseLevel?>($ItemsTable.$converterleveln);
+  static const VerificationMeta _sortIndexMeta = const VerificationMeta(
+    'sortIndex',
+  );
+  @override
+  late final GeneratedColumn<int> sortIndex = GeneratedColumn<int>(
+    'sort_index',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   static const VerificationMeta _suspendedMeta = const VerificationMeta(
     'suspended',
   );
@@ -658,6 +679,8 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
     kind,
     title,
     body,
+    level,
+    sortIndex,
     suspended,
     createdAt,
     updatedAt,
@@ -707,6 +730,12 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
       context.handle(
         _bodyMeta,
         body.isAcceptableOrUnknown(data['body']!, _bodyMeta),
+      );
+    }
+    if (data.containsKey('sort_index')) {
+      context.handle(
+        _sortIndexMeta,
+        sortIndex.isAcceptableOrUnknown(data['sort_index']!, _sortIndexMeta),
       );
     }
     if (data.containsKey('suspended')) {
@@ -804,6 +833,16 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
         DriftSqlType.string,
         data['${effectivePrefix}body'],
       ),
+      level: $ItemsTable.$converterleveln.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}level'],
+        ),
+      ),
+      sortIndex: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sort_index'],
+      )!,
       suspended: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}suspended'],
@@ -860,6 +899,10 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
 
   static JsonTypeConverter2<ItemKind, String, String> $converterkind =
       const EnumNameConverter<ItemKind>(ItemKind.values);
+  static JsonTypeConverter2<ExerciseLevel, String, String> $converterlevel =
+      const EnumNameConverter<ExerciseLevel>(ExerciseLevel.values);
+  static JsonTypeConverter2<ExerciseLevel?, String?, String?> $converterleveln =
+      JsonTypeConverter2.asNullable($converterlevel);
   static JsonTypeConverter2<LearningPhase, String, String> $converterphase =
       const EnumNameConverter<LearningPhase>(LearningPhase.values);
 }
@@ -870,6 +913,8 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
   final ItemKind kind;
   final String title;
   final String? body;
+  final ExerciseLevel? level;
+  final int sortIndex;
   final bool suspended;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -887,6 +932,8 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     required this.kind,
     required this.title,
     this.body,
+    this.level,
+    required this.sortIndex,
     required this.suspended,
     required this.createdAt,
     required this.updatedAt,
@@ -911,6 +958,12 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     if (!nullToAbsent || body != null) {
       map['body'] = Variable<String>(body);
     }
+    if (!nullToAbsent || level != null) {
+      map['level'] = Variable<String>(
+        $ItemsTable.$converterleveln.toSql(level),
+      );
+    }
+    map['sort_index'] = Variable<int>(sortIndex);
     map['suspended'] = Variable<bool>(suspended);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
@@ -944,6 +997,10 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
       kind: Value(kind),
       title: Value(title),
       body: body == null && nullToAbsent ? const Value.absent() : Value(body),
+      level: level == null && nullToAbsent
+          ? const Value.absent()
+          : Value(level),
+      sortIndex: Value(sortIndex),
       suspended: Value(suspended),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
@@ -977,6 +1034,10 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
       ),
       title: serializer.fromJson<String>(json['title']),
       body: serializer.fromJson<String?>(json['body']),
+      level: $ItemsTable.$converterleveln.fromJson(
+        serializer.fromJson<String?>(json['level']),
+      ),
+      sortIndex: serializer.fromJson<int>(json['sortIndex']),
       suspended: serializer.fromJson<bool>(json['suspended']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -1003,6 +1064,10 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
       ),
       'title': serializer.toJson<String>(title),
       'body': serializer.toJson<String?>(body),
+      'level': serializer.toJson<String?>(
+        $ItemsTable.$converterleveln.toJson(level),
+      ),
+      'sortIndex': serializer.toJson<int>(sortIndex),
       'suspended': serializer.toJson<bool>(suspended),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -1025,6 +1090,8 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     ItemKind? kind,
     String? title,
     Value<String?> body = const Value.absent(),
+    Value<ExerciseLevel?> level = const Value.absent(),
+    int? sortIndex,
     bool? suspended,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -1042,6 +1109,8 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     kind: kind ?? this.kind,
     title: title ?? this.title,
     body: body.present ? body.value : this.body,
+    level: level.present ? level.value : this.level,
+    sortIndex: sortIndex ?? this.sortIndex,
     suspended: suspended ?? this.suspended,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -1061,6 +1130,8 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
       kind: data.kind.present ? data.kind.value : this.kind,
       title: data.title.present ? data.title.value : this.title,
       body: data.body.present ? data.body.value : this.body,
+      level: data.level.present ? data.level.value : this.level,
+      sortIndex: data.sortIndex.present ? data.sortIndex.value : this.sortIndex,
       suspended: data.suspended.present ? data.suspended.value : this.suspended,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
@@ -1087,6 +1158,8 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
           ..write('kind: $kind, ')
           ..write('title: $title, ')
           ..write('body: $body, ')
+          ..write('level: $level, ')
+          ..write('sortIndex: $sortIndex, ')
           ..write('suspended: $suspended, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -1109,6 +1182,8 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     kind,
     title,
     body,
+    level,
+    sortIndex,
     suspended,
     createdAt,
     updatedAt,
@@ -1130,6 +1205,8 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
           other.kind == this.kind &&
           other.title == this.title &&
           other.body == this.body &&
+          other.level == this.level &&
+          other.sortIndex == this.sortIndex &&
           other.suspended == this.suspended &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
@@ -1149,6 +1226,8 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
   final Value<ItemKind> kind;
   final Value<String> title;
   final Value<String?> body;
+  final Value<ExerciseLevel?> level;
+  final Value<int> sortIndex;
   final Value<bool> suspended;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -1167,6 +1246,8 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     this.kind = const Value.absent(),
     this.title = const Value.absent(),
     this.body = const Value.absent(),
+    this.level = const Value.absent(),
+    this.sortIndex = const Value.absent(),
     this.suspended = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -1186,6 +1267,8 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     required ItemKind kind,
     required String title,
     this.body = const Value.absent(),
+    this.level = const Value.absent(),
+    this.sortIndex = const Value.absent(),
     this.suspended = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
@@ -1211,6 +1294,8 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     Expression<String>? kind,
     Expression<String>? title,
     Expression<String>? body,
+    Expression<String>? level,
+    Expression<int>? sortIndex,
     Expression<bool>? suspended,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -1230,6 +1315,8 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
       if (kind != null) 'kind': kind,
       if (title != null) 'title': title,
       if (body != null) 'body': body,
+      if (level != null) 'level': level,
+      if (sortIndex != null) 'sort_index': sortIndex,
       if (suspended != null) 'suspended': suspended,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -1251,6 +1338,8 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     Value<ItemKind>? kind,
     Value<String>? title,
     Value<String?>? body,
+    Value<ExerciseLevel?>? level,
+    Value<int>? sortIndex,
     Value<bool>? suspended,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
@@ -1270,6 +1359,8 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
       kind: kind ?? this.kind,
       title: title ?? this.title,
       body: body ?? this.body,
+      level: level ?? this.level,
+      sortIndex: sortIndex ?? this.sortIndex,
       suspended: suspended ?? this.suspended,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -1304,6 +1395,14 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     }
     if (body.present) {
       map['body'] = Variable<String>(body.value);
+    }
+    if (level.present) {
+      map['level'] = Variable<String>(
+        $ItemsTable.$converterleveln.toSql(level.value),
+      );
+    }
+    if (sortIndex.present) {
+      map['sort_index'] = Variable<int>(sortIndex.value);
     }
     if (suspended.present) {
       map['suspended'] = Variable<bool>(suspended.value);
@@ -1354,6 +1453,8 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
           ..write('kind: $kind, ')
           ..write('title: $title, ')
           ..write('body: $body, ')
+          ..write('level: $level, ')
+          ..write('sortIndex: $sortIndex, ')
           ..write('suspended: $suspended, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -2218,6 +2319,18 @@ class $DocumentsTable extends Documents
     requiredDuringInsert: false,
     defaultValue: const Constant('[]'),
   );
+  static const VerificationMeta _lastPageMeta = const VerificationMeta(
+    'lastPage',
+  );
+  @override
+  late final GeneratedColumn<int> lastPage = GeneratedColumn<int>(
+    'last_page',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2229,6 +2342,7 @@ class $DocumentsTable extends Documents
     version,
     fingerprints,
     newPages,
+    lastPage,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2305,6 +2419,12 @@ class $DocumentsTable extends Documents
         newPages.isAcceptableOrUnknown(data['new_pages']!, _newPagesMeta),
       );
     }
+    if (data.containsKey('last_page')) {
+      context.handle(
+        _lastPageMeta,
+        lastPage.isAcceptableOrUnknown(data['last_page']!, _lastPageMeta),
+      );
+    }
     return context;
   }
 
@@ -2352,6 +2472,10 @@ class $DocumentsTable extends Documents
         DriftSqlType.string,
         data['${effectivePrefix}new_pages'],
       )!,
+      lastPage: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_page'],
+      )!,
     );
   }
 
@@ -2378,6 +2502,9 @@ class DocumentRow extends DataClass implements Insertable<DocumentRow> {
 
   /// Pages apparues à la dernière mise à jour (JSON : liste d'entiers).
   final String newPages;
+
+  /// Dernière page consultée (v3).
+  final int lastPage;
   const DocumentRow({
     required this.id,
     required this.title,
@@ -2388,6 +2515,7 @@ class DocumentRow extends DataClass implements Insertable<DocumentRow> {
     required this.version,
     required this.fingerprints,
     required this.newPages,
+    required this.lastPage,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2405,6 +2533,7 @@ class DocumentRow extends DataClass implements Insertable<DocumentRow> {
     map['version'] = Variable<int>(version);
     map['fingerprints'] = Variable<Uint8List>(fingerprints);
     map['new_pages'] = Variable<String>(newPages);
+    map['last_page'] = Variable<int>(lastPage);
     return map;
   }
 
@@ -2419,6 +2548,7 @@ class DocumentRow extends DataClass implements Insertable<DocumentRow> {
       version: Value(version),
       fingerprints: Value(fingerprints),
       newPages: Value(newPages),
+      lastPage: Value(lastPage),
     );
   }
 
@@ -2439,6 +2569,7 @@ class DocumentRow extends DataClass implements Insertable<DocumentRow> {
       version: serializer.fromJson<int>(json['version']),
       fingerprints: serializer.fromJson<Uint8List>(json['fingerprints']),
       newPages: serializer.fromJson<String>(json['newPages']),
+      lastPage: serializer.fromJson<int>(json['lastPage']),
     );
   }
   @override
@@ -2456,6 +2587,7 @@ class DocumentRow extends DataClass implements Insertable<DocumentRow> {
       'version': serializer.toJson<int>(version),
       'fingerprints': serializer.toJson<Uint8List>(fingerprints),
       'newPages': serializer.toJson<String>(newPages),
+      'lastPage': serializer.toJson<int>(lastPage),
     };
   }
 
@@ -2469,6 +2601,7 @@ class DocumentRow extends DataClass implements Insertable<DocumentRow> {
     int? version,
     Uint8List? fingerprints,
     String? newPages,
+    int? lastPage,
   }) => DocumentRow(
     id: id ?? this.id,
     title: title ?? this.title,
@@ -2479,6 +2612,7 @@ class DocumentRow extends DataClass implements Insertable<DocumentRow> {
     version: version ?? this.version,
     fingerprints: fingerprints ?? this.fingerprints,
     newPages: newPages ?? this.newPages,
+    lastPage: lastPage ?? this.lastPage,
   );
   DocumentRow copyWithCompanion(DocumentsCompanion data) {
     return DocumentRow(
@@ -2497,6 +2631,7 @@ class DocumentRow extends DataClass implements Insertable<DocumentRow> {
           ? data.fingerprints.value
           : this.fingerprints,
       newPages: data.newPages.present ? data.newPages.value : this.newPages,
+      lastPage: data.lastPage.present ? data.lastPage.value : this.lastPage,
     );
   }
 
@@ -2511,7 +2646,8 @@ class DocumentRow extends DataClass implements Insertable<DocumentRow> {
           ..write('importedAt: $importedAt, ')
           ..write('version: $version, ')
           ..write('fingerprints: $fingerprints, ')
-          ..write('newPages: $newPages')
+          ..write('newPages: $newPages, ')
+          ..write('lastPage: $lastPage')
           ..write(')'))
         .toString();
   }
@@ -2527,6 +2663,7 @@ class DocumentRow extends DataClass implements Insertable<DocumentRow> {
     version,
     $driftBlobEquality.hash(fingerprints),
     newPages,
+    lastPage,
   );
   @override
   bool operator ==(Object other) =>
@@ -2540,7 +2677,8 @@ class DocumentRow extends DataClass implements Insertable<DocumentRow> {
           other.importedAt == this.importedAt &&
           other.version == this.version &&
           $driftBlobEquality.equals(other.fingerprints, this.fingerprints) &&
-          other.newPages == this.newPages);
+          other.newPages == this.newPages &&
+          other.lastPage == this.lastPage);
 }
 
 class DocumentsCompanion extends UpdateCompanion<DocumentRow> {
@@ -2553,6 +2691,7 @@ class DocumentsCompanion extends UpdateCompanion<DocumentRow> {
   final Value<int> version;
   final Value<Uint8List> fingerprints;
   final Value<String> newPages;
+  final Value<int> lastPage;
   final Value<int> rowid;
   const DocumentsCompanion({
     this.id = const Value.absent(),
@@ -2564,6 +2703,7 @@ class DocumentsCompanion extends UpdateCompanion<DocumentRow> {
     this.version = const Value.absent(),
     this.fingerprints = const Value.absent(),
     this.newPages = const Value.absent(),
+    this.lastPage = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   DocumentsCompanion.insert({
@@ -2576,6 +2716,7 @@ class DocumentsCompanion extends UpdateCompanion<DocumentRow> {
     this.version = const Value.absent(),
     required Uint8List fingerprints,
     this.newPages = const Value.absent(),
+    this.lastPage = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        title = Value(title),
@@ -2594,6 +2735,7 @@ class DocumentsCompanion extends UpdateCompanion<DocumentRow> {
     Expression<int>? version,
     Expression<Uint8List>? fingerprints,
     Expression<String>? newPages,
+    Expression<int>? lastPage,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2606,6 +2748,7 @@ class DocumentsCompanion extends UpdateCompanion<DocumentRow> {
       if (version != null) 'version': version,
       if (fingerprints != null) 'fingerprints': fingerprints,
       if (newPages != null) 'new_pages': newPages,
+      if (lastPage != null) 'last_page': lastPage,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2620,6 +2763,7 @@ class DocumentsCompanion extends UpdateCompanion<DocumentRow> {
     Value<int>? version,
     Value<Uint8List>? fingerprints,
     Value<String>? newPages,
+    Value<int>? lastPage,
     Value<int>? rowid,
   }) {
     return DocumentsCompanion(
@@ -2632,6 +2776,7 @@ class DocumentsCompanion extends UpdateCompanion<DocumentRow> {
       version: version ?? this.version,
       fingerprints: fingerprints ?? this.fingerprints,
       newPages: newPages ?? this.newPages,
+      lastPage: lastPage ?? this.lastPage,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2668,6 +2813,9 @@ class DocumentsCompanion extends UpdateCompanion<DocumentRow> {
     if (newPages.present) {
       map['new_pages'] = Variable<String>(newPages.value);
     }
+    if (lastPage.present) {
+      map['last_page'] = Variable<int>(lastPage.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2686,6 +2834,7 @@ class DocumentsCompanion extends UpdateCompanion<DocumentRow> {
           ..write('version: $version, ')
           ..write('fingerprints: $fingerprints, ')
           ..write('newPages: $newPages, ')
+          ..write('lastPage: $lastPage, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3676,6 +3825,705 @@ class AnchorsCompanion extends UpdateCompanion<AnchorRow> {
   }
 }
 
+class $NotesTable extends Notes with TableInfo<$NotesTable, NoteRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $NotesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _bodyMeta = const VerificationMeta('body');
+  @override
+  late final GeneratedColumn<String> body = GeneratedColumn<String>(
+    'body',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _documentIdMeta = const VerificationMeta(
+    'documentId',
+  );
+  @override
+  late final GeneratedColumn<String> documentId = GeneratedColumn<String>(
+    'document_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES documents (id) ON DELETE SET NULL',
+    ),
+  );
+  static const VerificationMeta _pageMeta = const VerificationMeta('page');
+  @override
+  late final GeneratedColumn<int> page = GeneratedColumn<int>(
+    'page',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _leftMeta = const VerificationMeta('left');
+  @override
+  late final GeneratedColumn<double> left = GeneratedColumn<double>(
+    'left',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _topMeta = const VerificationMeta('top');
+  @override
+  late final GeneratedColumn<double> top = GeneratedColumn<double>(
+    'top',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _rightMeta = const VerificationMeta('right');
+  @override
+  late final GeneratedColumn<double> right = GeneratedColumn<double>(
+    'right',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _bottomMeta = const VerificationMeta('bottom');
+  @override
+  late final GeneratedColumn<double> bottom = GeneratedColumn<double>(
+    'bottom',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _snapshotMeta = const VerificationMeta(
+    'snapshot',
+  );
+  @override
+  late final GeneratedColumn<Uint8List> snapshot = GeneratedColumn<Uint8List>(
+    'snapshot',
+    aliasedName,
+    true,
+    type: DriftSqlType.blob,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _itemIdMeta = const VerificationMeta('itemId');
+  @override
+  late final GeneratedColumn<String> itemId = GeneratedColumn<String>(
+    'item_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES items (id) ON DELETE SET NULL',
+    ),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    body,
+    documentId,
+    page,
+    left,
+    top,
+    right,
+    bottom,
+    snapshot,
+    itemId,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'notes';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<NoteRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('body')) {
+      context.handle(
+        _bodyMeta,
+        body.isAcceptableOrUnknown(data['body']!, _bodyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_bodyMeta);
+    }
+    if (data.containsKey('document_id')) {
+      context.handle(
+        _documentIdMeta,
+        documentId.isAcceptableOrUnknown(data['document_id']!, _documentIdMeta),
+      );
+    }
+    if (data.containsKey('page')) {
+      context.handle(
+        _pageMeta,
+        page.isAcceptableOrUnknown(data['page']!, _pageMeta),
+      );
+    }
+    if (data.containsKey('left')) {
+      context.handle(
+        _leftMeta,
+        left.isAcceptableOrUnknown(data['left']!, _leftMeta),
+      );
+    }
+    if (data.containsKey('top')) {
+      context.handle(
+        _topMeta,
+        top.isAcceptableOrUnknown(data['top']!, _topMeta),
+      );
+    }
+    if (data.containsKey('right')) {
+      context.handle(
+        _rightMeta,
+        right.isAcceptableOrUnknown(data['right']!, _rightMeta),
+      );
+    }
+    if (data.containsKey('bottom')) {
+      context.handle(
+        _bottomMeta,
+        bottom.isAcceptableOrUnknown(data['bottom']!, _bottomMeta),
+      );
+    }
+    if (data.containsKey('snapshot')) {
+      context.handle(
+        _snapshotMeta,
+        snapshot.isAcceptableOrUnknown(data['snapshot']!, _snapshotMeta),
+      );
+    }
+    if (data.containsKey('item_id')) {
+      context.handle(
+        _itemIdMeta,
+        itemId.isAcceptableOrUnknown(data['item_id']!, _itemIdMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  NoteRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return NoteRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      body: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}body'],
+      )!,
+      documentId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}document_id'],
+      ),
+      page: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}page'],
+      ),
+      left: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}left'],
+      ),
+      top: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}top'],
+      ),
+      right: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}right'],
+      ),
+      bottom: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}bottom'],
+      ),
+      snapshot: attachedDatabase.typeMapping.read(
+        DriftSqlType.blob,
+        data['${effectivePrefix}snapshot'],
+      ),
+      itemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}item_id'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $NotesTable createAlias(String alias) {
+    return $NotesTable(attachedDatabase, alias);
+  }
+}
+
+class NoteRow extends DataClass implements Insertable<NoteRow> {
+  final String id;
+  final String body;
+  final String? documentId;
+  final int? page;
+  final double? left;
+  final double? top;
+  final double? right;
+  final double? bottom;
+  final Uint8List? snapshot;
+  final String? itemId;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const NoteRow({
+    required this.id,
+    required this.body,
+    this.documentId,
+    this.page,
+    this.left,
+    this.top,
+    this.right,
+    this.bottom,
+    this.snapshot,
+    this.itemId,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['body'] = Variable<String>(body);
+    if (!nullToAbsent || documentId != null) {
+      map['document_id'] = Variable<String>(documentId);
+    }
+    if (!nullToAbsent || page != null) {
+      map['page'] = Variable<int>(page);
+    }
+    if (!nullToAbsent || left != null) {
+      map['left'] = Variable<double>(left);
+    }
+    if (!nullToAbsent || top != null) {
+      map['top'] = Variable<double>(top);
+    }
+    if (!nullToAbsent || right != null) {
+      map['right'] = Variable<double>(right);
+    }
+    if (!nullToAbsent || bottom != null) {
+      map['bottom'] = Variable<double>(bottom);
+    }
+    if (!nullToAbsent || snapshot != null) {
+      map['snapshot'] = Variable<Uint8List>(snapshot);
+    }
+    if (!nullToAbsent || itemId != null) {
+      map['item_id'] = Variable<String>(itemId);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  NotesCompanion toCompanion(bool nullToAbsent) {
+    return NotesCompanion(
+      id: Value(id),
+      body: Value(body),
+      documentId: documentId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(documentId),
+      page: page == null && nullToAbsent ? const Value.absent() : Value(page),
+      left: left == null && nullToAbsent ? const Value.absent() : Value(left),
+      top: top == null && nullToAbsent ? const Value.absent() : Value(top),
+      right: right == null && nullToAbsent
+          ? const Value.absent()
+          : Value(right),
+      bottom: bottom == null && nullToAbsent
+          ? const Value.absent()
+          : Value(bottom),
+      snapshot: snapshot == null && nullToAbsent
+          ? const Value.absent()
+          : Value(snapshot),
+      itemId: itemId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(itemId),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory NoteRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return NoteRow(
+      id: serializer.fromJson<String>(json['id']),
+      body: serializer.fromJson<String>(json['body']),
+      documentId: serializer.fromJson<String?>(json['documentId']),
+      page: serializer.fromJson<int?>(json['page']),
+      left: serializer.fromJson<double?>(json['left']),
+      top: serializer.fromJson<double?>(json['top']),
+      right: serializer.fromJson<double?>(json['right']),
+      bottom: serializer.fromJson<double?>(json['bottom']),
+      snapshot: serializer.fromJson<Uint8List?>(json['snapshot']),
+      itemId: serializer.fromJson<String?>(json['itemId']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'body': serializer.toJson<String>(body),
+      'documentId': serializer.toJson<String?>(documentId),
+      'page': serializer.toJson<int?>(page),
+      'left': serializer.toJson<double?>(left),
+      'top': serializer.toJson<double?>(top),
+      'right': serializer.toJson<double?>(right),
+      'bottom': serializer.toJson<double?>(bottom),
+      'snapshot': serializer.toJson<Uint8List?>(snapshot),
+      'itemId': serializer.toJson<String?>(itemId),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  NoteRow copyWith({
+    String? id,
+    String? body,
+    Value<String?> documentId = const Value.absent(),
+    Value<int?> page = const Value.absent(),
+    Value<double?> left = const Value.absent(),
+    Value<double?> top = const Value.absent(),
+    Value<double?> right = const Value.absent(),
+    Value<double?> bottom = const Value.absent(),
+    Value<Uint8List?> snapshot = const Value.absent(),
+    Value<String?> itemId = const Value.absent(),
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => NoteRow(
+    id: id ?? this.id,
+    body: body ?? this.body,
+    documentId: documentId.present ? documentId.value : this.documentId,
+    page: page.present ? page.value : this.page,
+    left: left.present ? left.value : this.left,
+    top: top.present ? top.value : this.top,
+    right: right.present ? right.value : this.right,
+    bottom: bottom.present ? bottom.value : this.bottom,
+    snapshot: snapshot.present ? snapshot.value : this.snapshot,
+    itemId: itemId.present ? itemId.value : this.itemId,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  NoteRow copyWithCompanion(NotesCompanion data) {
+    return NoteRow(
+      id: data.id.present ? data.id.value : this.id,
+      body: data.body.present ? data.body.value : this.body,
+      documentId: data.documentId.present
+          ? data.documentId.value
+          : this.documentId,
+      page: data.page.present ? data.page.value : this.page,
+      left: data.left.present ? data.left.value : this.left,
+      top: data.top.present ? data.top.value : this.top,
+      right: data.right.present ? data.right.value : this.right,
+      bottom: data.bottom.present ? data.bottom.value : this.bottom,
+      snapshot: data.snapshot.present ? data.snapshot.value : this.snapshot,
+      itemId: data.itemId.present ? data.itemId.value : this.itemId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NoteRow(')
+          ..write('id: $id, ')
+          ..write('body: $body, ')
+          ..write('documentId: $documentId, ')
+          ..write('page: $page, ')
+          ..write('left: $left, ')
+          ..write('top: $top, ')
+          ..write('right: $right, ')
+          ..write('bottom: $bottom, ')
+          ..write('snapshot: $snapshot, ')
+          ..write('itemId: $itemId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    body,
+    documentId,
+    page,
+    left,
+    top,
+    right,
+    bottom,
+    $driftBlobEquality.hash(snapshot),
+    itemId,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is NoteRow &&
+          other.id == this.id &&
+          other.body == this.body &&
+          other.documentId == this.documentId &&
+          other.page == this.page &&
+          other.left == this.left &&
+          other.top == this.top &&
+          other.right == this.right &&
+          other.bottom == this.bottom &&
+          $driftBlobEquality.equals(other.snapshot, this.snapshot) &&
+          other.itemId == this.itemId &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class NotesCompanion extends UpdateCompanion<NoteRow> {
+  final Value<String> id;
+  final Value<String> body;
+  final Value<String?> documentId;
+  final Value<int?> page;
+  final Value<double?> left;
+  final Value<double?> top;
+  final Value<double?> right;
+  final Value<double?> bottom;
+  final Value<Uint8List?> snapshot;
+  final Value<String?> itemId;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const NotesCompanion({
+    this.id = const Value.absent(),
+    this.body = const Value.absent(),
+    this.documentId = const Value.absent(),
+    this.page = const Value.absent(),
+    this.left = const Value.absent(),
+    this.top = const Value.absent(),
+    this.right = const Value.absent(),
+    this.bottom = const Value.absent(),
+    this.snapshot = const Value.absent(),
+    this.itemId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  NotesCompanion.insert({
+    required String id,
+    required String body,
+    this.documentId = const Value.absent(),
+    this.page = const Value.absent(),
+    this.left = const Value.absent(),
+    this.top = const Value.absent(),
+    this.right = const Value.absent(),
+    this.bottom = const Value.absent(),
+    this.snapshot = const Value.absent(),
+    this.itemId = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       body = Value(body),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<NoteRow> custom({
+    Expression<String>? id,
+    Expression<String>? body,
+    Expression<String>? documentId,
+    Expression<int>? page,
+    Expression<double>? left,
+    Expression<double>? top,
+    Expression<double>? right,
+    Expression<double>? bottom,
+    Expression<Uint8List>? snapshot,
+    Expression<String>? itemId,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (body != null) 'body': body,
+      if (documentId != null) 'document_id': documentId,
+      if (page != null) 'page': page,
+      if (left != null) 'left': left,
+      if (top != null) 'top': top,
+      if (right != null) 'right': right,
+      if (bottom != null) 'bottom': bottom,
+      if (snapshot != null) 'snapshot': snapshot,
+      if (itemId != null) 'item_id': itemId,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  NotesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? body,
+    Value<String?>? documentId,
+    Value<int?>? page,
+    Value<double?>? left,
+    Value<double?>? top,
+    Value<double?>? right,
+    Value<double?>? bottom,
+    Value<Uint8List?>? snapshot,
+    Value<String?>? itemId,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return NotesCompanion(
+      id: id ?? this.id,
+      body: body ?? this.body,
+      documentId: documentId ?? this.documentId,
+      page: page ?? this.page,
+      left: left ?? this.left,
+      top: top ?? this.top,
+      right: right ?? this.right,
+      bottom: bottom ?? this.bottom,
+      snapshot: snapshot ?? this.snapshot,
+      itemId: itemId ?? this.itemId,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (body.present) {
+      map['body'] = Variable<String>(body.value);
+    }
+    if (documentId.present) {
+      map['document_id'] = Variable<String>(documentId.value);
+    }
+    if (page.present) {
+      map['page'] = Variable<int>(page.value);
+    }
+    if (left.present) {
+      map['left'] = Variable<double>(left.value);
+    }
+    if (top.present) {
+      map['top'] = Variable<double>(top.value);
+    }
+    if (right.present) {
+      map['right'] = Variable<double>(right.value);
+    }
+    if (bottom.present) {
+      map['bottom'] = Variable<double>(bottom.value);
+    }
+    if (snapshot.present) {
+      map['snapshot'] = Variable<Uint8List>(snapshot.value);
+    }
+    if (itemId.present) {
+      map['item_id'] = Variable<String>(itemId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NotesCompanion(')
+          ..write('id: $id, ')
+          ..write('body: $body, ')
+          ..write('documentId: $documentId, ')
+          ..write('page: $page, ')
+          ..write('left: $left, ')
+          ..write('top: $top, ')
+          ..write('right: $right, ')
+          ..write('bottom: $bottom, ')
+          ..write('snapshot: $snapshot, ')
+          ..write('itemId: $itemId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$VergerDatabase extends GeneratedDatabase {
   _$VergerDatabase(QueryExecutor e) : super(e);
   $VergerDatabaseManager get managers => $VergerDatabaseManager(this);
@@ -3686,6 +4534,7 @@ abstract class _$VergerDatabase extends GeneratedDatabase {
   late final $DocumentsTable documents = $DocumentsTable(this);
   late final $DocumentFilesTable documentFiles = $DocumentFilesTable(this);
   late final $AnchorsTable anchors = $AnchorsTable(this);
+  late final $NotesTable notes = $NotesTable(this);
   late final Index nodesParent = Index(
     'nodes_parent',
     'CREATE INDEX nodes_parent ON nodes (parent_id)',
@@ -3710,6 +4559,14 @@ abstract class _$VergerDatabase extends GeneratedDatabase {
     'anchors_document',
     'CREATE INDEX anchors_document ON anchors (document_id)',
   );
+  late final Index notesDocument = Index(
+    'notes_document',
+    'CREATE INDEX notes_document ON notes (document_id)',
+  );
+  late final Index notesItem = Index(
+    'notes_item',
+    'CREATE INDEX notes_item ON notes (item_id)',
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3722,12 +4579,15 @@ abstract class _$VergerDatabase extends GeneratedDatabase {
     documents,
     documentFiles,
     anchors,
+    notes,
     nodesParent,
     itemsNode,
     itemsDue,
     reviewLogsItem,
     anchorsItem,
     anchorsDocument,
+    notesDocument,
+    notesItem,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -3758,6 +4618,20 @@ abstract class _$VergerDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('anchors', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'documents',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('notes', kind: UpdateKind.update)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'items',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('notes', kind: UpdateKind.update)],
     ),
   ]);
   @override
@@ -4212,6 +5086,8 @@ typedef $$ItemsTableCreateCompanionBuilder =
       required ItemKind kind,
       required String title,
       Value<String?> body,
+      Value<ExerciseLevel?> level,
+      Value<int> sortIndex,
       Value<bool> suspended,
       required DateTime createdAt,
       required DateTime updatedAt,
@@ -4232,6 +5108,8 @@ typedef $$ItemsTableUpdateCompanionBuilder =
       Value<ItemKind> kind,
       Value<String> title,
       Value<String?> body,
+      Value<ExerciseLevel?> level,
+      Value<int> sortIndex,
       Value<bool> suspended,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -4303,6 +5181,25 @@ final class $$ItemsTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$NotesTable, List<NoteRow>> _notesRefsTable(
+    _$VergerDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.notes,
+    aliasName: 'items__id__notes__item_id',
+  );
+
+  $$NotesTableProcessedTableManager get notesRefs {
+    final manager = $$NotesTableTableManager(
+      $_db,
+      $_db.notes,
+    ).filter((f) => f.itemId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_notesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$ItemsTableFilterComposer
@@ -4332,6 +5229,17 @@ class $$ItemsTableFilterComposer
 
   ColumnFilters<String> get body => $composableBuilder(
     column: $table.body,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<ExerciseLevel?, ExerciseLevel, String>
+  get level => $composableBuilder(
+    column: $table.level,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<int> get sortIndex => $composableBuilder(
+    column: $table.sortIndex,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4463,6 +5371,31 @@ class $$ItemsTableFilterComposer
     );
     return f(composer);
   }
+
+  Expression<bool> notesRefs(
+    Expression<bool> Function($$NotesTableFilterComposer f) f,
+  ) {
+    final $$NotesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.notes,
+      getReferencedColumn: (t) => t.itemId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$NotesTableFilterComposer(
+            $db: $db,
+            $table: $db.notes,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$ItemsTableOrderingComposer
@@ -4491,6 +5424,16 @@ class $$ItemsTableOrderingComposer
 
   ColumnOrderings<String> get body => $composableBuilder(
     column: $table.body,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get level => $composableBuilder(
+    column: $table.level,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sortIndex => $composableBuilder(
+    column: $table.sortIndex,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -4593,6 +5536,12 @@ class $$ItemsTableAnnotationComposer
 
   GeneratedColumn<String> get body =>
       $composableBuilder(column: $table.body, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<ExerciseLevel?, String> get level =>
+      $composableBuilder(column: $table.level, builder: (column) => column);
+
+  GeneratedColumn<int> get sortIndex =>
+      $composableBuilder(column: $table.sortIndex, builder: (column) => column);
 
   GeneratedColumn<bool> get suspended =>
       $composableBuilder(column: $table.suspended, builder: (column) => column);
@@ -4703,6 +5652,31 @@ class $$ItemsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> notesRefs<T extends Object>(
+    Expression<T> Function($$NotesTableAnnotationComposer a) f,
+  ) {
+    final $$NotesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.notes,
+      getReferencedColumn: (t) => t.itemId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$NotesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.notes,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$ItemsTableTableManager
@@ -4722,6 +5696,7 @@ class $$ItemsTableTableManager
             bool nodeId,
             bool reviewLogsRefs,
             bool anchorsRefs,
+            bool notesRefs,
           })
         > {
   $$ItemsTableTableManager(_$VergerDatabase db, $ItemsTable table)
@@ -4742,6 +5717,8 @@ class $$ItemsTableTableManager
                 Value<ItemKind> kind = const Value.absent(),
                 Value<String> title = const Value.absent(),
                 Value<String?> body = const Value.absent(),
+                Value<ExerciseLevel?> level = const Value.absent(),
+                Value<int> sortIndex = const Value.absent(),
                 Value<bool> suspended = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -4760,6 +5737,8 @@ class $$ItemsTableTableManager
                 kind: kind,
                 title: title,
                 body: body,
+                level: level,
+                sortIndex: sortIndex,
                 suspended: suspended,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -4780,6 +5759,8 @@ class $$ItemsTableTableManager
                 required ItemKind kind,
                 required String title,
                 Value<String?> body = const Value.absent(),
+                Value<ExerciseLevel?> level = const Value.absent(),
+                Value<int> sortIndex = const Value.absent(),
                 Value<bool> suspended = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
@@ -4798,6 +5779,8 @@ class $$ItemsTableTableManager
                 kind: kind,
                 title: title,
                 body: body,
+                level: level,
+                sortIndex: sortIndex,
                 suspended: suspended,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -4820,12 +5803,18 @@ class $$ItemsTableTableManager
               )
               .toList(),
           prefetchHooksCallback:
-              ({nodeId = false, reviewLogsRefs = false, anchorsRefs = false}) {
+              ({
+                nodeId = false,
+                reviewLogsRefs = false,
+                anchorsRefs = false,
+                notesRefs = false,
+              }) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
                     if (reviewLogsRefs) db.reviewLogs,
                     if (anchorsRefs) db.anchors,
+                    if (notesRefs) db.notes,
                   ],
                   addJoins:
                       <
@@ -4899,6 +5888,23 @@ class $$ItemsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (notesRefs)
+                        await $_getPrefetchedData<
+                          ItemRow,
+                          $ItemsTable,
+                          NoteRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ItemsTableReferences
+                              ._notesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ItemsTableReferences(db, table, p0).notesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.itemId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -4923,6 +5929,7 @@ typedef $$ItemsTableProcessedTableManager =
         bool nodeId,
         bool reviewLogsRefs,
         bool anchorsRefs,
+        bool notesRefs,
       })
     >;
 typedef $$ReviewLogsTableCreateCompanionBuilder =
@@ -5469,6 +6476,7 @@ typedef $$DocumentsTableCreateCompanionBuilder =
       Value<int> version,
       required Uint8List fingerprints,
       Value<String> newPages,
+      Value<int> lastPage,
       Value<int> rowid,
     });
 typedef $$DocumentsTableUpdateCompanionBuilder =
@@ -5482,6 +6490,7 @@ typedef $$DocumentsTableUpdateCompanionBuilder =
       Value<int> version,
       Value<Uint8List> fingerprints,
       Value<String> newPages,
+      Value<int> lastPage,
       Value<int> rowid,
     });
 
@@ -5521,6 +6530,25 @@ final class $$DocumentsTableReferences
     ).filter((f) => f.documentId.id.sqlEquals($_itemColumn<String>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_anchorsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$NotesTable, List<NoteRow>> _notesRefsTable(
+    _$VergerDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.notes,
+    aliasName: 'documents__id__notes__document_id',
+  );
+
+  $$NotesTableProcessedTableManager get notesRefs {
+    final manager = $$NotesTableTableManager(
+      $_db,
+      $_db.notes,
+    ).filter((f) => f.documentId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_notesRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -5582,6 +6610,11 @@ class $$DocumentsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<int> get lastPage => $composableBuilder(
+    column: $table.lastPage,
+    builder: (column) => ColumnFilters(column),
+  );
+
   Expression<bool> documentFilesRefs(
     Expression<bool> Function($$DocumentFilesTableFilterComposer f) f,
   ) {
@@ -5623,6 +6656,31 @@ class $$DocumentsTableFilterComposer
           }) => $$AnchorsTableFilterComposer(
             $db: $db,
             $table: $db.anchors,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> notesRefs(
+    Expression<bool> Function($$NotesTableFilterComposer f) f,
+  ) {
+    final $$NotesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.notes,
+      getReferencedColumn: (t) => t.documentId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$NotesTableFilterComposer(
+            $db: $db,
+            $table: $db.notes,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -5686,6 +6744,11 @@ class $$DocumentsTableOrderingComposer
     column: $table.newPages,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get lastPage => $composableBuilder(
+    column: $table.lastPage,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$DocumentsTableAnnotationComposer
@@ -5729,6 +6792,9 @@ class $$DocumentsTableAnnotationComposer
 
   GeneratedColumn<String> get newPages =>
       $composableBuilder(column: $table.newPages, builder: (column) => column);
+
+  GeneratedColumn<int> get lastPage =>
+      $composableBuilder(column: $table.lastPage, builder: (column) => column);
 
   Expression<T> documentFilesRefs<T extends Object>(
     Expression<T> Function($$DocumentFilesTableAnnotationComposer a) f,
@@ -5779,6 +6845,31 @@ class $$DocumentsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> notesRefs<T extends Object>(
+    Expression<T> Function($$NotesTableAnnotationComposer a) f,
+  ) {
+    final $$NotesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.notes,
+      getReferencedColumn: (t) => t.documentId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$NotesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.notes,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$DocumentsTableTableManager
@@ -5794,7 +6885,11 @@ class $$DocumentsTableTableManager
           $$DocumentsTableUpdateCompanionBuilder,
           (DocumentRow, $$DocumentsTableReferences),
           DocumentRow,
-          PrefetchHooks Function({bool documentFilesRefs, bool anchorsRefs})
+          PrefetchHooks Function({
+            bool documentFilesRefs,
+            bool anchorsRefs,
+            bool notesRefs,
+          })
         > {
   $$DocumentsTableTableManager(_$VergerDatabase db, $DocumentsTable table)
     : super(
@@ -5818,6 +6913,7 @@ class $$DocumentsTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<Uint8List> fingerprints = const Value.absent(),
                 Value<String> newPages = const Value.absent(),
+                Value<int> lastPage = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => DocumentsCompanion(
                 id: id,
@@ -5829,6 +6925,7 @@ class $$DocumentsTableTableManager
                 version: version,
                 fingerprints: fingerprints,
                 newPages: newPages,
+                lastPage: lastPage,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -5842,6 +6939,7 @@ class $$DocumentsTableTableManager
                 Value<int> version = const Value.absent(),
                 required Uint8List fingerprints,
                 Value<String> newPages = const Value.absent(),
+                Value<int> lastPage = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => DocumentsCompanion.insert(
                 id: id,
@@ -5853,6 +6951,7 @@ class $$DocumentsTableTableManager
                 version: version,
                 fingerprints: fingerprints,
                 newPages: newPages,
+                lastPage: lastPage,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -5864,12 +6963,17 @@ class $$DocumentsTableTableManager
               )
               .toList(),
           prefetchHooksCallback:
-              ({documentFilesRefs = false, anchorsRefs = false}) {
+              ({
+                documentFilesRefs = false,
+                anchorsRefs = false,
+                notesRefs = false,
+              }) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
                     if (documentFilesRefs) db.documentFiles,
                     if (anchorsRefs) db.anchors,
+                    if (notesRefs) db.notes,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -5916,6 +7020,27 @@ class $$DocumentsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (notesRefs)
+                        await $_getPrefetchedData<
+                          DocumentRow,
+                          $DocumentsTable,
+                          NoteRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$DocumentsTableReferences
+                              ._notesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$DocumentsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).notesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.documentId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -5936,7 +7061,11 @@ typedef $$DocumentsTableProcessedTableManager =
       $$DocumentsTableUpdateCompanionBuilder,
       (DocumentRow, $$DocumentsTableReferences),
       DocumentRow,
-      PrefetchHooks Function({bool documentFilesRefs, bool anchorsRefs})
+      PrefetchHooks Function({
+        bool documentFilesRefs,
+        bool anchorsRefs,
+        bool notesRefs,
+      })
     >;
 typedef $$DocumentFilesTableCreateCompanionBuilder =
     DocumentFilesCompanion Function({
@@ -6765,6 +7894,542 @@ typedef $$AnchorsTableProcessedTableManager =
       AnchorRow,
       PrefetchHooks Function({bool itemId, bool documentId})
     >;
+typedef $$NotesTableCreateCompanionBuilder =
+    NotesCompanion Function({
+      required String id,
+      required String body,
+      Value<String?> documentId,
+      Value<int?> page,
+      Value<double?> left,
+      Value<double?> top,
+      Value<double?> right,
+      Value<double?> bottom,
+      Value<Uint8List?> snapshot,
+      Value<String?> itemId,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$NotesTableUpdateCompanionBuilder =
+    NotesCompanion Function({
+      Value<String> id,
+      Value<String> body,
+      Value<String?> documentId,
+      Value<int?> page,
+      Value<double?> left,
+      Value<double?> top,
+      Value<double?> right,
+      Value<double?> bottom,
+      Value<Uint8List?> snapshot,
+      Value<String?> itemId,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+final class $$NotesTableReferences
+    extends BaseReferences<_$VergerDatabase, $NotesTable, NoteRow> {
+  $$NotesTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $DocumentsTable _documentIdTable(_$VergerDatabase db) =>
+      db.documents.createAlias('notes__document_id__documents__id');
+
+  $$DocumentsTableProcessedTableManager? get documentId {
+    final $_column = $_itemColumn<String>('document_id');
+    if ($_column == null) return null;
+    final manager = $$DocumentsTableTableManager(
+      $_db,
+      $_db.documents,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_documentIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $ItemsTable _itemIdTable(_$VergerDatabase db) =>
+      db.items.createAlias('notes__item_id__items__id');
+
+  $$ItemsTableProcessedTableManager? get itemId {
+    final $_column = $_itemColumn<String>('item_id');
+    if ($_column == null) return null;
+    final manager = $$ItemsTableTableManager(
+      $_db,
+      $_db.items,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_itemIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$NotesTableFilterComposer
+    extends Composer<_$VergerDatabase, $NotesTable> {
+  $$NotesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get page => $composableBuilder(
+    column: $table.page,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get left => $composableBuilder(
+    column: $table.left,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get top => $composableBuilder(
+    column: $table.top,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get right => $composableBuilder(
+    column: $table.right,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get bottom => $composableBuilder(
+    column: $table.bottom,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<Uint8List> get snapshot => $composableBuilder(
+    column: $table.snapshot,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$DocumentsTableFilterComposer get documentId {
+    final $$DocumentsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.documentId,
+      referencedTable: $db.documents,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DocumentsTableFilterComposer(
+            $db: $db,
+            $table: $db.documents,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ItemsTableFilterComposer get itemId {
+    final $$ItemsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.itemId,
+      referencedTable: $db.items,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemsTableFilterComposer(
+            $db: $db,
+            $table: $db.items,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$NotesTableOrderingComposer
+    extends Composer<_$VergerDatabase, $NotesTable> {
+  $$NotesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get page => $composableBuilder(
+    column: $table.page,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get left => $composableBuilder(
+    column: $table.left,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get top => $composableBuilder(
+    column: $table.top,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get right => $composableBuilder(
+    column: $table.right,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get bottom => $composableBuilder(
+    column: $table.bottom,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<Uint8List> get snapshot => $composableBuilder(
+    column: $table.snapshot,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$DocumentsTableOrderingComposer get documentId {
+    final $$DocumentsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.documentId,
+      referencedTable: $db.documents,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DocumentsTableOrderingComposer(
+            $db: $db,
+            $table: $db.documents,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ItemsTableOrderingComposer get itemId {
+    final $$ItemsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.itemId,
+      referencedTable: $db.items,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemsTableOrderingComposer(
+            $db: $db,
+            $table: $db.items,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$NotesTableAnnotationComposer
+    extends Composer<_$VergerDatabase, $NotesTable> {
+  $$NotesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get body =>
+      $composableBuilder(column: $table.body, builder: (column) => column);
+
+  GeneratedColumn<int> get page =>
+      $composableBuilder(column: $table.page, builder: (column) => column);
+
+  GeneratedColumn<double> get left =>
+      $composableBuilder(column: $table.left, builder: (column) => column);
+
+  GeneratedColumn<double> get top =>
+      $composableBuilder(column: $table.top, builder: (column) => column);
+
+  GeneratedColumn<double> get right =>
+      $composableBuilder(column: $table.right, builder: (column) => column);
+
+  GeneratedColumn<double> get bottom =>
+      $composableBuilder(column: $table.bottom, builder: (column) => column);
+
+  GeneratedColumn<Uint8List> get snapshot =>
+      $composableBuilder(column: $table.snapshot, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$DocumentsTableAnnotationComposer get documentId {
+    final $$DocumentsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.documentId,
+      referencedTable: $db.documents,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DocumentsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.documents,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ItemsTableAnnotationComposer get itemId {
+    final $$ItemsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.itemId,
+      referencedTable: $db.items,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.items,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$NotesTableTableManager
+    extends
+        RootTableManager<
+          _$VergerDatabase,
+          $NotesTable,
+          NoteRow,
+          $$NotesTableFilterComposer,
+          $$NotesTableOrderingComposer,
+          $$NotesTableAnnotationComposer,
+          $$NotesTableCreateCompanionBuilder,
+          $$NotesTableUpdateCompanionBuilder,
+          (NoteRow, $$NotesTableReferences),
+          NoteRow,
+          PrefetchHooks Function({bool documentId, bool itemId})
+        > {
+  $$NotesTableTableManager(_$VergerDatabase db, $NotesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$NotesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$NotesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$NotesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> body = const Value.absent(),
+                Value<String?> documentId = const Value.absent(),
+                Value<int?> page = const Value.absent(),
+                Value<double?> left = const Value.absent(),
+                Value<double?> top = const Value.absent(),
+                Value<double?> right = const Value.absent(),
+                Value<double?> bottom = const Value.absent(),
+                Value<Uint8List?> snapshot = const Value.absent(),
+                Value<String?> itemId = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => NotesCompanion(
+                id: id,
+                body: body,
+                documentId: documentId,
+                page: page,
+                left: left,
+                top: top,
+                right: right,
+                bottom: bottom,
+                snapshot: snapshot,
+                itemId: itemId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String body,
+                Value<String?> documentId = const Value.absent(),
+                Value<int?> page = const Value.absent(),
+                Value<double?> left = const Value.absent(),
+                Value<double?> top = const Value.absent(),
+                Value<double?> right = const Value.absent(),
+                Value<double?> bottom = const Value.absent(),
+                Value<Uint8List?> snapshot = const Value.absent(),
+                Value<String?> itemId = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => NotesCompanion.insert(
+                id: id,
+                body: body,
+                documentId: documentId,
+                page: page,
+                left: left,
+                top: top,
+                right: right,
+                bottom: bottom,
+                snapshot: snapshot,
+                itemId: itemId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$NotesTable, NoteRow>(table),
+                  $$NotesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({documentId = false, itemId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (documentId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.documentId,
+                                referencedTable: $$NotesTableReferences
+                                    ._documentIdTable(db),
+                                referencedColumn: $$NotesTableReferences
+                                    ._documentIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+                    if (itemId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.itemId,
+                                referencedTable: $$NotesTableReferences
+                                    ._itemIdTable(db),
+                                referencedColumn: $$NotesTableReferences
+                                    ._itemIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$NotesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$VergerDatabase,
+      $NotesTable,
+      NoteRow,
+      $$NotesTableFilterComposer,
+      $$NotesTableOrderingComposer,
+      $$NotesTableAnnotationComposer,
+      $$NotesTableCreateCompanionBuilder,
+      $$NotesTableUpdateCompanionBuilder,
+      (NoteRow, $$NotesTableReferences),
+      NoteRow,
+      PrefetchHooks Function({bool documentId, bool itemId})
+    >;
 
 class $VergerDatabaseManager {
   final _$VergerDatabase _db;
@@ -6783,4 +8448,6 @@ class $VergerDatabaseManager {
       $$DocumentFilesTableTableManager(_db, _db.documentFiles);
   $$AnchorsTableTableManager get anchors =>
       $$AnchorsTableTableManager(_db, _db.anchors);
+  $$NotesTableTableManager get notes =>
+      $$NotesTableTableManager(_db, _db.notes);
 }

@@ -129,6 +129,62 @@ void main() {
       expect(stored.createdAt, now);
     });
 
+    test('difficulté des exercices et ordre dans le nœud', () async {
+      final n1 = await store.createNode(title: 'N1');
+      final n2 = await store.createNode(title: 'N2');
+      final ex = await store.createItem(
+        nodeId: n1.id,
+        kind: ItemKind.exercise,
+        title: 'Ex',
+        level: ExerciseLevel.easy,
+      );
+      final def = await store.createItem(
+        nodeId: n1.id,
+        kind: ItemKind.definition,
+        title: 'Déf',
+        level: ExerciseLevel.hard, // ignorée : pas un exercice
+      );
+      expect((ex.sortIndex, def.sortIndex), (0, 1));
+      expect(def.level, isNull);
+      await store.updateItem(ex.id, level: () => ExerciseLevel.hard);
+      expect((await store.item(ex.id))!.level, ExerciseLevel.hard);
+      await store.updateItem(ex.id, kind: ItemKind.statement);
+      expect((await store.item(ex.id))!.level, isNull);
+
+      await store.createItem(nodeId: n2.id, kind: ItemKind.lemma, title: 'L');
+      await store.updateItem(def.id, nodeId: n2.id);
+      expect((await store.item(def.id))!.sortIndex, 1); // après « L »
+    });
+
+    test('réorganisation : ordre manuel et changement de nœud', () async {
+      final n1 = await store.createNode(title: 'N1');
+      final n2 = await store.createNode(title: 'N2');
+      Future<List<String>> titles(String nodeId) async => [
+        for (final i in await store.watchItems(nodeId: nodeId).first) i.title,
+      ];
+      final ids = <String, String>{};
+      for (final t in ['a', 'b', 'c']) {
+        ids[t] = (await store.createItem(
+          nodeId: n1.id,
+          kind: ItemKind.definition,
+          title: t,
+        )).id;
+      }
+      await store.moveItem(ids['c']!, nodeId: n1.id, index: 0);
+      expect(await titles(n1.id), ['c', 'a', 'b']);
+      await store.moveItem(ids['c']!, nodeId: n1.id, index: 2);
+      expect(await titles(n1.id), ['a', 'b', 'c']);
+      await store.moveItem(ids['a']!, nodeId: n2.id);
+      expect(await titles(n1.id), ['b', 'c']);
+      expect(await titles(n2.id), ['a']);
+      await store.moveItem(ids['b']!, nodeId: n2.id, index: 0);
+      expect(await titles(n2.id), ['b', 'a']);
+      expect(
+        () => store.moveItem(ids['b']!, nodeId: 'inconnu'),
+        throwsArgumentError,
+      );
+    });
+
     test('modification du contenu sans toucher à la révision', () async {
       final n1 = await store.createNode(title: 'N1');
       final n2 = await store.createNode(title: 'N2');
@@ -247,6 +303,28 @@ void main() {
       await store.saveSchedulerSettings(custom);
       await store.saveSchedulerSettings(custom);
       expect((await store.schedulerSettings()).desiredRetention, 0.85);
+    });
+
+    test('périmètre des révisions', () async {
+      expect(await store.watchReviewScope().first, isEmpty);
+      await store.setReviewScope({'a', 'b'});
+      expect(await store.watchReviewScope().first, {'a', 'b'});
+      await store.setReviewScope({});
+      expect(await store.watchReviewScope().first, isEmpty);
+    });
+
+    test('dernière branche utilisée, oubliée si elle est supprimée', () async {
+      expect(await store.lastNode(), isNull);
+      final tree = await store.createNode(title: 'Algèbre');
+      final branch = await store.createNode(
+        title: 'Groupes',
+        parentId: tree.id,
+      );
+      await store.setLastNode(tree.id);
+      await store.setLastNode(branch.id);
+      expect((await store.lastNode())?.title, 'Groupes');
+      await store.deleteNode(branch.id);
+      expect(await store.lastNode(), isNull);
     });
   });
 

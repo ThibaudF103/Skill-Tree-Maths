@@ -180,7 +180,8 @@ class VergerStore {
     required ItemKind kind,
     required String title,
     String? body,
-  }) async {
+    ExerciseLevel? level,
+  }) => _db.transaction(() async {
     final now = _now();
     final item = KnowledgeItem(
       id: newId(),
@@ -188,31 +189,101 @@ class VergerStore {
       kind: kind,
       title: title.trim(),
       body: _blankToNull(body),
+      level: kind.family == ItemFamily.exercise ? level : null,
+      sortIndex: await _nextItemIndex(nodeId),
       createdAt: now,
       updatedAt: now,
     );
     await _db.into(_db.items).insert(_itemCompanion(item));
     return item;
+  });
+
+  /// Position après la dernière connaissance de [nodeId].
+  Future<int> _nextItemIndex(String nodeId) async {
+    final max = _db.items.sortIndex.max();
+    final row =
+        await (_db.selectOnly(_db.items)
+              ..addColumns([max])
+              ..where(_db.items.nodeId.equals(nodeId)))
+            .getSingle();
+    final value = row.read(max);
+    return value == null ? 0 : value + 1;
   }
 
   /// Modifie le contenu d'une connaissance (jamais son état de révision).
+  /// Changée de nœud, elle se place après les connaissances de celui-ci ;
+  /// la difficulté ne concerne que les exercices.
   Future<void> updateItem(
     String id, {
     String? title,
     String? Function()? body,
     ItemKind? kind,
+    ExerciseLevel? Function()? level,
     String? nodeId,
     bool? suspended,
-  }) => (_db.update(_db.items)..where((i) => i.id.equals(id))).write(
-    ItemsCompanion(
-      title: title == null ? const Value.absent() : Value(title.trim()),
-      body: body == null ? const Value.absent() : Value(_blankToNull(body())),
-      kind: Value.absentIfNull(kind),
-      nodeId: Value.absentIfNull(nodeId),
-      suspended: Value.absentIfNull(suspended),
-      updatedAt: Value(_now()),
-    ),
-  );
+  }) => _db.transaction(() async {
+    final current = await item(id);
+    if (current == null) return;
+    final moved = nodeId != null && nodeId != current.nodeId;
+    final family = (kind ?? current.kind).family;
+    final newLevel = family != ItemFamily.exercise
+        ? const Value<ExerciseLevel?>(null)
+        : level == null
+        ? const Value<ExerciseLevel?>.absent()
+        : Value(level());
+    await (_db.update(_db.items)..where((i) => i.id.equals(id))).write(
+      ItemsCompanion(
+        title: title == null ? const Value.absent() : Value(title.trim()),
+        body: body == null ? const Value.absent() : Value(_blankToNull(body())),
+        kind: Value.absentIfNull(kind),
+        level: newLevel,
+        nodeId: moved ? Value(nodeId) : const Value.absent(),
+        sortIndex: moved
+            ? Value(await _nextItemIndex(nodeId))
+            : const Value.absent(),
+        suspended: Value.absentIfNull(suspended),
+        updatedAt: Value(_now()),
+      ),
+    );
+  });
+
+  /// Place une connaissance dans [nodeId] à la position [index] parmi les
+  /// autres connaissances de ce nœud (à la fin par défaut).
+  Future<void> moveItem(String id, {required String nodeId, int? index}) =>
+      _db.transaction(() async {
+        final moving = await item(id);
+        if (moving == null) throw ArgumentError.value(id, 'id', 'inconnu');
+        if (await node(nodeId) == null) {
+          throw ArgumentError.value(nodeId, 'nodeId', 'inconnu');
+        }
+        if (moving.nodeId != nodeId) {
+          final left = (await _itemsQuery(
+            nodeId: moving.nodeId,
+          ).get()).where((i) => i.id != id).map((i) => i.id).toList();
+          await _renumberItems(left);
+        }
+        final siblings = (await _itemsQuery(
+          nodeId: nodeId,
+        ).get()).where((i) => i.id != id).map((i) => i.id).toList();
+        siblings.insert(
+          (index ?? siblings.length).clamp(0, siblings.length),
+          id,
+        );
+        if (moving.nodeId != nodeId) {
+          await (_db.update(_db.items)..where((i) => i.id.equals(id))).write(
+            ItemsCompanion(nodeId: Value(nodeId), updatedAt: Value(_now())),
+          );
+        }
+        await _renumberItems(siblings);
+      });
+
+  Future<void> _renumberItems(List<String> orderedIds) async {
+    for (final (index, id) in orderedIds.indexed) {
+      await (_db.update(_db.items)..where((i) => i.id.equals(id))).write(
+        ItemsCompanion(sortIndex: Value(index)),
+      );
+    }
+  }
 
   Future<void> deleteItem(String id) =>
       (_db.delete(_db.items)..where((i) => i.id.equals(id))).go();
@@ -254,17 +325,58 @@ class VergerStore {
     final row = await (_db.select(
       _db.settings,
     )..where((s) => s.key.equals(_schedulerKey))).getSingleOrNull();
-    return row == null
-        ? const SchedulerSettings()
-        : SchedulerSettings.fromJson(
-            jsonDecode(row.value) as Map<String, Object?>,
-          );
+    if (row == null) return const SchedulerSettings();
+    try {
+      return SchedulerSettings.fromJson(
+        jsonDecode(row.value) as Map<String, Object?>,
+      );
+    } catch (_) {
+      // Valeur illisible ou hors bornes : l'application doit démarrer.
+      return const SchedulerSettings();
+    }
   }
 
   Future<void> saveSchedulerSettings(SchedulerSettings settings) => _db
       .into(_db.settings)
       .insertOnConflictUpdate(
         SettingRow(key: _schedulerKey, value: jsonEncode(settings.toJson())),
+      );
+
+  static const _lastNodeKey = 'lastNode';
+
+  /// Dernière branche choisie pour créer une connaissance, si elle existe
+  /// encore.
+  Future<KnowledgeNode?> lastNode() async {
+    final row = await (_db.select(
+      _db.settings,
+    )..where((s) => s.key.equals(_lastNodeKey))).getSingleOrNull();
+    if (row == null) return null;
+    final id = jsonDecode(row.value);
+    return id is String ? node(id) : null;
+  }
+
+  Future<void> setLastNode(String nodeId) => _db
+      .into(_db.settings)
+      .insertOnConflictUpdate(
+        SettingRow(key: _lastNodeKey, value: jsonEncode(nodeId)),
+      );
+
+  static const _reviewScopeKey = 'reviewScope';
+
+  /// Nœuds auxquels les révisions sont restreintes (vide : tout le verger).
+  Stream<Set<String>> watchReviewScope() =>
+      (_db.select(_db.settings)..where((s) => s.key.equals(_reviewScopeKey)))
+          .watchSingleOrNull()
+          .map((row) {
+            if (row == null) return const <String>{};
+            final ids = jsonDecode(row.value);
+            return ids is List ? ids.whereType<String>().toSet() : const {};
+          });
+
+  Future<void> setReviewScope(Set<String> nodeIds) => _db
+      .into(_db.settings)
+      .insertOnConflictUpdate(
+        SettingRow(key: _reviewScopeKey, value: jsonEncode(nodeIds.toList())),
       );
 
   // --- Documents PDF -------------------------------------------------------
@@ -309,6 +421,7 @@ class VergerStore {
       version: 1,
       fingerprints: _packFingerprints(fingerprints),
       newPages: '[]',
+      lastPage: 1,
     );
     await _db.into(_db.documents).insert(row);
     await _db
@@ -341,6 +454,9 @@ class VergerStore {
     var moved = 0;
     var flagged = 0;
     for (final anchor in await _anchorsQuery(documentId: id).get()) {
+      // Déjà à vérifier : son numéro de page ne désigne plus rien de sûr dans
+      // la version actuelle, on ne le recale pas au hasard.
+      if (anchor.needsReview) continue;
       final match = remap.matches[anchor.page];
       if (match?.page != null) {
         if (match!.page != anchor.page) moved++;
@@ -350,6 +466,17 @@ class VergerStore {
         flagged++;
         await (_db.update(_db.anchors)..where((a) => a.id.equals(anchor.id)))
             .write(const AnchorsCompanion(needsReview: Value(true)));
+      }
+    }
+
+    // Les notes suivent leurs pages ; une page introuvable garde son numéro.
+    for (final note in await _notesQuery(documentId: id).get()) {
+      final page = note.page;
+      final target = page == null ? null : remap.matches[page]?.page;
+      if (target != null && target != page) {
+        await (_db.update(_db.notes)..where((n) => n.id.equals(note.id))).write(
+          NotesCompanion(page: Value(target)),
+        );
       }
     }
 
@@ -425,6 +552,81 @@ class VergerStore {
   Future<void> deleteAnchor(String id) =>
       (_db.delete(_db.anchors)..where((a) => a.id.equals(id))).go();
 
+  // --- Notes de travail ---------------------------------------------------
+
+  Future<Note> createNote({
+    String body = '',
+    String? documentId,
+    int? page,
+    NormalizedRect? region,
+    Uint8List? snapshot,
+    String? itemId,
+  }) async {
+    final now = _now();
+    final note = Note(
+      id: newId(),
+      body: body,
+      documentId: documentId,
+      page: page,
+      region: region,
+      snapshot: snapshot,
+      itemId: itemId,
+      createdAt: now,
+      updatedAt: now,
+    );
+    await _db.into(_db.notes).insert(_noteRow(note));
+    return note;
+  }
+
+  Future<Note?> note(String id) async {
+    final row = await (_db.select(
+      _db.notes,
+    )..where((n) => n.id.equals(id))).getSingleOrNull();
+    return row == null ? null : _toNote(row);
+  }
+
+  /// Suit une note (`null` si elle est supprimée).
+  Stream<Note?> watchNote(String id) =>
+      (_db.select(_db.notes)..where((n) => n.id.equals(id)))
+          .watchSingleOrNull()
+          .map((row) => row == null ? null : _toNote(row));
+
+  /// Notes d'un PDF (par page puis date) ou d'une connaissance.
+  Future<List<Note>> notes({String? documentId, String? itemId}) async =>
+      (await _notesQuery(
+        documentId: documentId,
+        itemId: itemId,
+      ).get()).map(_toNote).toList();
+
+  Stream<List<Note>> watchNotes({String? documentId, String? itemId}) =>
+      _notesQuery(
+        documentId: documentId,
+        itemId: itemId,
+      ).watch().map((rows) => rows.map(_toNote).toList());
+
+  /// Modifie le texte et/ou la connaissance liée ([itemId] : fonction
+  /// renvoyant le nouvel identifiant, `null` pour délier).
+  Future<void> updateNote(
+    String id, {
+    String? body,
+    String? Function()? itemId,
+  }) => (_db.update(_db.notes)..where((n) => n.id.equals(id))).write(
+    NotesCompanion(
+      body: Value.absentIfNull(body),
+      itemId: itemId == null ? const Value.absent() : Value(itemId()),
+      updatedAt: Value(_now()),
+    ),
+  );
+
+  Future<void> deleteNote(String id) =>
+      (_db.delete(_db.notes)..where((n) => n.id.equals(id))).go();
+
+  /// Mémorise la page consultée pour reprendre la lecture.
+  Future<void> setLastPage(String documentId, int page) =>
+      (_db.update(_db.documents)..where((d) => d.id.equals(documentId))).write(
+        DocumentsCompanion(lastPage: Value(page)),
+      );
+
   // --- Échange (sauvegarde, modèles) --------------------------------------
 
   /// Sauvegarde complète : structure, connaissances, historique, réglages.
@@ -441,6 +643,7 @@ class VergerStore {
       settings: await schedulerSettings(),
       documents: await allDocuments(),
       anchors: (await _anchorsQuery().get()).map(_toAnchor).toList(),
+      notes: (await _notesQuery().get()).map(_toNote).toList(),
     );
   }
 
@@ -450,12 +653,25 @@ class VergerStore {
       _db.transaction(() async {
         archive.validate();
         await _db.delete(_db.reviewLogs).go();
+        await _db.delete(_db.notes).go();
         await _db.delete(_db.anchors).go();
         await _db.delete(_db.items).go();
         await _db.delete(_db.nodes).go();
         // Les PDF déjà présents sur l'appareil sont conservés s'ils figurent
         // dans la sauvegarde (qui ne contient pas les fichiers eux-mêmes).
         final keptDocuments = {for (final d in archive.documents) d.id};
+        // Un PDF présent sur l'appareil n'est gardé que s'il est bien la
+        // version décrite par la sauvegarde ; sinon il faudra le réimporter
+        // (ancres et notes restent cohérentes avec leurs pages).
+        final archived = {for (final d in archive.documents) d.id: d};
+        for (final current in await allDocuments()) {
+          final saved = archived[current.id];
+          if (saved != null && saved.contentHash != current.contentHash) {
+            await (_db.delete(
+              _db.documentFiles,
+            )..where((f) => f.documentId.equals(current.id))).go();
+          }
+        }
         await (_db.delete(
           _db.documents,
         )..where((d) => d.id.isNotIn(keptDocuments))).go();
@@ -473,6 +689,7 @@ class VergerStore {
                   version: d.version,
                   fingerprints: _packFingerprints(d.fingerprints),
                   newPages: jsonEncode(d.newPages),
+                  lastPage: d.lastPage,
                 ),
               );
         }
@@ -482,6 +699,9 @@ class VergerStore {
         }
         for (final anchor in archive.anchors) {
           await _db.into(_db.anchors).insert(_anchorRow(anchor));
+        }
+        for (final note in archive.notes) {
+          await _db.into(_db.notes).insert(_noteRow(note));
         }
         for (final review in archive.reviews) {
           await _insertReview(review.itemId, review.record);
@@ -527,6 +747,8 @@ class VergerStore {
                     kind: item.kind,
                     title: item.title,
                     body: item.body,
+                    level: item.level,
+                    sortIndex: item.sortIndex,
                     createdAt: created,
                     updatedAt: created,
                   ),
@@ -605,7 +827,10 @@ class VergerStore {
 
   SimpleSelectStatement<$ItemsTable, ItemRow> _itemsQuery({String? nodeId}) {
     final query = _db.select(_db.items)
-      ..orderBy([(i) => OrderingTerm.asc(i.createdAt)]);
+      ..orderBy([
+        (i) => OrderingTerm.asc(i.sortIndex),
+        (i) => OrderingTerm.asc(i.createdAt),
+      ]);
     if (nodeId != null) query.where((i) => i.nodeId.equals(nodeId));
     return query;
   }
@@ -649,6 +874,53 @@ class VergerStore {
     return query;
   }
 
+  SimpleSelectStatement<$NotesTable, NoteRow> _notesQuery({
+    String? documentId,
+    String? itemId,
+  }) {
+    final query = _db.select(_db.notes)
+      ..orderBy([
+        (n) => OrderingTerm.asc(n.page),
+        (n) => OrderingTerm.asc(n.createdAt),
+      ]);
+    if (documentId != null) query.where((n) => n.documentId.equals(documentId));
+    if (itemId != null) query.where((n) => n.itemId.equals(itemId));
+    return query;
+  }
+
+  static Note _toNote(NoteRow row) => Note(
+    id: row.id,
+    body: row.body,
+    documentId: row.documentId,
+    page: row.page,
+    region:
+        row.left == null ||
+            row.top == null ||
+            row.right == null ||
+            row.bottom == null
+        ? null
+        : NormalizedRect(row.left!, row.top!, row.right!, row.bottom!),
+    snapshot: row.snapshot,
+    itemId: row.itemId,
+    createdAt: row.createdAt.toUtc(),
+    updatedAt: row.updatedAt.toUtc(),
+  );
+
+  static NoteRow _noteRow(Note n) => NoteRow(
+    id: n.id,
+    body: n.body,
+    documentId: n.documentId,
+    page: n.page,
+    left: n.region?.left,
+    top: n.region?.top,
+    right: n.region?.right,
+    bottom: n.region?.bottom,
+    snapshot: n.snapshot,
+    itemId: n.itemId,
+    createdAt: n.createdAt.toUtc(),
+    updatedAt: n.updatedAt.toUtc(),
+  );
+
   static Uint8List _packFingerprints(List<Uint8List> fingerprints) {
     final builder = BytesBuilder(copy: false);
     for (final f in fingerprints) {
@@ -676,6 +948,7 @@ class VergerStore {
     version: row.version,
     fingerprints: _unpackFingerprints(row.fingerprints, row.pageCount),
     newPages: (jsonDecode(row.newPages) as List).cast<int>(),
+    lastPage: row.lastPage,
   );
 
   static Anchor _toAnchor(AnchorRow row) => Anchor(
@@ -732,6 +1005,8 @@ class VergerStore {
     kind: row.kind,
     title: row.title,
     body: row.body,
+    level: row.level,
+    sortIndex: row.sortIndex,
     suspended: row.suspended,
     createdAt: row.createdAt.toUtc(),
     updatedAt: row.updatedAt.toUtc(),
@@ -754,6 +1029,8 @@ class VergerStore {
         kind: Value(item.kind),
         title: Value(item.title),
         body: Value(item.body),
+        level: Value(item.level),
+        sortIndex: Value(item.sortIndex),
         suspended: Value(item.suspended),
         createdAt: Value(item.createdAt),
         updatedAt: Value(item.updatedAt),
