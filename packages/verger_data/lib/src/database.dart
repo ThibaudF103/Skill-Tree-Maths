@@ -1,6 +1,8 @@
 import 'package:drift/drift.dart';
 import 'package:verger_core/verger_core.dart';
 
+import 'database.steps.dart';
+
 part 'database.g.dart';
 
 /// Structure des connaissances. Un nœud sans parent est un arbre du verger.
@@ -84,6 +86,9 @@ class Documents extends Table {
   /// Pages apparues à la dernière mise à jour (JSON : liste d'entiers).
   TextColumn get newPages => text().withDefault(const Constant('[]'))();
 
+  /// Dernière page consultée (v3).
+  IntColumn get lastPage => integer().withDefault(const Constant(1))();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -124,6 +129,34 @@ class Anchors extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+/// Notes de travail (v3). Les liens vers le PDF et la connaissance sont
+/// retirés (pas la note) si ceux-ci sont supprimés.
+@DataClassName('NoteRow')
+@TableIndex(name: 'notes_document', columns: {#documentId})
+@TableIndex(name: 'notes_item', columns: {#itemId})
+class Notes extends Table {
+  TextColumn get id => text()();
+  TextColumn get body => text()();
+  TextColumn get documentId => text().nullable().references(
+    Documents,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+  IntColumn get page => integer().nullable()();
+  RealColumn get left => real().nullable()();
+  RealColumn get top => real().nullable()();
+  RealColumn get right => real().nullable()();
+  RealColumn get bottom => real().nullable()();
+  BlobColumn get snapshot => blob().nullable()();
+  TextColumn get itemId =>
+      text().nullable().references(Items, #id, onDelete: KeyAction.setNull)();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 /// Réglages clé → valeur JSON.
 @DataClassName('SettingRow')
 class Settings extends Table {
@@ -143,27 +176,37 @@ class Settings extends Table {
     Documents,
     DocumentFiles,
     Anchors,
+    Notes,
   ],
 )
 class VergerDatabase extends _$VergerDatabase {
   VergerDatabase(super.executor);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) => m.createAll(),
-    onUpgrade: (m, from, to) async {
-      if (from < 2) {
+    // Migrations version par version, sur le schéma exact de chaque version
+    // (database.steps.dart, généré par `drift_dev make-migrations`).
+    onUpgrade: stepByStep(
+      from1To2: (m, schema) async {
         // v2 : PDF et ancres recto/verso.
-        await m.createTable(documents);
-        await m.createTable(documentFiles);
-        await m.createTable(anchors);
-        await m.createIndex(anchorsItem);
-        await m.createIndex(anchorsDocument);
-      }
-    },
+        await m.createTable(schema.documents);
+        await m.createTable(schema.documentFiles);
+        await m.createTable(schema.anchors);
+        await m.createIndex(schema.anchorsItem);
+        await m.createIndex(schema.anchorsDocument);
+      },
+      from2To3: (m, schema) async {
+        // v3 : notes de travail, reprise de lecture.
+        await m.addColumn(schema.documents, schema.documents.lastPage);
+        await m.createTable(schema.notes);
+        await m.createIndex(schema.notesDocument);
+        await m.createIndex(schema.notesItem);
+      },
+    ),
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
     },

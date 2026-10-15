@@ -15,6 +15,7 @@ final class SourceDocument {
     this.version = 1,
     this.fingerprints = const [],
     this.newPages = const [],
+    this.lastPage = 1,
   });
 
   final String id;
@@ -34,4 +35,7 @@ final class SourceDocument {
 
   /// Pages apparues lors de la dernière mise à jour (numérotées à partir de 1).
   final List<int> newPages;
+
+  /// Dernière page consultée (reprise de lecture).
+  final int lastPage;
 }

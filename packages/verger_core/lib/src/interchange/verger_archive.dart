@@ -5,6 +5,7 @@ import '../domain/anchor.dart';
 import '../domain/item_kind.dart';
 import '../domain/knowledge_item.dart';
 import '../domain/knowledge_node.dart';
+import '../domain/note.dart';
 import '../domain/rating.dart';
 import '../domain/review_record.dart';
 import '../domain/scheduling_state.dart';
@@ -35,6 +36,7 @@ final class VergerArchive {
     this.reviews = const [],
     this.documents = const [],
     this.anchors = const [],
+    this.notes = const [],
     this.settings,
     this.title,
   });
@@ -51,6 +53,9 @@ final class VergerArchive {
 
   /// Ancres recto/verso, avec leurs miniatures.
   final List<Anchor> anchors;
+
+  /// Notes de travail (avec leurs miniatures).
+  final List<Note> notes;
   final SchedulerSettings? settings;
 
   /// Nom lisible (ex. « Algèbre — exemple »).
@@ -141,6 +146,7 @@ final class VergerArchive {
                 bytes(f)!,
             ],
             newPages: List<int>.from(d['newPages'] as List? ?? const []),
+            lastPage: d['lastPage'] as int? ?? 1,
           ),
       ];
       final anchors = [
@@ -165,6 +171,28 @@ final class VergerArchive {
             createdAt: date(a['createdAt']),
           ),
       ];
+      NormalizedRect? region(Object? v) {
+        if (v == null) return null;
+        final r = [for (final x in v as List) (x as num).toDouble()];
+        return NormalizedRect(r[0], r[1], r[2], r[3]);
+      }
+
+      final notes = [
+        for (final n in list('notes'))
+          Note(
+            id: n['id'] as String,
+            body: n['body'] as String? ?? '',
+            documentId: n['documentId'] as String?,
+            page: n['page'] as int?,
+            region: region(n['region']),
+            snapshot: bytes(n['snapshot']),
+            itemId: n['itemId'] as String?,
+            createdAt: date(n['createdAt']),
+            updatedAt: n['updatedAt'] == null
+                ? date(n['createdAt'])
+                : date(n['updatedAt']),
+          ),
+      ];
       final settings = json['settings'] == null
           ? null
           : SchedulerSettings.fromJson((json['settings'] as Map).cast());
@@ -174,6 +202,7 @@ final class VergerArchive {
         reviews: reviews,
         documents: documents,
         anchors: anchors,
+        notes: notes,
         settings: settings,
         title: json['title'] as String?,
       );
@@ -223,6 +252,12 @@ final class VergerArchive {
     for (final a in anchors) {
       if (!itemIds.contains(a.itemId) || !documentIds.contains(a.documentId)) {
         throw const ArchiveFormatException('Ancre vers un élément inconnu');
+      }
+    }
+    for (final n in notes) {
+      if ((n.documentId != null && !documentIds.contains(n.documentId)) ||
+          (n.itemId != null && !itemIds.contains(n.itemId))) {
+        throw const ArchiveFormatException('Note vers un élément inconnu');
       }
     }
     for (final r in reviews) {
@@ -278,6 +313,7 @@ final class VergerArchive {
           'version': d.version,
           'fingerprints': [for (final f in d.fingerprints) base64Encode(f)],
           'newPages': d.newPages,
+          'lastPage': d.lastPage,
         },
     ],
     'anchors': [
@@ -300,6 +336,27 @@ final class VergerArchive {
           'snapshot': ?(a.snapshot == null ? null : base64Encode(a.snapshot!)),
           'needsReview': a.needsReview,
           'createdAt': a.createdAt.toUtc().toIso8601String(),
+        },
+    ],
+    'notes': [
+      for (final n in notes)
+        {
+          'id': n.id,
+          'body': n.body,
+          'documentId': ?n.documentId,
+          'page': ?n.page,
+          'region': ?(n.region == null
+              ? null
+              : [
+                  n.region!.left,
+                  n.region!.top,
+                  n.region!.right,
+                  n.region!.bottom,
+                ]),
+          'snapshot': ?(n.snapshot == null ? null : base64Encode(n.snapshot!)),
+          'itemId': ?n.itemId,
+          'createdAt': n.createdAt.toUtc().toIso8601String(),
+          'updatedAt': n.updatedAt.toUtc().toIso8601String(),
         },
     ],
     'reviews': [

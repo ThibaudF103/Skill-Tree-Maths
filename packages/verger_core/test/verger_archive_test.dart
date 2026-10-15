@@ -64,6 +64,19 @@ void main() {
       items: [item],
       documents: [doc],
       anchors: [anchor],
+      notes: [
+        Note(
+          id: 'note1',
+          body: r'Preuve : on pose $P = \chi_u$.',
+          documentId: 'd1',
+          page: 2,
+          region: const NormalizedRect(0, 0.1, 1, 0.4),
+          snapshot: Uint8List.fromList([1, 2, 3]),
+          itemId: 'i1',
+          createdAt: t,
+          updatedAt: t.add(const Duration(hours: 1)),
+        ),
+      ],
       reviews: [(itemId: 'i1', record: record)],
       settings: const SchedulerSettings(desiredRetention: 0.88),
       title: 'Test',
@@ -99,6 +112,13 @@ void main() {
     expect(anchor.region, const NormalizedRect(0.1, 0.2, 0.5, 0.6));
     expect(anchor.snapshot, [137, 80, 78, 71]);
     expect(anchor.role, AnchorRole.work);
+    final note = copy.notes.single;
+    expect(note.body, r'Preuve : on pose $P = \chi_u$.');
+    expect(note.headline, r'Preuve : on pose P = \chi_u.');
+    expect((note.documentId, note.page, note.itemId), ('d1', 2, 'i1'));
+    expect(note.region, const NormalizedRect(0, 0.1, 1, 0.4));
+    expect(note.snapshot, [1, 2, 3]);
+    expect(note.updatedAt, t.add(const Duration(hours: 1)));
   });
 
   test('un modèle minimal (sans état ni dates) est accepté', () {
@@ -166,5 +186,16 @@ void main() {
       }),
       throwsA(isA<ArchiveFormatException>()),
     );
+  });
+
+  test('titre lisible d\'une note', () {
+    Note note(String body) =>
+        Note(id: 'n', body: body, createdAt: t, updatedAt: t);
+    expect(
+      note('\n\n# Théorème spectral\nPreuve…').headline,
+      'Théorème spectral',
+    );
+    expect(note(r'- Soit $x_n \to 0$').headline, r'Soit x_n \to 0');
+    expect(note('   ').headline, '');
   });
 }

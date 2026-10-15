@@ -309,6 +309,7 @@ class VergerStore {
       version: 1,
       fingerprints: _packFingerprints(fingerprints),
       newPages: '[]',
+      lastPage: 1,
     );
     await _db.into(_db.documents).insert(row);
     await _db
@@ -425,6 +426,75 @@ class VergerStore {
   Future<void> deleteAnchor(String id) =>
       (_db.delete(_db.anchors)..where((a) => a.id.equals(id))).go();
 
+  // --- Notes de travail ---------------------------------------------------
+
+  Future<Note> createNote({
+    String body = '',
+    String? documentId,
+    int? page,
+    NormalizedRect? region,
+    Uint8List? snapshot,
+    String? itemId,
+  }) async {
+    final now = _now();
+    final note = Note(
+      id: newId(),
+      body: body,
+      documentId: documentId,
+      page: page,
+      region: region,
+      snapshot: snapshot,
+      itemId: itemId,
+      createdAt: now,
+      updatedAt: now,
+    );
+    await _db.into(_db.notes).insert(_noteRow(note));
+    return note;
+  }
+
+  Future<Note?> note(String id) async {
+    final row = await (_db.select(
+      _db.notes,
+    )..where((n) => n.id.equals(id))).getSingleOrNull();
+    return row == null ? null : _toNote(row);
+  }
+
+  /// Notes d'un PDF (par page puis date) ou d'une connaissance.
+  Future<List<Note>> notes({String? documentId, String? itemId}) async =>
+      (await _notesQuery(
+        documentId: documentId,
+        itemId: itemId,
+      ).get()).map(_toNote).toList();
+
+  Stream<List<Note>> watchNotes({String? documentId, String? itemId}) =>
+      _notesQuery(
+        documentId: documentId,
+        itemId: itemId,
+      ).watch().map((rows) => rows.map(_toNote).toList());
+
+  /// Modifie le texte et/ou la connaissance liée ([itemId] : fonction
+  /// renvoyant le nouvel identifiant, `null` pour délier).
+  Future<void> updateNote(
+    String id, {
+    String? body,
+    String? Function()? itemId,
+  }) => (_db.update(_db.notes)..where((n) => n.id.equals(id))).write(
+    NotesCompanion(
+      body: Value.absentIfNull(body),
+      itemId: itemId == null ? const Value.absent() : Value(itemId()),
+      updatedAt: Value(_now()),
+    ),
+  );
+
+  Future<void> deleteNote(String id) =>
+      (_db.delete(_db.notes)..where((n) => n.id.equals(id))).go();
+
+  /// Mémorise la page consultée pour reprendre la lecture.
+  Future<void> setLastPage(String documentId, int page) =>
+      (_db.update(_db.documents)..where((d) => d.id.equals(documentId))).write(
+        DocumentsCompanion(lastPage: Value(page)),
+      );
+
   // --- Échange (sauvegarde, modèles) --------------------------------------
 
   /// Sauvegarde complète : structure, connaissances, historique, réglages.
@@ -441,6 +511,7 @@ class VergerStore {
       settings: await schedulerSettings(),
       documents: await allDocuments(),
       anchors: (await _anchorsQuery().get()).map(_toAnchor).toList(),
+      notes: (await _notesQuery().get()).map(_toNote).toList(),
     );
   }
 
@@ -450,6 +521,7 @@ class VergerStore {
       _db.transaction(() async {
         archive.validate();
         await _db.delete(_db.reviewLogs).go();
+        await _db.delete(_db.notes).go();
         await _db.delete(_db.anchors).go();
         await _db.delete(_db.items).go();
         await _db.delete(_db.nodes).go();
@@ -473,6 +545,7 @@ class VergerStore {
                   version: d.version,
                   fingerprints: _packFingerprints(d.fingerprints),
                   newPages: jsonEncode(d.newPages),
+                  lastPage: d.lastPage,
                 ),
               );
         }
@@ -482,6 +555,9 @@ class VergerStore {
         }
         for (final anchor in archive.anchors) {
           await _db.into(_db.anchors).insert(_anchorRow(anchor));
+        }
+        for (final note in archive.notes) {
+          await _db.into(_db.notes).insert(_noteRow(note));
         }
         for (final review in archive.reviews) {
           await _insertReview(review.itemId, review.record);
@@ -649,6 +725,53 @@ class VergerStore {
     return query;
   }
 
+  SimpleSelectStatement<$NotesTable, NoteRow> _notesQuery({
+    String? documentId,
+    String? itemId,
+  }) {
+    final query = _db.select(_db.notes)
+      ..orderBy([
+        (n) => OrderingTerm.asc(n.page),
+        (n) => OrderingTerm.asc(n.createdAt),
+      ]);
+    if (documentId != null) query.where((n) => n.documentId.equals(documentId));
+    if (itemId != null) query.where((n) => n.itemId.equals(itemId));
+    return query;
+  }
+
+  static Note _toNote(NoteRow row) => Note(
+    id: row.id,
+    body: row.body,
+    documentId: row.documentId,
+    page: row.page,
+    region:
+        row.left == null ||
+            row.top == null ||
+            row.right == null ||
+            row.bottom == null
+        ? null
+        : NormalizedRect(row.left!, row.top!, row.right!, row.bottom!),
+    snapshot: row.snapshot,
+    itemId: row.itemId,
+    createdAt: row.createdAt.toUtc(),
+    updatedAt: row.updatedAt.toUtc(),
+  );
+
+  static NoteRow _noteRow(Note n) => NoteRow(
+    id: n.id,
+    body: n.body,
+    documentId: n.documentId,
+    page: n.page,
+    left: n.region?.left,
+    top: n.region?.top,
+    right: n.region?.right,
+    bottom: n.region?.bottom,
+    snapshot: n.snapshot,
+    itemId: n.itemId,
+    createdAt: n.createdAt.toUtc(),
+    updatedAt: n.updatedAt.toUtc(),
+  );
+
   static Uint8List _packFingerprints(List<Uint8List> fingerprints) {
     final builder = BytesBuilder(copy: false);
     for (final f in fingerprints) {
@@ -676,6 +799,7 @@ class VergerStore {
     version: row.version,
     fingerprints: _unpackFingerprints(row.fingerprints, row.pageCount),
     newPages: (jsonDecode(row.newPages) as List).cast<int>(),
+    lastPage: row.lastPage,
   );
 
   static Anchor _toAnchor(AnchorRow row) => Anchor(
