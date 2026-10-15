@@ -776,15 +776,20 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
                     subtitle: const Text('Rédaction liée à cet élément du PDF'),
                     onTap: () => Navigator.pop(context, 'note'),
                   ),
-                  if (isCourse)
-                    ListTile(
-                      leading: const Icon(Icons.add_circle_outline),
-                      title: const Text(
-                        'Créer une connaissance avec cet énoncé',
-                      ),
-                      subtitle: const Text('La zone devient son recto'),
-                      onTap: () => Navigator.pop(context, 'create'),
+                  ListTile(
+                    leading: const Icon(Icons.add_circle_outline),
+                    title: Text(
+                      isCourse
+                          ? 'Créer une connaissance avec cet énoncé'
+                          : 'Créer une connaissance avec cette rédaction',
                     ),
+                    subtitle: Text(
+                      isCourse
+                          ? 'La zone devient son recto'
+                          : 'La zone devient son verso',
+                    ),
+                    onTap: () => Navigator.pop(context, 'create'),
+                  ),
                   ListTile(
                     leading: const Icon(Icons.flip_to_front, color: rectoColor),
                     title: const Text('Attacher comme recto (énoncé)…'),
@@ -826,11 +831,8 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
     if (target != null) {
       // Connaissance déjà choisie.
     } else if (action == 'create') {
-      final node = await pickNode(context, title: 'Dans quelle branche ?');
-      if (node == null || !mounted) return;
       item = await showItemEditor(
         context,
-        nodeId: node.id,
         family: ItemFamily.statement,
         initialTitle: suggestTitle(text),
         initialBody: text,
@@ -844,10 +846,14 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
       );
     }
     if (item == null || !mounted) return;
+    // Une connaissance créée depuis des notes prend la zone pour verso.
+    final role = action == 'work' || (action == 'create' && !isCourse)
+        ? AnchorRole.work
+        : AnchorRole.source;
     await store.addAnchor(
       itemId: item.id,
       documentId: widget.documentId,
-      role: action == 'work' ? AnchorRole.work : AnchorRole.source,
+      role: role,
       page: page.pageNumber,
       region: region,
       textSnippet: text,
@@ -857,7 +863,7 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          '${action == 'work' ? 'Verso' : 'Recto'} attaché à « ${item.title} ».',
+          '${role == AnchorRole.work ? 'Verso' : 'Recto'} attaché à « ${item.title} ».',
         ),
       ),
     );

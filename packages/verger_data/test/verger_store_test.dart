@@ -248,6 +248,20 @@ void main() {
       await store.saveSchedulerSettings(custom);
       expect((await store.schedulerSettings()).desiredRetention, 0.85);
     });
+
+    test('dernière branche utilisée, oubliée si elle est supprimée', () async {
+      expect(await store.lastNode(), isNull);
+      final tree = await store.createNode(title: 'Algèbre');
+      final branch = await store.createNode(
+        title: 'Groupes',
+        parentId: tree.id,
+      );
+      await store.setLastNode(tree.id);
+      await store.setLastNode(branch.id);
+      expect((await store.lastNode())?.title, 'Groupes');
+      await store.deleteNode(branch.id);
+      expect(await store.lastNode(), isNull);
+    });
   });
 
   test('les données survivent à la fermeture de la base (fichier)', () async {

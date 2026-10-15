@@ -61,41 +61,6 @@ Future<KnowledgeItem?> pickItem(BuildContext context, {required String title}) {
   );
 }
 
-/// Choisit un nœud (arbre ou branche).
-Future<KnowledgeNode?> pickNode(BuildContext context, {required String title}) {
-  return showDialog<KnowledgeNode>(
-    context: context,
-    builder: (_) => _PickerDialog<KnowledgeNode>(
-      title: title,
-      hint: 'Rechercher une branche',
-      load: (store) async {
-        final nodes = await store.allNodes();
-        final paths = _paths(nodes);
-        final children = <String?, List<KnowledgeNode>>{};
-        for (final n in nodes) {
-          (children[n.parentId] ??= []).add(n);
-        }
-        final rows = <_Row<KnowledgeNode>>[];
-        void visit(String? parent, int depth) {
-          for (final n in children[parent] ?? const <KnowledgeNode>[]) {
-            rows.add((
-              value: n,
-              title: n.title,
-              subtitle: paths[n.id]!,
-              leading: null,
-              indent: depth,
-            ));
-            visit(n.id, depth + 1);
-          }
-        }
-
-        visit(null, 0);
-        return rows;
-      },
-    ),
-  );
-}
-
 typedef _Row<T> = ({
   T value,
   String title,

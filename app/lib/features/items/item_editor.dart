@@ -5,6 +5,7 @@ import '../../app/app_scope.dart';
 import '../../ui/item_glyph.dart';
 import '../../ui/labels.dart';
 import '../../ui/math_text.dart';
+import '../trees/node_picker.dart';
 
 /// Évaluation facultative à la création : compte comme première révision.
 enum _InitialLevel {
@@ -26,12 +27,14 @@ const _statementKinds = [
   ItemKind.corollary,
 ];
 
-/// Crée une connaissance dans [nodeId] ([item] nul) ou modifie [item].
+/// Crée une connaissance ([item] nul) ou modifie [item].
 ///
-/// Renvoie la connaissance créée (ou `null` en modification / annulation).
+/// La branche de création est [nodeId], ou à défaut la dernière utilisée ;
+/// elle reste modifiable dans le formulaire. Renvoie la connaissance créée
+/// (ou `null` en modification / annulation).
 Future<KnowledgeItem?> showItemEditor(
   BuildContext context, {
-  required String nodeId,
+  String? nodeId,
   KnowledgeItem? item,
   ItemFamily? family,
   String? initialTitle,
@@ -52,14 +55,14 @@ Future<KnowledgeItem?> showItemEditor(
 class ItemEditor extends StatefulWidget {
   const ItemEditor({
     super.key,
-    required this.nodeId,
+    this.nodeId,
     this.item,
     this.family,
     this.initialTitle,
     this.initialBody,
   });
 
-  final String nodeId;
+  final String? nodeId;
   final KnowledgeItem? item;
   final ItemFamily? family;
   final String? initialTitle;
@@ -75,6 +78,10 @@ class _ItemEditorState extends State<ItemEditor> {
   late ItemKind _kind;
   var _level = _InitialLevel.none;
   var _saving = false;
+  KnowledgeNode? _node;
+  var _nodePath = '';
+  var _nodeLoaded = false;
+  var _nodeResolved = false;
 
   bool get _editing => widget.item != null;
 
@@ -96,6 +103,42 @@ class _ItemEditorState extends State<ItemEditor> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_nodeLoaded) {
+      _nodeLoaded = true;
+      _loadNode();
+    }
+  }
+
+  Future<void> _loadNode() async {
+    final store = AppScope.of(context).store;
+    final id = widget.item?.nodeId ?? widget.nodeId;
+    final node = id != null ? await store.node(id) : await store.lastNode();
+    await _setNode(node);
+  }
+
+  Future<void> _setNode(KnowledgeNode? node) async {
+    final store = AppScope.of(context).store;
+    final byId = {for (final n in await store.allNodes()) n.id: n};
+    if (!mounted) return;
+    setState(() {
+      _node = node;
+      _nodeResolved = true;
+      _nodePath = node == null ? '' : nodePath(byId, node.id);
+    });
+  }
+
+  Future<void> _changeNode() async {
+    final node = await pickNode(
+      context,
+      title: 'Dans quelle branche ?',
+      initialId: _node?.id,
+    );
+    if (node != null && mounted) await _setNode(node);
+  }
+
+  @override
   void dispose() {
     _title.dispose();
     _body.dispose();
@@ -104,7 +147,8 @@ class _ItemEditorState extends State<ItemEditor> {
 
   Future<void> _save() async {
     final title = _title.text.trim();
-    if (title.isEmpty || _saving) return;
+    final node = _node;
+    if (title.isEmpty || node == null || _saving) return;
     setState(() => _saving = true);
     final scope = AppScope.of(context);
     final item = widget.item;
@@ -115,14 +159,16 @@ class _ItemEditorState extends State<ItemEditor> {
         title: title,
         body: () => _body.text,
         kind: _kind,
+        nodeId: node.id != item.nodeId ? node.id : null,
       );
     } else {
       created = await scope.store.createItem(
-        nodeId: widget.nodeId,
+        nodeId: node.id,
         kind: _kind,
         title: title,
         body: _body.text,
       );
+      await scope.store.setLastNode(node.id);
       final rating = _level.rating;
       if (rating != null) {
         await scope.store.applyReview(
@@ -154,6 +200,8 @@ class _ItemEditorState extends State<ItemEditor> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              _branchRow(theme),
+              const SizedBox(height: 12),
               SegmentedButton<ItemFamily>(
                 segments: [
                   for (final f in ItemFamily.values)
@@ -267,11 +315,59 @@ class _ItemEditorState extends State<ItemEditor> {
         ListenableBuilder(
           listenable: _title,
           builder: (context, _) => FilledButton(
-            onPressed: _title.text.trim().isEmpty || _saving ? null : _save,
+            onPressed: _title.text.trim().isEmpty || _node == null || _saving
+                ? null
+                : _save,
             child: Text(_editing ? 'Enregistrer' : 'Ajouter'),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _branchRow(ThemeData theme) {
+    final node = _node;
+    return Material(
+      color: theme.colorScheme.surfaceContainerLow,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: _changeNode,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 6, 4, 6),
+          child: Row(
+            children: [
+              Icon(
+                Icons.account_tree_outlined,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Branche', style: theme.textTheme.labelSmall),
+                    Text(
+                      node == null
+                          ? (_nodeResolved ? 'Aucune branche choisie' : '…')
+                          : _nodePath,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: node == null
+                          ? TextStyle(color: theme.colorScheme.error)
+                          : null,
+                    ),
+                  ],
+                ),
+              ),
+              TextButton(
+                onPressed: _changeNode,
+                child: Text(node == null ? 'Choisir' : 'Changer'),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

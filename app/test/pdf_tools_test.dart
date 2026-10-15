@@ -59,4 +59,19 @@ void main() {
     expect(png!.sublist(1, 4), 'PNG'.codeUnits);
     await doc.dispose();
   });
+
+  test('zone coupant une ligne : ligne entière ou rien (ticket #4)', () async {
+    final doc = await openPdf(v1);
+    final page = doc.pages.first;
+    // La ligne du théorème occupe environ 0,117 à 0,127 de la hauteur.
+    const line =
+        'Théorème (Cayley-Hamilton). Le polynôme caractéristique annule u.';
+    Future<String?> from(double top) =>
+        extractRegionText(page, NormalizedRect(0, top, 1, 0.3));
+    expect(await from(0.12), line);
+    // Bord au milieu de la ligne : autrefois « orme (ayey-amton)… ».
+    expect(await from(0.123), isNull);
+    expect(await from(0.124), isNull);
+    await doc.dispose();
+  });
 }

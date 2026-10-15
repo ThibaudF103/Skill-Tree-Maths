@@ -271,6 +271,25 @@ class VergerStore {
         SettingRow(key: _schedulerKey, value: jsonEncode(settings.toJson())),
       );
 
+  static const _lastNodeKey = 'lastNode';
+
+  /// Dernière branche choisie pour créer une connaissance, si elle existe
+  /// encore.
+  Future<KnowledgeNode?> lastNode() async {
+    final row = await (_db.select(
+      _db.settings,
+    )..where((s) => s.key.equals(_lastNodeKey))).getSingleOrNull();
+    if (row == null) return null;
+    final id = jsonDecode(row.value);
+    return id is String ? node(id) : null;
+  }
+
+  Future<void> setLastNode(String nodeId) => _db
+      .into(_db.settings)
+      .insertOnConflictUpdate(
+        SettingRow(key: _lastNodeKey, value: jsonEncode(nodeId)),
+      );
+
   // --- Documents PDF -------------------------------------------------------
 
   Future<List<SourceDocument>> allDocuments() async =>

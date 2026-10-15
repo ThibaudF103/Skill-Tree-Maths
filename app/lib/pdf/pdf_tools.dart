@@ -109,24 +109,50 @@ Future<Uint8List?> renderRegionPng(
 }
 
 /// Texte de la page situé dans [region] (PDF de cours), ou `null`.
+///
+/// Décision par ligne : une ligne est retenue si au moins la moitié de sa
+/// hauteur est dans la zone (sinon, un bord passant au milieu d'une ligne
+/// laisserait passer ses seules lettres basses : « e », « a »…), puis ses
+/// caractères dont le centre est dans la largeur de la zone.
 Future<String?> extractRegionText(PdfPage page, NormalizedRect region) async {
   final text = await page.loadText();
   if (text == null || text.fullText.isEmpty) return null;
+  final chars = text.fullText;
+  final count = chars.length < text.charRects.length
+      ? chars.length
+      : text.charRects.length;
   final buffer = StringBuffer();
-  for (var i = 0; i < text.fullText.length && i < text.charRects.length; i++) {
-    final rect = text.charRects[i];
-    // Coordonnées PDF : origine en bas à gauche.
-    final cx = (rect.left + rect.right) / 2 / page.width;
-    final cy = 1 - (rect.top + rect.bottom) / 2 / page.height;
-    final char = text.fullText[i];
-    final inside =
-        cx >= region.left &&
-        cx <= region.right &&
-        cy >= region.top &&
-        cy <= region.bottom;
-    if (inside || (char == '\n' || char == ' ') && buffer.isNotEmpty) {
-      buffer.write(inside ? char : ' ');
+  var start = 0;
+  while (start < count) {
+    var end = start;
+    while (end < count && chars[end] != '\n') {
+      end++;
     }
+    // Étendue verticale de la ligne (coordonnées PDF : origine en bas).
+    double? top, bottom;
+    for (var i = start; i < end; i++) {
+      final r = text.charRects[i];
+      if (r.top == r.bottom || chars[i].trim().isEmpty) continue;
+      final t = 1 - r.top / page.height;
+      final b = 1 - r.bottom / page.height;
+      top = top == null || t < top ? t : top;
+      bottom = bottom == null || b > bottom ? b : bottom;
+    }
+    if (top != null && bottom != null) {
+      final overlap =
+          (bottom < region.bottom ? bottom : region.bottom) -
+          (top > region.top ? top : region.top);
+      if (overlap >= (bottom - top) / 2) {
+        for (var i = start; i < end; i++) {
+          final r = text.charRects[i];
+          final cx = (r.left + r.right) / 2 / page.width;
+          final inside = cx >= region.left && cx <= region.right;
+          buffer.write(inside ? chars[i] : ' ');
+        }
+        buffer.write(' ');
+      }
+    }
+    start = end + 1;
   }
   final result = buffer.toString().replaceAll(RegExp(r'\s+'), ' ').trim();
   return result.isEmpty ? null : result;

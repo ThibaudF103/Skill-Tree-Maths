@@ -261,11 +261,8 @@ class _NoteEditorState extends State<NoteEditor> {
   Future<void> _createItem() async {
     await _flush();
     if (!mounted) return;
-    final node = await pickNode(context, title: 'Dans quelle branche ?');
-    if (node == null || !mounted) return;
     final item = await showItemEditor(
       context,
-      nodeId: node.id,
       family: ItemFamily.statement,
       initialTitle: shortenTitle(noteHeadline(_text.text)),
     );
