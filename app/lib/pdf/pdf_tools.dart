@@ -206,3 +206,40 @@ NormalizedRect regionOfPdfRect(
 }
 
 const _wordSeparators = ' \t\r\n.,;:!?()[]{}«»"\'’';
+
+/// Index du caractère de [text] situé au point ([x], [y]) (coordonnées PDF),
+/// ou du plus proche à moins de [margin] points ; `null` sinon.
+///
+/// Les caractères démesurés (plus de trois fois la hauteur médiane : un
+/// filigrane en travers de la page, par exemple) sont ignorés : pdfrx prend
+/// le premier caractère dont la boîte contient le point, et un filigrane
+/// placé en tête du texte captait ainsi toutes les sélections.
+int? charIndexAt(PdfPageText text, double x, double y, {double margin = 8}) {
+  final rects = text.charRects;
+  final count = rects.length < text.fullText.length
+      ? rects.length
+      : text.fullText.length;
+  final heights = <double>[
+    for (var i = 0; i < count; i++)
+      if (text.fullText[i].trim().isNotEmpty && rects[i].height > 0)
+        rects[i].height,
+  ]..sort();
+  if (heights.isEmpty) return null;
+  final limit = 3 * heights[heights.length ~/ 2];
+  int? closest;
+  var best = margin * margin;
+  for (var i = 0; i < count; i++) {
+    final r = rects[i];
+    if (text.fullText[i].trim().isEmpty) continue;
+    if (r.height > limit || r.width > limit) continue;
+    final dx = x < r.left ? r.left - x : (x > r.right ? x - r.right : 0.0);
+    final dy = y < r.bottom ? r.bottom - y : (y > r.top ? y - r.top : 0.0);
+    final d2 = dx * dx + dy * dy;
+    if (d2 == 0) return i;
+    if (d2 <= best) {
+      best = d2;
+      closest = i;
+    }
+  }
+  return closest;
+}
