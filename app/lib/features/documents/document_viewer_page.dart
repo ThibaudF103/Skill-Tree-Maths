@@ -911,7 +911,12 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
   /// Clic glissé (souris, stylet) en cours, en coordonnées globales.
   Offset? _dragFrom;
   Offset? _dragTo;
+  PdfTextSelectionPoint? _dragAnchor;
   PdfTextSelectionPoint? _lastDragEnd;
+
+  /// Textes des pages vues pendant le clic glissé : pdfrx ne garde que les
+  /// pages des bornes de la sélection en cours.
+  final _dragTexts = <int, PdfPageText>{};
 
   /// Recalcule les bornes de la sélection en cours de clic glissé en
   /// ignorant les filigranes : pdfrx prend le premier caractère dont la
@@ -924,19 +929,18 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
     final delegate = _controller.textSelectionDelegate;
     final range = delegate.textSelectionPointRange;
     if (range == null) return;
+    _dragTexts[range.start.text.pageNumber] = range.start.text;
+    _dragTexts[range.end.text.pageNumber] = range.end.text;
     PdfTextSelectionPoint? at(Offset global) {
       final doc = _controller.globalToDocument(global);
       if (doc == null) return null;
-      final page = _pageAt(_controller, doc);
-      final text = range.start.text.pageNumber == page
-          ? range.start.text
-          : range.end.text.pageNumber == page
-          ? range.end.text
-          : null;
+      final text = _dragTexts[_pageAt(_controller, doc)];
       return text == null ? null : _charAt(_controller, text, doc);
     }
 
-    final a = at(from);
+    // Le point de départ est fixé au premier passage : en glissant vers le
+    // haut, pdfrx remplace ensuite la borne de départ par le pointeur.
+    final a = _dragAnchor ??= at(from);
     if (a == null) {
       // Départ hors du texte : seul un filigrane avait été touché.
       delegate.clearTextSelection();
@@ -959,7 +963,8 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
     final drag = !_selecting && mouseLike && event.buttons == kPrimaryButton;
     _dragFrom = drag ? event.position : null;
     _dragTo = null;
-    _lastDragEnd = null;
+    _dragAnchor = _lastDragEnd = null;
+    _dragTexts.clear();
   }
 
   // pdfrx traite le même événement après ce Listener (reconnaisseurs de

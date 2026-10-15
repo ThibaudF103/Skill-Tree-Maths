@@ -53,6 +53,12 @@ class PlatformYoutubeController implements YoutubePlayerController {
 
   @override
   Future<void> seek(int ms, {bool play = true}) async {
+    // Un saut libre annule l'arrêt programmé d'un extrait.
+    _stopAt = null;
+    _jump(ms, play);
+  }
+
+  void _jump(int ms, bool play) {
     _time = ms / 1000;
     _post('seekTo', [ms / 1000, true]);
     if (play) _post('playVideo');
@@ -61,7 +67,7 @@ class PlatformYoutubeController implements YoutubePlayerController {
   @override
   Future<void> playSegment(int startMs, int? endMs) async {
     _stopAt = endMs == null ? null : endMs / 1000;
-    await seek(startMs);
+    _jump(startMs, true);
   }
 
   @override

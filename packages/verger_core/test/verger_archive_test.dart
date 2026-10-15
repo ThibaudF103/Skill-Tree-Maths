@@ -145,6 +145,50 @@ void main() {
     expect(archive.reviews, isEmpty);
   });
 
+  test('archive v1 : les PDF sont rattachés à la racine de leurs arbres', () {
+    final archive = VergerArchive.fromJson({
+      'format': 'verger',
+      'version': 1,
+      'nodes': [
+        {'id': 'a', 'title': 'Analyse'},
+        {'id': 'b', 'parentId': 'a', 'title': 'Séries'},
+        {'id': 'c', 'title': 'Algèbre'},
+      ],
+      'items': [
+        {'id': 'x', 'nodeId': 'b', 'kind': 'theorem', 'title': 'Cesàro'},
+        {'id': 'y', 'nodeId': 'b', 'kind': 'theorem', 'title': 'Abel'},
+      ],
+      'documents': [
+        {
+          'id': 'd',
+          'title': 'Poly',
+          'role': 'course',
+          'pageCount': 3,
+          'importedAt': '2026-01-01T00:00:00Z',
+        },
+        {
+          'id': 'e',
+          'title': 'Inutilisé',
+          'role': 'notes',
+          'importedAt': '2026-01-01T00:00:00Z',
+        },
+      ],
+      'anchors': [
+        for (final item in ['x', 'y'])
+          {
+            'id': 'k$item',
+            'itemId': item,
+            'documentId': 'd',
+            'role': 'source',
+            'page': 2,
+            'createdAt': '2026-01-01T00:00:00Z',
+          },
+      ],
+    });
+    expect(archive.documents.first.kind, ResourceKind.pdf);
+    expect(archive.resourceLinks, [(documentId: 'd', nodeId: 'a')]);
+  });
+
   test('refuse un fichier étranger, trop récent ou incohérent', () {
     expect(
       () => VergerArchive.fromJson({'format': 'autre'}),
