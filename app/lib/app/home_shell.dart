@@ -28,9 +28,9 @@ const _destinations = [
   _Destination('Révisions', Icons.event_repeat_outlined, Icons.event_repeat),
   _Destination('Arbres', Icons.account_tree_outlined, Icons.account_tree),
   _Destination(
-    'Documents',
-    Icons.picture_as_pdf_outlined,
-    Icons.picture_as_pdf,
+    'Bibliothèque',
+    Icons.local_library_outlined,
+    Icons.local_library,
   ),
 ];
 
@@ -76,7 +76,7 @@ class _HomeShellState extends State<HomeShell> {
     final page = switch (_index) {
       1 => const ReviewsPage(),
       2 => const TreesPage(),
-      3 => const DocumentsPage(),
+      3 => const LibraryPage(),
       _ => const OrchardPage(),
     };
 

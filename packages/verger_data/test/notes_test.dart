@@ -28,7 +28,6 @@ void main() {
     );
     course = await store.importDocument(
       title: 'Algèbre.pdf',
-      role: DocumentRole.course,
       bytes: Uint8List.fromList([1]),
       contentHash: 'c',
       fingerprints: [Uint8List(4), Uint8List(4), Uint8List(4)],
@@ -142,7 +141,6 @@ void main() {
 
     final notes = await store.importDocument(
       title: 'Carnet',
-      role: DocumentRole.notes,
       bytes: Uint8List(1),
       contentHash: 'v1',
       fingerprints: [page(1), page(2), page(3)],

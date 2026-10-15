@@ -37,6 +37,7 @@ final class VergerArchive {
     this.documents = const [],
     this.anchors = const [],
     this.notes = const [],
+    this.resourceLinks = const [],
     this.settings,
     this.title,
   });
@@ -56,6 +57,9 @@ final class VergerArchive {
 
   /// Notes de travail (avec leurs miniatures).
   final List<Note> notes;
+
+  /// Rattachement des contenus aux nœuds.
+  final List<ResourceLink> resourceLinks;
   final SchedulerSettings? settings;
 
   /// Nom lisible (ex. « Algèbre — exemple »).
@@ -140,8 +144,10 @@ final class VergerArchive {
           SourceDocument(
             id: d['id'] as String,
             title: d['title'] as String,
-            role: DocumentRole.values.byName(d['role'] as String),
-            pageCount: d['pageCount'] as int,
+            // Avant les vidéos, seul un « rôle » (cours / notes) existait.
+            kind: ResourceKind.values.byName(d['kind'] as String? ?? 'pdf'),
+            url: d['url'] as String?,
+            pageCount: d['pageCount'] as int? ?? 0,
             contentHash: d['contentHash'] as String? ?? '',
             importedAt: date(d['importedAt']),
             version: d['version'] as int? ?? 1,
@@ -160,7 +166,9 @@ final class VergerArchive {
             itemId: a['itemId'] as String,
             documentId: a['documentId'] as String,
             role: AnchorRole.values.byName(a['role'] as String),
-            page: a['page'] as int,
+            page: a['page'] as int?,
+            startMs: a['startMs'] as int?,
+            endMs: a['endMs'] as int?,
             region: a['region'] == null
                 ? null
                 : NormalizedRect(
@@ -188,6 +196,8 @@ final class VergerArchive {
             body: n['body'] as String? ?? '',
             documentId: n['documentId'] as String?,
             page: n['page'] as int?,
+            startMs: n['startMs'] as int?,
+            endMs: n['endMs'] as int?,
             region: region(n['region']),
             snapshot: bytes(n['snapshot']),
             itemId: n['itemId'] as String?,
@@ -207,6 +217,13 @@ final class VergerArchive {
         documents: documents,
         anchors: anchors,
         notes: notes,
+        resourceLinks: [
+          for (final l in list('resourceLinks'))
+            (
+              documentId: l['documentId'] as String,
+              nodeId: l['nodeId'] as String,
+            ),
+        ],
         settings: settings,
         title: json['title'] as String?,
       );
@@ -276,6 +293,11 @@ final class VergerArchive {
         throw const ArchiveFormatException('Note vers un élément inconnu');
       }
     }
+    for (final l in resourceLinks) {
+      if (!documentIds.contains(l.documentId) || !nodeIds.contains(l.nodeId)) {
+        throw const ArchiveFormatException('Contenu rattaché à un inconnu');
+      }
+    }
     for (final r in reviews) {
       if (!itemIds.contains(r.itemId)) {
         throw const ArchiveFormatException(
@@ -324,7 +346,8 @@ final class VergerArchive {
         {
           'id': d.id,
           'title': d.title,
-          'role': d.role.name,
+          'kind': d.kind.name,
+          'url': ?d.url,
           'pageCount': d.pageCount,
           'contentHash': d.contentHash,
           'importedAt': d.importedAt.toUtc().toIso8601String(),
@@ -341,7 +364,9 @@ final class VergerArchive {
           'itemId': a.itemId,
           'documentId': a.documentId,
           'role': a.role.name,
-          'page': a.page,
+          'page': ?a.page,
+          'startMs': ?a.startMs,
+          'endMs': ?a.endMs,
           'region': ?(a.region == null
               ? null
               : [
@@ -363,6 +388,8 @@ final class VergerArchive {
           'body': n.body,
           'documentId': ?n.documentId,
           'page': ?n.page,
+          'startMs': ?n.startMs,
+          'endMs': ?n.endMs,
           'region': ?(n.region == null
               ? null
               : [
@@ -376,6 +403,10 @@ final class VergerArchive {
           'createdAt': n.createdAt.toUtc().toIso8601String(),
           'updatedAt': n.updatedAt.toUtc().toIso8601String(),
         },
+    ],
+    'resourceLinks': [
+      for (final l in resourceLinks)
+        {'documentId': l.documentId, 'nodeId': l.nodeId},
     ],
     'reviews': [
       for (final r in reviews)

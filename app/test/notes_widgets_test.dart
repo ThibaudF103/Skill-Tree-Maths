@@ -92,7 +92,6 @@ void main() {
         item = await seedItem(s);
         doc = await s.importDocument(
           title: 'Cours',
-          role: DocumentRole.course,
           bytes: Uint8List(1),
           contentHash: 'h',
           fingerprints: [Uint8List(4), Uint8List(4)],
@@ -165,7 +164,6 @@ void main() {
         item = await seedItem(s);
         doc = await s.importDocument(
           title: 'Cours',
-          role: DocumentRole.course,
           bytes: Uint8List(1),
           contentHash: 'h',
           fingerprints: [Uint8List(4)],

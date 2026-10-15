@@ -1008,17 +1008,29 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
     final store = _store;
     final document = await store.document(widget.documentId);
     if (document == null || !mounted) return;
-    final isCourse = document.role == DocumentRole.course;
     final target = widget.attachToItem;
-    final action = target != null
-        ? (isCourse ? 'source' : 'work')
-        : await showModalBottomSheet<String>(
-            context: context,
-            showDragHandle: true,
-            builder: (context) => SafeArea(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: target != null
+              ? [
+                  ListTile(
+                    leading: const Icon(Icons.flip_to_front, color: rectoColor),
+                    title: Text('Recto de « ${target.title} »'),
+                    subtitle: const Text('L\'énoncé à se rappeler'),
+                    onTap: () => Navigator.pop(context, 'source'),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.flip_to_back, color: versoColor),
+                    title: Text('Verso de « ${target.title} »'),
+                    subtitle: const Text('La rédaction, révélée en révision'),
+                    onTap: () => Navigator.pop(context, 'work'),
+                  ),
+                ]
+              : [
                   ListTile(
                     leading: const Icon(Icons.edit_note, color: noteColor),
                     title: const Text('Prendre une note sur cette zone'),
@@ -1027,17 +1039,17 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
                   ),
                   ListTile(
                     leading: const Icon(Icons.add_circle_outline),
-                    title: Text(
-                      isCourse
-                          ? 'Créer une connaissance avec cet énoncé'
-                          : 'Créer une connaissance avec cette rédaction',
-                    ),
-                    subtitle: Text(
-                      isCourse
-                          ? 'La zone devient son recto'
-                          : 'La zone devient son verso',
-                    ),
+                    title: const Text('Créer une connaissance avec cet énoncé'),
+                    subtitle: const Text('La zone devient son recto'),
                     onTap: () => Navigator.pop(context, 'create'),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.add_circle_outline),
+                    title: const Text(
+                      'Créer une connaissance avec cette rédaction',
+                    ),
+                    subtitle: const Text('La zone devient son verso'),
+                    onTap: () => Navigator.pop(context, 'createWork'),
                   ),
                   ListTile(
                     leading: const Icon(Icons.flip_to_front, color: rectoColor),
@@ -1050,9 +1062,9 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
                     onTap: () => Navigator.pop(context, 'work'),
                   ),
                 ],
-              ),
-            ),
-          );
+        ),
+      ),
+    );
     if (action == null || !mounted) return;
 
     final snapshot = await renderRegionPng(page, region);
@@ -1074,31 +1086,31 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
       return;
     }
 
-    final text = isCourse ? await extractRegionText(page, region) : null;
+    final text = await extractRegionText(page, region);
     if (!mounted) return;
+    final work = action == 'work' || action == 'createWork';
     KnowledgeItem? item = target;
     if (target != null) {
       // Connaissance déjà choisie.
-    } else if (action == 'create') {
+    } else if (action == 'create' || action == 'createWork') {
+      // Énoncé : le texte extrait sert de titre et de contenu ; une
+      // rédaction (souvent manuscrite) n'en a pas d'exploitable.
       item = await showItemEditor(
         context,
         family: ItemFamily.statement,
-        initialTitle: suggestTitle(text),
-        initialBody: text,
+        initialTitle: work ? null : suggestTitle(text),
+        initialBody: work ? null : text,
       );
     } else {
       item = await pickItem(
         context,
-        title: action == 'work'
+        title: work
             ? 'Verso de quelle connaissance ?'
             : 'Recto de quelle connaissance ?',
       );
     }
     if (item == null || !mounted) return;
-    // Une connaissance créée depuis des notes prend la zone pour verso.
-    final role = action == 'work' || (action == 'create' && !isCourse)
-        ? AnchorRole.work
-        : AnchorRole.source;
+    final role = work ? AnchorRole.work : AnchorRole.source;
     await store.addAnchor(
       itemId: item.id,
       documentId: widget.documentId,

@@ -8,6 +8,7 @@ import '../items/item_detail_page.dart';
 import '../items/item_editor.dart';
 import '../items/item_tile.dart';
 import '../review/reviews_page.dart';
+import 'node_contents.dart';
 import 'node_picker.dart';
 import 'reorder.dart';
 import 'tree_data.dart';
@@ -100,6 +101,8 @@ class NodeDetail extends StatelessWidget {
                 ),
               ),
             ),
+        const SizedBox(height: 24),
+        NodeContents(data: data, node: node),
         const SizedBox(height: 24),
         _SectionHeader(
           title: 'Connaissances',

@@ -15,6 +15,25 @@ extension ItemKindLabel on ItemKind {
   };
 }
 
+/// Durée d'une vidéo en « 1:02:03 » ou « 12:05 ».
+String formatClock(int milliseconds) {
+  final total = milliseconds ~/ 1000;
+  String two(int n) => n.toString().padLeft(2, '0');
+  final h = total ~/ 3600;
+  final m = total ~/ 60 % 60;
+  final s = total % 60;
+  return h > 0 ? '$h:${two(m)}:${two(s)}' : '$m:${two(s)}';
+}
+
+/// Endroit d'une ancre : « p. 12 » ou « 12:30 → 14:05 ».
+String anchorPlace(Anchor anchor) {
+  final page = anchor.page;
+  if (page != null) return 'p. $page';
+  final start = formatClock(anchor.startMs ?? 0);
+  final end = anchor.endMs;
+  return end == null ? start : '$start → ${formatClock(end)}';
+}
+
 extension ExerciseLevelLabel on ExerciseLevel {
   String get label => switch (this) {
     ExerciseLevel.easy => 'Facile',

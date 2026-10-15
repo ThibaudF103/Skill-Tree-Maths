@@ -126,4 +126,42 @@ void main() {
     expect((await store.allItems()).last.level, ExerciseLevel.hard);
     await store.close();
   });
+
+  test('v4 → v5 : PDF rattachés à leurs arbres, ancres conservées', () async {
+    final schema = await verifier.schemaAt(4);
+    final db = schema.rawDatabase;
+    db.execute(
+      "INSERT INTO nodes (id, parent_id, title, sort_index, curriculum_key, "
+      "origin, created_at) VALUES ('t', NULL, 'Analyse', 0, NULL, 'user', "
+      "'2026-03-02T09:00:00.000Z'), ('b', 't', 'Suites', 0, NULL, 'user', "
+      "'2026-03-02T09:00:00.000Z')",
+    );
+    db.execute(
+      "INSERT INTO items (id, node_id, kind, title, body, level, sort_index, "
+      "suspended, created_at, updated_at, phase, step, stability, difficulty, "
+      "due, last_review, reps, lapses) VALUES ('i', 'b', 'theorem', 'Cesàro', "
+      "NULL, NULL, 0, 0, '2026-03-02T09:00:00.000Z', "
+      "'2026-03-02T09:00:00.000Z', 'newItem', NULL, NULL, NULL, NULL, NULL, "
+      "0, 0)",
+    );
+    db.execute(
+      "INSERT INTO documents (id, title, role, page_count, content_hash, "
+      "imported_at, version, fingerprints, new_pages, last_page) VALUES "
+      "('d', 'Poly', 'notes', 2, 'h', '2026-03-02T09:00:00.000Z', 1, "
+      "x'0000', '[]', 2)",
+    );
+    db.execute(
+      "INSERT INTO anchors (id, item_id, document_id, role, page, "
+      "needs_review, created_at) VALUES ('a', 'i', 'd', 'source', 2, 0, "
+      "'2026-03-02T09:00:00.000Z')",
+    );
+
+    final store = VergerStore(VergerDatabase(schema.newConnection()));
+    final doc = (await store.document('d'))!;
+    expect((doc.title, doc.kind, doc.lastPage), ('Poly', ResourceKind.pdf, 2));
+    expect((await store.anchorsOf('i')).single.page, 2);
+    // Rattaché à l'arbre de la connaissance qui l'utilise.
+    expect(await store.resourceLinks(), [(documentId: 'd', nodeId: 't')]);
+    await store.close();
+  });
 }

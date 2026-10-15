@@ -40,7 +40,6 @@ void main() {
     final doc = SourceDocument(
       id: 'd1',
       title: 'Carnet',
-      role: DocumentRole.notes,
       pageCount: 2,
       contentHash: 'abc',
       importedAt: t,
@@ -107,8 +106,8 @@ void main() {
     expect(copy.settings!.desiredRetention, 0.88);
     final doc = copy.documents.single;
     expect(
-      (doc.title, doc.role, doc.pageCount, doc.version),
-      ('Carnet', DocumentRole.notes, 2, 3),
+      (doc.title, doc.kind, doc.pageCount, doc.version),
+      ('Carnet', ResourceKind.pdf, 2, 3),
     );
     expect(doc.newPages, [2]);
     expect(doc.fingerprints.last, [3, 4]);
@@ -230,6 +229,82 @@ void main() {
     expect(
       const SchedulerSettings(learningSteps: [Duration.zero]).isValid,
       isFalse,
+    );
+  });
+
+  test('contenus : vidéo, extrait, rattachement aux nœuds, ancien format', () {
+    final t = DateTime.utc(2026, 3, 2);
+    final archive = VergerArchive(
+      nodes: [
+        KnowledgeNode(id: 'n1', title: 'Analyse', sortIndex: 0, createdAt: t),
+      ],
+      items: [
+        KnowledgeItem(
+          id: 'i1',
+          nodeId: 'n1',
+          kind: ItemKind.theorem,
+          title: 'Rolle',
+          createdAt: t,
+          updatedAt: t,
+        ),
+      ],
+      documents: [
+        SourceDocument(
+          id: 'v1',
+          title: 'Cours filmé',
+          kind: ResourceKind.video,
+          url: 'https://www.youtube.com/watch?v=abc',
+          pageCount: 0,
+          contentHash: 'abc',
+          importedAt: t,
+        ),
+      ],
+      anchors: [
+        Anchor(
+          id: 'a1',
+          itemId: 'i1',
+          documentId: 'v1',
+          role: AnchorRole.work,
+          startMs: 750000,
+          endMs: 845000,
+          createdAt: t,
+        ),
+      ],
+      resourceLinks: const [(documentId: 'v1', nodeId: 'n1')],
+    );
+    final copy = VergerArchive.fromJson(
+      (jsonDecode(jsonEncode(archive.toJson())) as Map).cast(),
+    );
+    final video = copy.documents.single;
+    expect(
+      (video.isVideo, video.url),
+      (true, 'https://www.youtube.com/watch?v=abc'),
+    );
+    final a = copy.anchors.single;
+    expect((a.page, a.startMs, a.endMs), (null, 750000, 845000));
+    expect(copy.resourceLinks.single, (documentId: 'v1', nodeId: 'n1'));
+
+    // Archive d'avant les contenus : « role » au lieu de « kind ».
+    final json = archive.toJson();
+    (json['documents'] as List).first
+      ..remove('kind')
+      ..['role'] = 'notes';
+    json.remove('resourceLinks');
+    final legacy = VergerArchive.fromJson(
+      (jsonDecode(jsonEncode(json)) as Map).cast(),
+    );
+    expect(legacy.documents.single.kind, ResourceKind.pdf);
+    expect(legacy.resourceLinks, isEmpty);
+
+    // Rattachement vers un nœud inconnu refusé.
+    expect(
+      () => VergerArchive(
+        nodes: archive.nodes,
+        items: archive.items,
+        documents: archive.documents,
+        resourceLinks: const [(documentId: 'v1', nodeId: 'x')],
+      ).validate(),
+      throwsA(isA<ArchiveFormatException>()),
     );
   });
 }

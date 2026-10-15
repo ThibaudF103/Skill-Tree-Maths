@@ -49,15 +49,18 @@ final class NormalizedRect {
   String toString() => 'NormalizedRect($left, $top, $right, $bottom)';
 }
 
-/// Lien entre une connaissance et une zone d'un PDF.
+/// Lien entre une connaissance et un endroit d'un contenu : zone d'une page
+/// de PDF, ou extrait d'une vidéo.
 final class Anchor {
   const Anchor({
     required this.id,
     required this.itemId,
     required this.documentId,
     required this.role,
-    required this.page,
     required this.createdAt,
+    this.page,
+    this.startMs,
+    this.endMs,
     this.region,
     this.textSnippet,
     this.snapshot,
@@ -69,8 +72,12 @@ final class Anchor {
   final String documentId;
   final AnchorRole role;
 
-  /// Numéro de page (à partir de 1).
-  final int page;
+  /// Numéro de page d'un PDF (à partir de 1) ; `null` pour une vidéo.
+  final int? page;
+
+  /// Extrait d'une vidéo, en millisecondes ; `null` pour un PDF.
+  final int? startMs;
+  final int? endMs;
 
   /// Zone encadrée ; `null` : page entière.
   final NormalizedRect? region;

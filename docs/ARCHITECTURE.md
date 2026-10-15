@@ -89,13 +89,18 @@ ReviewLog              append-only, source de vérité (permet de rejouer l'hist
 
 Settings               clé → JSON (réglages de révision : SchedulerSettings)
 
-Document               PDF importé (copie dans la bibliothèque de l'app)
-  id, title, role (course|notes), storedFile, pageCount, contentHash, importedAt, version
+Document (contenu)     PDF importé (copie dans la bibliothèque) ou vidéo en ligne
+  id, title, kind (pdf|video), url?, storedFile (PDF), pageCount, contentHash,
+  importedAt, version
   pageFingerprints     empreinte visuelle réduite de chaque page (recalage des ancres)
 
-Anchor                 lien item ↔ zone d'un PDF
-  id, itemId, documentId, role (source|work), page,
-  region? (rectangle normalisé 0–1), snapshot (image), textSnippet?, needsReview
+ResourceLink           contenu ↔ nœud (plusieurs à plusieurs ; un contenu rattaché
+                       à un nœud sert aussi à toute sa descendance)
+
+Anchor                 lien item ↔ endroit d'un contenu
+  id, itemId, documentId, role (source|work),
+  page? + region? (PDF, rectangle normalisé 0–1) ou startMs/endMs (extrait vidéo),
+  snapshot (image), textSnippet?, needsReview
 
 LearningPlan           (prévu, non utilisé dans le MVP) par arbre : date cible, rétention visée
 ```
@@ -215,22 +220,27 @@ Validation à la lecture : format, version, références, cycles.
 `packages/verger_core/tool/generate_demo_backup.dart` produit une sauvegarde
 de démonstration (deux mois de révisions simulées).
 
-## PDF et notes manuscrites : recto / verso
+## Contenus et recto / verso
 
-- **Recto** : ancre `source` sur un PDF de cours (énoncé encadré).
-- **Verso** : ancre `work` sur le PDF des notes (rédaction manuscrite exportée
-  de CollaNote).
-- **Onglet Documents** : import (titre, rôle cours/notes), mise à jour (nouvelle
-  version), renommage, suppression. Les PDF sont copiés dans la base
-  (`document_files`, contenu séparé des métadonnées).
+- **Recto** : ancre `source` (énoncé encadré) ; **verso** : ancre `work`
+  (rédaction). Tout PDF peut fournir l'un ou l'autre : la distinction
+  cours / notes a disparu à l'étape 9 avec la prise de notes intégrée.
+- **Contenus d'un nœud** (onglet Arbres) : PDF et vidéos rattachés au nœud,
+  puis ceux hérités de ses ancêtres (« via … ») ; importer un PDF directement
+  rattaché, rattacher un contenu existant, détacher.
+- **Onglet Bibliothèque** : tous les contenus, filtrables par arbre (ou « non
+  rattachés ») ; import (titre, branche de rattachement), rattachement, mise à
+  jour (nouvelle version), renommage, suppression. Les PDF sont copiés dans la
+  base (`document_files`, contenu séparé des métadonnées). Migration v5 : les
+  PDF existants sont rattachés aux arbres des connaissances qui les utilisent.
 - **Visionneuse** (pdfrx / PDFium, y compris sur le web en WebAssembly) :
   mode « Encadrer » → créer une connaissance depuis un énoncé (titre et
   contenu pré-remplis par le texte du PDF) ou attacher la zone comme recto /
   verso. Les ancres existantes sont dessinées sur les pages (bleu : recto,
   orange : verso) et ouvrent la connaissance.
 - **Fiche d'une connaissance** : section Recto / verso (miniatures, ouvrir au
-  bon endroit du PDF, retirer), « Attacher une zone d'un PDF » (la zone est
-  attachée directement : recto pour un cours, verso pour des notes).
+  bon endroit du PDF, retirer), « Attacher une zone d'un PDF » (on choisit
+  recto ou verso en encadrant).
 - **Révision** : le recto s'affiche sous le titre ; « Révéler » montre le verso
   (rédaction) et le contenu texte.
 - **Miniatures** (PNG) stockées avec l'ancre : le verso reste lisible même si
@@ -259,4 +269,7 @@ de démonstration (deux mois de révisions simulées).
 | 6 | Export/import JSON + données d'exemple ✅ |
 | 7 | PDF recto/verso ✅ |
 | 8 | Visionneuse améliorée, notes liées au PDF, LaTeX ✅ |
+| 9 | Contenus (PDF, vidéos) rattachés aux nœuds, ancres généralisées, Bibliothèque ✅ |
+| 10 | Paquets d'arbres : contenus, ancres et notes ; PDF inclus ou par référence |
+| 11 | Vidéos YouTube : lecteur intégré, extraits recto/verso |
 | ensuite | Déplacement par l'interface, LaTeX, statistiques, programme officiel, verger, iPad… |

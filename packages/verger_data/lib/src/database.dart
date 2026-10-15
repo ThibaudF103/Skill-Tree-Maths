@@ -71,12 +71,19 @@ class ReviewLogs extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-/// PDF importés (métadonnées ; le contenu est dans [DocumentFiles]).
+/// Contenus pédagogiques : PDF importés (le fichier est dans
+/// [DocumentFiles]) ou vidéos (adresse seule).
 @DataClassName('DocumentRow')
 class Documents extends Table {
   TextColumn get id => text()();
   TextColumn get title => text()();
-  TextColumn get role => textEnum<DocumentRole>()();
+
+  /// Nature du contenu (v5, remplace le rôle cours / notes).
+  TextColumn get kind =>
+      textEnum<ResourceKind>().withDefault(const Constant('pdf'))();
+
+  /// Adresse d'origine : vidéo, ou PDF téléchargeable (v5).
+  TextColumn get url => text().nullable()();
   IntColumn get pageCount => integer()();
   TextColumn get contentHash => text()();
   DateTimeColumn get importedAt => dateTime()();
@@ -106,7 +113,21 @@ class DocumentFiles extends Table {
   Set<Column> get primaryKey => {documentId};
 }
 
-/// Liens connaissance ↔ zone d'un PDF (recto : cours, verso : notes).
+/// Rattachement des contenus aux nœuds (v5).
+@DataClassName('ResourceLinkRow')
+@TableIndex(name: 'resource_links_node', columns: {#nodeId})
+class ResourceLinks extends Table {
+  TextColumn get documentId =>
+      text().references(Documents, #id, onDelete: KeyAction.cascade)();
+  TextColumn get nodeId =>
+      text().references(Nodes, #id, onDelete: KeyAction.cascade)();
+
+  @override
+  Set<Column> get primaryKey => {documentId, nodeId};
+}
+
+/// Liens connaissance ↔ endroit d'un contenu : zone d'une page de PDF, ou
+/// extrait de vidéo (v5).
 @DataClassName('AnchorRow')
 @TableIndex(name: 'anchors_item', columns: {#itemId})
 @TableIndex(name: 'anchors_document', columns: {#documentId})
@@ -117,7 +138,13 @@ class Anchors extends Table {
   TextColumn get documentId =>
       text().references(Documents, #id, onDelete: KeyAction.cascade)();
   TextColumn get role => textEnum<AnchorRole>()();
-  IntColumn get page => integer()();
+
+  /// Page d'un PDF (nulle pour une vidéo depuis v5).
+  IntColumn get page => integer().nullable()();
+
+  /// Extrait d'une vidéo, en millisecondes (v5).
+  IntColumn get startMs => integer().nullable()();
+  IntColumn get endMs => integer().nullable()();
   RealColumn get left => real().nullable()();
   RealColumn get top => real().nullable()();
   RealColumn get right => real().nullable()();
@@ -145,6 +172,10 @@ class Notes extends Table {
     onDelete: KeyAction.setNull,
   )();
   IntColumn get page => integer().nullable()();
+
+  /// Moment ou extrait d'une vidéo, en millisecondes (v5).
+  IntColumn get startMs => integer().nullable()();
+  IntColumn get endMs => integer().nullable()();
   RealColumn get left => real().nullable()();
   RealColumn get top => real().nullable()();
   RealColumn get right => real().nullable()();
@@ -179,13 +210,14 @@ class Settings extends Table {
     DocumentFiles,
     Anchors,
     Notes,
+    ResourceLinks,
   ],
 )
 class VergerDatabase extends _$VergerDatabase {
   VergerDatabase(super.executor);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -213,6 +245,40 @@ class VergerDatabase extends _$VergerDatabase {
         // (0 partout : l'ordre de création départage, rien ne bouge).
         await m.addColumn(schema.items, schema.items.level);
         await m.addColumn(schema.items, schema.items.sortIndex);
+      },
+      from4To5: (m, schema) async {
+        // v5 : contenus (PDF ou vidéo) rattachés aux nœuds ; ancres et notes
+        // vers un extrait de vidéo. Le rôle cours / notes disparaît.
+        await m.alterTable(
+          TableMigration(
+            schema.documents,
+            newColumns: [schema.documents.kind, schema.documents.url],
+          ),
+        );
+        await m.alterTable(
+          TableMigration(
+            schema.anchors,
+            newColumns: [schema.anchors.startMs, schema.anchors.endMs],
+          ),
+        );
+        await m.addColumn(schema.notes, schema.notes.startMs);
+        await m.addColumn(schema.notes, schema.notes.endMs);
+        await m.createTable(schema.resourceLinks);
+        await m.createIndex(schema.resourceLinksNode);
+        // Chaque PDF existant est rattaché aux arbres des connaissances qui
+        // l'utilisent déjà.
+        await customStatement('''
+          WITH RECURSIVE up(id, root) AS (
+            SELECT id, id FROM nodes WHERE parent_id IS NULL
+            UNION ALL
+            SELECT n.id, up.root FROM nodes n JOIN up ON n.parent_id = up.id
+          )
+          INSERT OR IGNORE INTO resource_links (document_id, node_id)
+          SELECT DISTINCT a.document_id, up.root
+          FROM anchors a
+          JOIN items i ON i.id = a.item_id
+          JOIN up ON up.id = i.node_id
+        ''');
       },
     ),
     beforeOpen: (details) async {

@@ -16,6 +16,8 @@ final class Note {
     required this.updatedAt,
     this.documentId,
     this.page,
+    this.startMs,
+    this.endMs,
     this.region,
     this.snapshot,
     this.itemId,
@@ -30,6 +32,10 @@ final class Note {
 
   /// Page du PDF (à partir de 1).
   final int? page;
+
+  /// Moment ou extrait d'une vidéo, en millisecondes.
+  final int? startMs;
+  final int? endMs;
 
   /// Zone du PDF à laquelle la note se rapporte ; `null` : page entière.
   final NormalizedRect? region;

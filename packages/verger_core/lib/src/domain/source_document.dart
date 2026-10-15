@@ -1,14 +1,23 @@
 import 'dart:typed_data';
 
-/// Rôle d'un PDF : cours (énoncés, recto) ou notes manuscrites (verso).
-enum DocumentRole { course, notes }
+/// Nature d'un contenu pédagogique.
+enum ResourceKind {
+  /// PDF importé (copie conservée sur l'appareil).
+  pdf,
 
-/// PDF importé dans la bibliothèque de l'application (copie).
+  /// Vidéo en ligne (YouTube) : seule l'adresse est conservée.
+  video,
+}
+
+/// Rattachement d'un contenu à un nœud de l'arbre (un contenu peut servir
+/// à plusieurs nœuds, un nœud avoir plusieurs contenus).
+typedef ResourceLink = ({String documentId, String nodeId});
+
+/// Contenu pédagogique de la bibliothèque : PDF ou vidéo.
 final class SourceDocument {
   const SourceDocument({
     required this.id,
     required this.title,
-    required this.role,
     required this.pageCount,
     required this.contentHash,
     required this.importedAt,
@@ -16,11 +25,18 @@ final class SourceDocument {
     this.fingerprints = const [],
     this.newPages = const [],
     this.lastPage = 1,
+    this.kind = ResourceKind.pdf,
+    this.url,
   });
 
   final String id;
   final String title;
-  final DocumentRole role;
+  final ResourceKind kind;
+
+  /// Adresse d'origine : la vidéo, ou le PDF à télécharger (paquets).
+  final String? url;
+
+  /// Nombre de pages (0 pour une vidéo).
   final int pageCount;
 
   /// Empreinte du fichier (SHA-256) : détecte un import identique.
@@ -38,4 +54,7 @@ final class SourceDocument {
 
   /// Dernière page consultée (reprise de lecture).
   final int lastPage;
+
+  bool get isPdf => kind == ResourceKind.pdf;
+  bool get isVideo => kind == ResourceKind.video;
 }
