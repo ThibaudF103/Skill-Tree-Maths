@@ -410,6 +410,18 @@ class VergerStore {
     return row?.bytes;
   }
 
+  /// Joint le fichier d'un PDF connu par ses seules empreintes (paquet
+  /// importé sans le PDF, sauvegarde restaurée ailleurs). Sans effet si le
+  /// fichier est déjà là ; renvoie `true` s'il a été ajouté.
+  Future<bool> attachDocumentFile(String id, Uint8List bytes) =>
+      _db.transaction(() async {
+        if (await documentBytes(id) != null) return false;
+        await _db
+            .into(_db.documentFiles)
+            .insert(DocumentFileRow(documentId: id, bytes: bytes));
+        return true;
+      });
+
   /// Ajoute un PDF à la bibliothèque. [fingerprints] : une empreinte par page.
   /// Le contenu est rattaché aux nœuds [nodeIds].
   Future<SourceDocument> importDocument({
@@ -967,13 +979,7 @@ class VergerStore {
       final existing = d.contentHash.isEmpty ? null : local[d.contentHash];
       if (existing != null && existing.kind == d.kind) {
         documentIds[d.id] = existing.id;
-        if (file != null && await documentBytes(existing.id) == null) {
-          await _db
-              .into(_db.documentFiles)
-              .insert(
-                DocumentFileRow(documentId: existing.id, bytes: file.bytes),
-              );
-        }
+        if (file != null) await attachDocumentFile(existing.id, file.bytes);
         continue;
       }
       final id = newId();
