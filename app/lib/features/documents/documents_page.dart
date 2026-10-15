@@ -251,6 +251,14 @@ class _ResourceTile extends StatelessWidget {
               await linkResourceToNode(context, document);
             case 'update':
               await updatePdf(context, document);
+            case 'url':
+              final url = await askName(
+                context,
+                title: 'Adresse de téléchargement',
+                initial: document.url ?? '',
+                hint: 'https://…/cours.pdf',
+              );
+              if (url != null) await store.setDocumentUrl(document.id, url);
             case 'rename':
               final name = await askName(
                 context,
@@ -279,6 +287,15 @@ class _ResourceTile extends StatelessWidget {
               title: Text('Rattacher à une branche…'),
             ),
           ),
+          if (document.isPdf)
+            const PopupMenuItem(
+              value: 'url',
+              child: ListTile(
+                leading: Icon(Icons.public),
+                title: Text('Adresse de téléchargement…'),
+                subtitle: Text('Pour partager un paquet sans le PDF'),
+              ),
+            ),
           if (document.isPdf)
             const PopupMenuItem(
               value: 'update',

@@ -220,6 +220,22 @@ Validation à la lecture : format, version, références, cycles.
 `packages/verger_core/tool/generate_demo_backup.dart` produit une sauvegarde
 de démonstration (deux mois de révisions simulées).
 
+## Paquets d'arbres (`.verger`, étape 10)
+
+- Archive ZIP : `pack.json` (une `VergerArchive` : nœuds, connaissances sans
+  état de révision, contenus, rattachements, ancres avec miniatures, notes)
+  et `files/<id>.pdf` pour les PDF inclus.
+- **Export** (menu d'un nœud, « Partager ») : la descendance du nœud, qui
+  devient un arbre ; les contenus rattachés aux ancêtres sont rattachés à sa
+  racine. PDF inclus, ou « par adresse » : un PDF muni d'une adresse de
+  téléchargement (Bibliothèque) n'est pas embarqué, seuls son adresse et son
+  empreinte voyagent (poly public, sans redistribuer le fichier).
+- **Import** (menu Données, ou écran d'accueil vide) : nouveaux identifiants,
+  aucune progression ; un contenu déjà présent (même SHA-256) est réutilisé ;
+  un PDF absent est téléchargé puis analysé. S'il diffère de la version du
+  paquet, ses ancres sont recalées par empreintes de pages (`updateDocument`).
+  Un PDF introuvable n'empêche pas l'import (miniatures conservées).
+
 ## Contenus et recto / verso
 
 - **Recto** : ancre `source` (énoncé encadré) ; **verso** : ancre `work`
@@ -270,6 +286,6 @@ de démonstration (deux mois de révisions simulées).
 | 7 | PDF recto/verso ✅ |
 | 8 | Visionneuse améliorée, notes liées au PDF, LaTeX ✅ |
 | 9 | Contenus (PDF, vidéos) rattachés aux nœuds, ancres généralisées, Bibliothèque ✅ |
-| 10 | Paquets d'arbres : contenus, ancres et notes ; PDF inclus ou par référence |
+| 10 | Paquets d'arbres : contenus, ancres et notes ; PDF inclus ou par référence ✅ |
 | 11 | Vidéos YouTube : lecteur intégré, extraits recto/verso |
 | ensuite | Déplacement par l'interface, LaTeX, statistiques, programme officiel, verger, iPad… |

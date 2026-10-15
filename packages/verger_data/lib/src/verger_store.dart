@@ -25,6 +25,13 @@ class StaleReviewException implements Exception {
 }
 
 /// Bilan d'une mise à jour de PDF.
+/// PDF joint à un paquet (ou téléchargé à l'import), déjà analysé.
+typedef PackPdf = ({
+  Uint8List bytes,
+  String contentHash,
+  List<Uint8List> fingerprints,
+});
+
 typedef DocumentUpdate = ({
   /// Ancres déplacées vers une autre page (pages insérées ou supprimées).
   int moved,
@@ -489,6 +496,12 @@ class VergerStore {
   static ResourceLink _toLink(ResourceLinkRow row) =>
       (documentId: row.documentId, nodeId: row.nodeId);
 
+  /// Adresse de téléchargement d'un PDF (paquets « par référence »).
+  Future<void> setDocumentUrl(String id, String? url) =>
+      (_db.update(_db.documents)..where((d) => d.id.equals(id))).write(
+        DocumentsCompanion(url: Value(_blankToNull(url))),
+      );
+
   Future<void> renameDocument(String id, String title) =>
       (_db.update(_db.documents)..where((d) => d.id.equals(id))).write(
         DocumentsCompanion(title: Value(title.trim())),
@@ -791,48 +804,264 @@ class VergerStore {
   Future<List<KnowledgeNode>> importTemplate(VergerArchive archive) =>
       _db.transaction(() async {
         archive.validate();
-        final now = _now();
-        final newIds = {for (final n in archive.nodes) n.id: newId()};
-        final trees = await _siblings(null);
-        var nextTreeIndex = trees.length;
-        final nodes = [
-          for (final n in archive.nodes)
-            KnowledgeNode(
-              id: newIds[n.id]!,
-              parentId: n.parentId == null ? null : newIds[n.parentId],
-              title: n.title,
-              sortIndex: n.parentId == null ? nextTreeIndex++ : n.sortIndex,
-              curriculumKey: n.curriculumKey,
-              origin: n.origin,
-              createdAt: now,
-            ),
-        ];
-        await _insertNodes(nodes);
-        for (final (i, item) in archive.items.indexed) {
-          // Décalage d'une milliseconde : conserve l'ordre du modèle.
-          final created = now.add(Duration(milliseconds: i));
-          await _db
-              .into(_db.items)
-              .insert(
-                _itemCompanion(
-                  KnowledgeItem(
-                    id: newId(),
-                    nodeId: newIds[item.nodeId]!,
-                    kind: item.kind,
-                    title: item.title,
-                    body: item.body,
-                    level: item.level,
-                    sortIndex: item.sortIndex,
-                    createdAt: created,
-                    updatedAt: created,
-                  ),
-                ),
-              );
-        }
-        return nodes.where((n) => n.isTree).toList();
+        return (await _importStructure(archive)).$1;
       });
 
-  /// Insère des nœuds parents avant enfants (clés étrangères).
+  /// Insère nœuds et connaissances d'une archive sous de nouveaux
+  /// identifiants (arbres placés après les existants, sans progression).
+  /// Renvoie les arbres créés et les correspondances d'identifiants.
+  Future<(List<KnowledgeNode>, Map<String, String>, Map<String, String>)>
+  _importStructure(VergerArchive archive) async {
+    final now = _now();
+    final newIds = {for (final n in archive.nodes) n.id: newId()};
+    final trees = await _siblings(null);
+    var nextTreeIndex = trees.length;
+    final nodes = [
+      for (final n in archive.nodes)
+        KnowledgeNode(
+          id: newIds[n.id]!,
+          parentId: n.parentId == null ? null : newIds[n.parentId],
+          title: n.title,
+          sortIndex: n.parentId == null ? nextTreeIndex++ : n.sortIndex,
+          curriculumKey: n.curriculumKey,
+          origin: n.origin,
+          createdAt: now,
+        ),
+    ];
+    await _insertNodes(nodes);
+    final itemIds = <String, String>{};
+    for (final (i, item) in archive.items.indexed) {
+      // Décalage d'une milliseconde : conserve l'ordre du modèle.
+      final created = now.add(Duration(milliseconds: i));
+      final id = itemIds[item.id] = newId();
+      await _db
+          .into(_db.items)
+          .insert(
+            _itemCompanion(
+              KnowledgeItem(
+                id: id,
+                nodeId: newIds[item.nodeId]!,
+                kind: item.kind,
+                title: item.title,
+                body: item.body,
+                level: item.level,
+                sortIndex: item.sortIndex,
+                createdAt: created,
+                updatedAt: created,
+              ),
+            ),
+          );
+    }
+    return (nodes.where((n) => n.isTree).toList(), newIds, itemIds);
+  }
+
+  /// Paquet d'un nœud (arbre ou branche, qui devient un arbre à l'import) :
+  /// descendance, connaissances (sans état de révision), contenus rattachés
+  /// (y compris hérités des ancêtres) ou utilisés, ancres et notes.
+  Future<VergerArchive> exportTree(String nodeId) async {
+    final all = await allNodes();
+    final root = all.firstWhere((n) => n.id == nodeId);
+    final subtree = <String>{nodeId};
+    for (var grew = true; grew;) {
+      grew = false;
+      for (final n in all) {
+        if (n.parentId != null &&
+            subtree.contains(n.parentId) &&
+            subtree.add(n.id)) {
+          grew = true;
+        }
+      }
+    }
+    final ancestors = <String>{};
+    for (var p = root.parentId; p != null;) {
+      ancestors.add(p);
+      p = all.where((n) => n.id == p).firstOrNull?.parentId;
+    }
+    final nodes = [
+      for (final n in all)
+        if (subtree.contains(n.id))
+          n.id == nodeId
+              ? KnowledgeNode(
+                  id: n.id,
+                  title: n.title,
+                  sortIndex: 0,
+                  curriculumKey: n.curriculumKey,
+                  origin: n.origin,
+                  createdAt: n.createdAt,
+                )
+              : n,
+    ];
+    final items = [
+      for (final i in await allItems())
+        if (subtree.contains(i.nodeId))
+          KnowledgeItem(
+            id: i.id,
+            nodeId: i.nodeId,
+            kind: i.kind,
+            title: i.title,
+            body: i.body,
+            level: i.level,
+            sortIndex: i.sortIndex,
+            createdAt: i.createdAt,
+            updatedAt: i.updatedAt,
+          ),
+    ];
+    final itemIds = {for (final i in items) i.id};
+    final links = <ResourceLink>{
+      for (final l in await resourceLinks())
+        if (subtree.contains(l.nodeId))
+          l
+        // Contenus hérités des ancêtres : rattachés à la racine du paquet.
+        else if (ancestors.contains(l.nodeId))
+          (documentId: l.documentId, nodeId: nodeId),
+    };
+    final anchors = [
+      for (final row in await _anchorsQuery().get())
+        if (itemIds.contains(row.itemId)) _toAnchor(row),
+    ];
+    final documentIds = {
+      for (final l in links) l.documentId,
+      for (final a in anchors) a.documentId,
+    };
+    final notes = [
+      for (final row in await _notesQuery().get())
+        if (itemIds.contains(row.itemId) ||
+            (row.itemId == null && documentIds.contains(row.documentId)))
+          _toNote(row),
+    ];
+    documentIds.addAll([
+      for (final n in notes)
+        if (n.documentId != null) n.documentId!,
+    ]);
+    return VergerArchive(
+      nodes: nodes,
+      items: items,
+      documents: [
+        for (final d in await allDocuments())
+          if (documentIds.contains(d.id)) d,
+      ],
+      anchors: anchors,
+      notes: notes,
+      resourceLinks: links.toList(),
+      title: root.title,
+    );
+  }
+
+  /// Ajoute un paquet à côté des données existantes : nouveaux identifiants,
+  /// aucune progression. Un contenu déjà présent (même empreinte) est
+  /// réutilisé ; un PDF fourni dans [files] (inclus ou téléchargé) est
+  /// enregistré, et s'il diffère de la version décrite par le paquet, ses
+  /// ancres sont recalées comme lors d'une mise à jour. Renvoie les arbres
+  /// créés.
+  Future<List<KnowledgeNode>> importPack(
+    VergerArchive archive, {
+    Map<String, PackPdf> files = const {},
+  }) => _db.transaction(() async {
+    archive.validate();
+    final (trees, nodeIds, itemIds) = await _importStructure(archive);
+    final local = {for (final d in await allDocuments()) d.contentHash: d};
+    final documentIds = <String, String>{};
+    final outdated = <String, PackPdf>{};
+    for (final d in archive.documents) {
+      final file = files[d.id];
+      final existing = d.contentHash.isEmpty ? null : local[d.contentHash];
+      if (existing != null && existing.kind == d.kind) {
+        documentIds[d.id] = existing.id;
+        if (file != null && await documentBytes(existing.id) == null) {
+          await _db
+              .into(_db.documentFiles)
+              .insert(
+                DocumentFileRow(documentId: existing.id, bytes: file.bytes),
+              );
+        }
+        continue;
+      }
+      final id = newId();
+      documentIds[d.id] = id;
+      await _db
+          .into(_db.documents)
+          .insert(
+            DocumentRow(
+              id: id,
+              title: d.title,
+              kind: d.kind,
+              url: d.url,
+              pageCount: d.pageCount,
+              contentHash: d.contentHash,
+              importedAt: _now(),
+              version: 1,
+              fingerprints: _packFingerprints(d.fingerprints),
+              newPages: '[]',
+              lastPage: 1,
+            ),
+          );
+      if (file != null) {
+        await _db
+            .into(_db.documentFiles)
+            .insert(DocumentFileRow(documentId: id, bytes: file.bytes));
+        if (file.contentHash != d.contentHash) outdated[id] = file;
+      }
+    }
+    for (final l in archive.resourceLinks) {
+      await linkResource(documentIds[l.documentId]!, nodeIds[l.nodeId]!);
+    }
+    for (final a in archive.anchors) {
+      await _db
+          .into(_db.anchors)
+          .insert(
+            _anchorRow(
+              Anchor(
+                id: newId(),
+                itemId: itemIds[a.itemId]!,
+                documentId: documentIds[a.documentId]!,
+                role: a.role,
+                page: a.page,
+                startMs: a.startMs,
+                endMs: a.endMs,
+                region: a.region,
+                textSnippet: a.textSnippet,
+                snapshot: a.snapshot,
+                needsReview: a.needsReview,
+                createdAt: _now(),
+              ),
+            ),
+          );
+    }
+    for (final n in archive.notes) {
+      await _db
+          .into(_db.notes)
+          .insert(
+            _noteRow(
+              Note(
+                id: newId(),
+                body: n.body,
+                documentId: n.documentId == null
+                    ? null
+                    : documentIds[n.documentId],
+                page: n.page,
+                startMs: n.startMs,
+                endMs: n.endMs,
+                region: n.region,
+                snapshot: n.snapshot,
+                itemId: n.itemId == null ? null : itemIds[n.itemId],
+                createdAt: n.createdAt,
+                updatedAt: n.updatedAt,
+              ),
+            ),
+          );
+    }
+    // Version différente de celle du paquet : recalage des pages.
+    for (final e in outdated.entries) {
+      await updateDocument(
+        e.key,
+        bytes: e.value.bytes,
+        contentHash: e.value.contentHash,
+        fingerprints: e.value.fingerprints,
+      );
+    }
+    return trees;
+  });
+
   Future<void> _insertNodes(List<KnowledgeNode> nodes) async {
     final pending = [...nodes];
     final inserted = <String>{};
