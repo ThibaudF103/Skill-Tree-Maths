@@ -6,6 +6,7 @@ import '../../ui/dialogs.dart';
 import '../../ui/item_glyph.dart';
 import '../../ui/labels.dart';
 import '../../ui/math_text.dart';
+import '../notes/note_page.dart';
 import 'anchors_section.dart';
 import 'item_editor.dart';
 
@@ -149,6 +150,11 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                   _Section(
                     title: 'Recto / verso',
                     child: AnchorsSection(item: item),
+                  ),
+                  const SizedBox(height: 28),
+                  _Section(
+                    title: 'Notes',
+                    child: ItemNotesSection(item: item),
                   ),
                   const SizedBox(height: 28),
                   _Section(
