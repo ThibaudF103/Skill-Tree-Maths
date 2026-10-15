@@ -28,7 +28,7 @@ class ItemTile extends StatelessWidget {
         due != null &&
         due.isBefore(DayWindow.around(now).startOfTomorrow);
     final parts = [
-      item.kind.label,
+      item.typeLabel,
       stage.label,
       if (item.suspended) 'suspendue' else if (due != null) formatDue(due, now),
     ];

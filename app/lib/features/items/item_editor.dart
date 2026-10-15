@@ -19,6 +19,7 @@ enum _InitialLevel {
   final Rating? rating;
 }
 
+/// Précisions facultatives d'un énoncé (aucune : « Énoncé »).
 const _statementKinds = [
   ItemKind.theorem,
   ItemKind.proposition,
@@ -76,7 +77,8 @@ class _ItemEditorState extends State<ItemEditor> {
   late final TextEditingController _title;
   late final TextEditingController _body;
   late ItemKind _kind;
-  var _level = _InitialLevel.none;
+  var _initial = _InitialLevel.none;
+  ExerciseLevel? _exerciseLevel;
   var _saving = false;
   KnowledgeNode? _node;
   var _nodePath = '';
@@ -96,10 +98,11 @@ class _ItemEditorState extends State<ItemEditor> {
     _kind =
         item?.kind ??
         switch (widget.family) {
-          ItemFamily.statement => ItemKind.theorem,
+          ItemFamily.statement => ItemKind.statement,
           ItemFamily.exercise => ItemKind.exercise,
           _ => ItemKind.definition,
         };
+    _exerciseLevel = item?.level;
   }
 
   @override
@@ -159,6 +162,7 @@ class _ItemEditorState extends State<ItemEditor> {
         title: title,
         body: () => _body.text,
         kind: _kind,
+        level: () => _exerciseLevel,
         nodeId: node.id != item.nodeId ? node.id : null,
       );
     } else {
@@ -167,9 +171,10 @@ class _ItemEditorState extends State<ItemEditor> {
         kind: _kind,
         title: title,
         body: _body.text,
+        level: _exerciseLevel,
       );
       await scope.store.setLastNode(node.id);
-      final rating = _level.rating;
+      final rating = _initial.rating;
       if (rating != null) {
         await scope.store.applyReview(
           created.id,
@@ -220,7 +225,7 @@ class _ItemEditorState extends State<ItemEditor> {
                 onSelectionChanged: (selection) => setState(() {
                   _kind = switch (selection.first) {
                     ItemFamily.definition => ItemKind.definition,
-                    ItemFamily.statement => ItemKind.theorem,
+                    ItemFamily.statement => ItemKind.statement,
                     ItemFamily.exercise => ItemKind.exercise,
                   };
                 }),
@@ -235,10 +240,32 @@ class _ItemEditorState extends State<ItemEditor> {
                       ChoiceChip(
                         label: Text(kind.label),
                         selected: _kind == kind,
-                        onSelected: (_) => setState(() => _kind = kind),
+                        // Un second appui retire la précision.
+                        onSelected: (selected) => setState(
+                          () => _kind = selected ? kind : ItemKind.statement,
+                        ),
                       ),
                   ],
                 ),
+                _hint(theme, 'Précision facultative'),
+              ],
+              if (family == ItemFamily.exercise) ...[
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: [
+                    for (final level in ExerciseLevel.values)
+                      ChoiceChip(
+                        label: Text(level.label),
+                        selected: _exerciseLevel == level,
+                        onSelected: (selected) => setState(
+                          () => _exerciseLevel = selected ? level : null,
+                        ),
+                      ),
+                  ],
+                ),
+                _hint(theme, 'Difficulté facultative'),
               ],
               const SizedBox(height: 16),
               TextField(
@@ -289,15 +316,15 @@ class _ItemEditorState extends State<ItemEditor> {
                     for (final level in _InitialLevel.values)
                       ButtonSegment(value: level, label: Text(level.label)),
                   ],
-                  selected: {_level},
+                  selected: {_initial},
                   showSelectedIcon: false,
-                  onSelectionChanged: (s) => setState(() => _level = s.first),
+                  onSelectionChanged: (s) => setState(() => _initial = s.first),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  _level == _InitialLevel.none
+                  _initial == _InitialLevel.none
                       ? 'Elle apparaîtra comme un bourgeon, à réviser.'
-                      : 'Compte comme une première révision « ${_level.rating!.label} ».',
+                      : 'Compte comme une première révision « ${_initial.rating!.label} ».',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.outline,
                   ),
@@ -324,6 +351,16 @@ class _ItemEditorState extends State<ItemEditor> {
       ],
     );
   }
+
+  Widget _hint(ThemeData theme, String text) => Padding(
+    padding: const EdgeInsets.only(top: 4),
+    child: Text(
+      text,
+      style: theme.textTheme.bodySmall?.copyWith(
+        color: theme.colorScheme.outline,
+      ),
+    ),
+  );
 
   Widget _branchRow(ThemeData theme) {
     final node = _node;

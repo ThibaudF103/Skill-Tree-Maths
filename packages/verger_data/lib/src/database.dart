@@ -32,6 +32,8 @@ class Items extends Table {
   TextColumn get kind => textEnum<ItemKind>()();
   TextColumn get title => text()();
   TextColumn get body => text().nullable()();
+  TextColumn get level => textEnum<ExerciseLevel>().nullable()();
+  IntColumn get sortIndex => integer().withDefault(const Constant(0))();
   BoolColumn get suspended => boolean().withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
@@ -183,7 +185,7 @@ class VergerDatabase extends _$VergerDatabase {
   VergerDatabase(super.executor);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -205,6 +207,12 @@ class VergerDatabase extends _$VergerDatabase {
         await m.createTable(schema.notes);
         await m.createIndex(schema.notesDocument);
         await m.createIndex(schema.notesItem);
+      },
+      from3To4: (m, schema) async {
+        // v4 : difficulté des exercices, ordre manuel des connaissances
+        // (0 partout : l'ordre de création départage, rien ne bouge).
+        await m.addColumn(schema.items, schema.items.level);
+        await m.addColumn(schema.items, schema.items.sortIndex);
       },
     ),
     beforeOpen: (details) async {

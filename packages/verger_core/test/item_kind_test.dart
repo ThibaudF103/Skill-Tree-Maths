@@ -6,6 +6,7 @@ void main() {
     expect(ItemKind.definition.family, ItemFamily.definition);
     expect(ItemKind.exercise.family, ItemFamily.exercise);
     for (final kind in [
+      ItemKind.statement,
       ItemKind.theorem,
       ItemKind.proposition,
       ItemKind.lemma,

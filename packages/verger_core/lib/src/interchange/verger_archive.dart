@@ -101,6 +101,10 @@ final class VergerArchive {
             kind: ItemKind.values.byName(i['kind'] as String),
             title: i['title'] as String,
             body: i['body'] as String?,
+            level: i['level'] == null
+                ? null
+                : ExerciseLevel.values.byName(i['level'] as String),
+            sortIndex: (i['sortIndex'] as num?)?.toInt() ?? 0,
             suspended: i['suspended'] as bool? ?? false,
             createdAt: i['createdAt'] == null
                 ? DateTime.now().toUtc()
@@ -307,6 +311,8 @@ final class VergerArchive {
           'kind': i.kind.name,
           'title': i.title,
           'body': ?i.body,
+          'level': ?i.level?.name,
+          'sortIndex': i.sortIndex,
           'suspended': i.suspended,
           'createdAt': i.createdAt.toUtc().toIso8601String(),
           'updatedAt': i.updatedAt.toUtc().toIso8601String(),

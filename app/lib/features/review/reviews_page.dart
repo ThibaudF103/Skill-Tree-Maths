@@ -259,7 +259,7 @@ class _ReviewRow extends StatelessWidget {
         'retard : ${formatDue(due!, now).replaceFirst('en retard de ', '')}',
       ReviewBucket.today => 'prévu ${formatDue(due!, now)}',
       ReviewBucket.tomorrow => 'prévu demain',
-      ReviewBucket.newItem => item.kind.label,
+      ReviewBucket.newItem => item.typeLabel,
       ReviewBucket.later => formatDue(due!, now),
     };
     return ListTile(

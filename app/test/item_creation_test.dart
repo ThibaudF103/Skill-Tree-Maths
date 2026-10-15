@@ -103,4 +103,52 @@ void main() {
     expect(tester.widget<FilledButton>(add).onPressed, isNotNull);
     await unmountTestApp(tester);
   });
+
+  testWidgets('type d\'énoncé facultatif, difficulté des exercices (#11)', (
+    tester,
+  ) async {
+    final store = await pumpTestApp(
+      tester,
+      seed: (s) async {
+        final tree = await s.createNode(title: 'Algèbre');
+        await s.setLastNode(tree.id);
+      },
+    );
+    await pumpEditorLauncher(tester, store);
+
+    // Énoncé : aucune précision par défaut ; un second appui la retire.
+    bool selected(String label) => tester
+        .widget<ChoiceChip>(find.widgetWithText(ChoiceChip, label))
+        .selected;
+    expect(selected('Théorème'), isFalse);
+    await tester.tap(find.text('Lemme'));
+    await tester.pump();
+    expect(selected('Lemme'), isTrue);
+    await tester.tap(find.text('Lemme'));
+    await tester.pump();
+    expect(selected('Lemme'), isFalse);
+    await tester.tap(find.text('Ajouter'));
+    await settle(tester);
+    expect(
+      (await tester.runAsync(store.allItems))!.single.kind,
+      ItemKind.statement,
+    );
+
+    // Exercice avec difficulté.
+    await tester.tap(find.text('Encadrer'));
+    await settle(tester);
+    await tester.tap(find.text('Exercice'));
+    await tester.pump();
+    await tester.tap(find.text('Difficile'));
+    await tester.pump();
+    await tester.enterText(find.byType(TextField).first, 'Sylow');
+    await tester.tap(find.text('Ajouter'));
+    await settle(tester);
+    final exercise = (await tester.runAsync(store.allItems))!.last;
+    expect(
+      (exercise.kind, exercise.level),
+      (ItemKind.exercise, ExerciseLevel.hard),
+    );
+    await unmountTestApp(tester);
+  });
 }

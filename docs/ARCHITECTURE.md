@@ -76,8 +76,9 @@ KnowledgeNode          structure, profondeur libre (liste d'adjacence)
   origin               official | user
 
 KnowledgeItem          ce que j'ai décidé d'apprendre
-  id, nodeId, kind, title, body?, createdAt, updatedAt, suspended
-  kind                 definition | statement(theorem|proposition|lemma|property|corollary) | exercise
+  id, nodeId, kind, title, body?, level?, sortIndex, createdAt, updatedAt, suspended
+  kind                 definition | statement (précision facultative : theorem|proposition|lemma|property|corollary) | exercise
+  level                difficulté facultative d'un exercice : easy | medium | hard
   — état d'ordonnancement, aplati pour pouvoir trier/filtrer —
   due, stability?, difficulty?, phase (new|learning|review|relearning),
   step?, lastReview?, reps, lapses
@@ -189,7 +190,7 @@ Indicateur séparé « à arroser » : échéance dépassée.
 - **Fiche** : section Notes (rendu LaTeX, nouvelle note libre).
 - Rendu LaTeX : `MathText` (flutter_math_fork, Apache 2.0), aussi pour le
   contenu des connaissances et l'aperçu dans l'éditeur.
-- Schéma v3, migrations version par version (`stepByStep`).
+- Schéma v4, migrations version par version (`stepByStep`). v4 : difficulté des exercices et ordre manuel des connaissances (`sortIndex`, l'ordre de création départage).
 
 ## Échange JSON (`VergerArchive`)
 

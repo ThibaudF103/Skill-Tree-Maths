@@ -180,7 +180,8 @@ class VergerStore {
     required ItemKind kind,
     required String title,
     String? body,
-  }) async {
+    ExerciseLevel? level,
+  }) => _db.transaction(() async {
     final now = _now();
     final item = KnowledgeItem(
       id: newId(),
@@ -188,31 +189,63 @@ class VergerStore {
       kind: kind,
       title: title.trim(),
       body: _blankToNull(body),
+      level: kind.family == ItemFamily.exercise ? level : null,
+      sortIndex: await _nextItemIndex(nodeId),
       createdAt: now,
       updatedAt: now,
     );
     await _db.into(_db.items).insert(_itemCompanion(item));
     return item;
+  });
+
+  /// Position après la dernière connaissance de [nodeId].
+  Future<int> _nextItemIndex(String nodeId) async {
+    final max = _db.items.sortIndex.max();
+    final row =
+        await (_db.selectOnly(_db.items)
+              ..addColumns([max])
+              ..where(_db.items.nodeId.equals(nodeId)))
+            .getSingle();
+    final value = row.read(max);
+    return value == null ? 0 : value + 1;
   }
 
   /// Modifie le contenu d'une connaissance (jamais son état de révision).
+  /// Changée de nœud, elle se place après les connaissances de celui-ci ;
+  /// la difficulté ne concerne que les exercices.
   Future<void> updateItem(
     String id, {
     String? title,
     String? Function()? body,
     ItemKind? kind,
+    ExerciseLevel? Function()? level,
     String? nodeId,
     bool? suspended,
-  }) => (_db.update(_db.items)..where((i) => i.id.equals(id))).write(
-    ItemsCompanion(
-      title: title == null ? const Value.absent() : Value(title.trim()),
-      body: body == null ? const Value.absent() : Value(_blankToNull(body())),
-      kind: Value.absentIfNull(kind),
-      nodeId: Value.absentIfNull(nodeId),
-      suspended: Value.absentIfNull(suspended),
-      updatedAt: Value(_now()),
-    ),
-  );
+  }) => _db.transaction(() async {
+    final current = await item(id);
+    if (current == null) return;
+    final moved = nodeId != null && nodeId != current.nodeId;
+    final family = (kind ?? current.kind).family;
+    final newLevel = family != ItemFamily.exercise
+        ? const Value<ExerciseLevel?>(null)
+        : level == null
+        ? const Value<ExerciseLevel?>.absent()
+        : Value(level());
+    await (_db.update(_db.items)..where((i) => i.id.equals(id))).write(
+      ItemsCompanion(
+        title: title == null ? const Value.absent() : Value(title.trim()),
+        body: body == null ? const Value.absent() : Value(_blankToNull(body())),
+        kind: Value.absentIfNull(kind),
+        level: newLevel,
+        nodeId: moved ? Value(nodeId) : const Value.absent(),
+        sortIndex: moved
+            ? Value(await _nextItemIndex(nodeId))
+            : const Value.absent(),
+        suspended: Value.absentIfNull(suspended),
+        updatedAt: Value(_now()),
+      ),
+    );
+  });
 
   Future<void> deleteItem(String id) =>
       (_db.delete(_db.items)..where((i) => i.id.equals(id))).go();
@@ -658,6 +691,8 @@ class VergerStore {
                     kind: item.kind,
                     title: item.title,
                     body: item.body,
+                    level: item.level,
+                    sortIndex: item.sortIndex,
                     createdAt: created,
                     updatedAt: created,
                   ),
@@ -736,7 +771,10 @@ class VergerStore {
 
   SimpleSelectStatement<$ItemsTable, ItemRow> _itemsQuery({String? nodeId}) {
     final query = _db.select(_db.items)
-      ..orderBy([(i) => OrderingTerm.asc(i.createdAt)]);
+      ..orderBy([
+        (i) => OrderingTerm.asc(i.sortIndex),
+        (i) => OrderingTerm.asc(i.createdAt),
+      ]);
     if (nodeId != null) query.where((i) => i.nodeId.equals(nodeId));
     return query;
   }
@@ -911,6 +949,8 @@ class VergerStore {
     kind: row.kind,
     title: row.title,
     body: row.body,
+    level: row.level,
+    sortIndex: row.sortIndex,
     suspended: row.suspended,
     createdAt: row.createdAt.toUtc(),
     updatedAt: row.updatedAt.toUtc(),
@@ -933,6 +973,8 @@ class VergerStore {
         kind: Value(item.kind),
         title: Value(item.title),
         body: Value(item.body),
+        level: Value(item.level),
+        sortIndex: Value(item.sortIndex),
         suspended: Value(item.suspended),
         createdAt: Value(item.createdAt),
         updatedAt: Value(item.updatedAt),

@@ -129,6 +129,33 @@ void main() {
       expect(stored.createdAt, now);
     });
 
+    test('difficulté des exercices et ordre dans le nœud', () async {
+      final n1 = await store.createNode(title: 'N1');
+      final n2 = await store.createNode(title: 'N2');
+      final ex = await store.createItem(
+        nodeId: n1.id,
+        kind: ItemKind.exercise,
+        title: 'Ex',
+        level: ExerciseLevel.easy,
+      );
+      final def = await store.createItem(
+        nodeId: n1.id,
+        kind: ItemKind.definition,
+        title: 'Déf',
+        level: ExerciseLevel.hard, // ignorée : pas un exercice
+      );
+      expect((ex.sortIndex, def.sortIndex), (0, 1));
+      expect(def.level, isNull);
+      await store.updateItem(ex.id, level: () => ExerciseLevel.hard);
+      expect((await store.item(ex.id))!.level, ExerciseLevel.hard);
+      await store.updateItem(ex.id, kind: ItemKind.statement);
+      expect((await store.item(ex.id))!.level, isNull);
+
+      await store.createItem(nodeId: n2.id, kind: ItemKind.lemma, title: 'L');
+      await store.updateItem(def.id, nodeId: n2.id);
+      expect((await store.item(def.id))!.sortIndex, 1); // après « L »
+    });
+
     test('modification du contenu sans toucher à la révision', () async {
       final n1 = await store.createNode(title: 'N1');
       final n2 = await store.createNode(title: 'N2');

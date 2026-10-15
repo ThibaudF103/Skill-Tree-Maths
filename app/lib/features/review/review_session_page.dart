@@ -225,7 +225,7 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
                         ),
                         const SizedBox(width: 12),
                         Text(
-                          item.kind.label,
+                          item.typeLabel,
                           style: theme.textTheme.titleMedium?.copyWith(
                             color: theme.colorScheme.primary,
                           ),

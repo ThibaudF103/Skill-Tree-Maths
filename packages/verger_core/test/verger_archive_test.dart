@@ -28,9 +28,11 @@ void main() {
     final item = KnowledgeItem(
       id: 'i1',
       nodeId: 'n2',
-      kind: ItemKind.theorem,
+      kind: ItemKind.exercise,
       title: 'Cayley-Hamilton',
       body: 'χ_u(u) = 0',
+      level: ExerciseLevel.medium,
+      sortIndex: 2,
       createdAt: t,
       updatedAt: t,
       scheduling: record.after,
@@ -94,6 +96,8 @@ void main() {
     expect(copy.nodes[1].curriculumKey, 'alg.reduction');
     expect(copy.nodes[1].origin, NodeOrigin.official);
     expect(copy.items.single.body, 'χ_u(u) = 0');
+    expect(copy.items.single.level, ExerciseLevel.medium);
+    expect(copy.items.single.sortIndex, 2);
     expect(copy.items.single.scheduling, original.items.single.scheduling);
     expect(
       copy.reviews.single.record.after,

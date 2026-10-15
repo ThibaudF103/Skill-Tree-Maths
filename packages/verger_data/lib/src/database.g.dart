@@ -534,6 +534,27 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  @override
+  late final GeneratedColumnWithTypeConverter<ExerciseLevel?, String> level =
+      GeneratedColumn<String>(
+        'level',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      ).withConverter<ExerciseLevel?>($ItemsTable.$converterleveln);
+  static const VerificationMeta _sortIndexMeta = const VerificationMeta(
+    'sortIndex',
+  );
+  @override
+  late final GeneratedColumn<int> sortIndex = GeneratedColumn<int>(
+    'sort_index',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   static const VerificationMeta _suspendedMeta = const VerificationMeta(
     'suspended',
   );
@@ -658,6 +679,8 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
     kind,
     title,
     body,
+    level,
+    sortIndex,
     suspended,
     createdAt,
     updatedAt,
@@ -707,6 +730,12 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
       context.handle(
         _bodyMeta,
         body.isAcceptableOrUnknown(data['body']!, _bodyMeta),
+      );
+    }
+    if (data.containsKey('sort_index')) {
+      context.handle(
+        _sortIndexMeta,
+        sortIndex.isAcceptableOrUnknown(data['sort_index']!, _sortIndexMeta),
       );
     }
     if (data.containsKey('suspended')) {
@@ -804,6 +833,16 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
         DriftSqlType.string,
         data['${effectivePrefix}body'],
       ),
+      level: $ItemsTable.$converterleveln.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}level'],
+        ),
+      ),
+      sortIndex: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sort_index'],
+      )!,
       suspended: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}suspended'],
@@ -860,6 +899,10 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
 
   static JsonTypeConverter2<ItemKind, String, String> $converterkind =
       const EnumNameConverter<ItemKind>(ItemKind.values);
+  static JsonTypeConverter2<ExerciseLevel, String, String> $converterlevel =
+      const EnumNameConverter<ExerciseLevel>(ExerciseLevel.values);
+  static JsonTypeConverter2<ExerciseLevel?, String?, String?> $converterleveln =
+      JsonTypeConverter2.asNullable($converterlevel);
   static JsonTypeConverter2<LearningPhase, String, String> $converterphase =
       const EnumNameConverter<LearningPhase>(LearningPhase.values);
 }
@@ -870,6 +913,8 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
   final ItemKind kind;
   final String title;
   final String? body;
+  final ExerciseLevel? level;
+  final int sortIndex;
   final bool suspended;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -887,6 +932,8 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     required this.kind,
     required this.title,
     this.body,
+    this.level,
+    required this.sortIndex,
     required this.suspended,
     required this.createdAt,
     required this.updatedAt,
@@ -911,6 +958,12 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     if (!nullToAbsent || body != null) {
       map['body'] = Variable<String>(body);
     }
+    if (!nullToAbsent || level != null) {
+      map['level'] = Variable<String>(
+        $ItemsTable.$converterleveln.toSql(level),
+      );
+    }
+    map['sort_index'] = Variable<int>(sortIndex);
     map['suspended'] = Variable<bool>(suspended);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
@@ -944,6 +997,10 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
       kind: Value(kind),
       title: Value(title),
       body: body == null && nullToAbsent ? const Value.absent() : Value(body),
+      level: level == null && nullToAbsent
+          ? const Value.absent()
+          : Value(level),
+      sortIndex: Value(sortIndex),
       suspended: Value(suspended),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
@@ -977,6 +1034,10 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
       ),
       title: serializer.fromJson<String>(json['title']),
       body: serializer.fromJson<String?>(json['body']),
+      level: $ItemsTable.$converterleveln.fromJson(
+        serializer.fromJson<String?>(json['level']),
+      ),
+      sortIndex: serializer.fromJson<int>(json['sortIndex']),
       suspended: serializer.fromJson<bool>(json['suspended']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -1003,6 +1064,10 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
       ),
       'title': serializer.toJson<String>(title),
       'body': serializer.toJson<String?>(body),
+      'level': serializer.toJson<String?>(
+        $ItemsTable.$converterleveln.toJson(level),
+      ),
+      'sortIndex': serializer.toJson<int>(sortIndex),
       'suspended': serializer.toJson<bool>(suspended),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -1025,6 +1090,8 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     ItemKind? kind,
     String? title,
     Value<String?> body = const Value.absent(),
+    Value<ExerciseLevel?> level = const Value.absent(),
+    int? sortIndex,
     bool? suspended,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -1042,6 +1109,8 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     kind: kind ?? this.kind,
     title: title ?? this.title,
     body: body.present ? body.value : this.body,
+    level: level.present ? level.value : this.level,
+    sortIndex: sortIndex ?? this.sortIndex,
     suspended: suspended ?? this.suspended,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -1061,6 +1130,8 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
       kind: data.kind.present ? data.kind.value : this.kind,
       title: data.title.present ? data.title.value : this.title,
       body: data.body.present ? data.body.value : this.body,
+      level: data.level.present ? data.level.value : this.level,
+      sortIndex: data.sortIndex.present ? data.sortIndex.value : this.sortIndex,
       suspended: data.suspended.present ? data.suspended.value : this.suspended,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
@@ -1087,6 +1158,8 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
           ..write('kind: $kind, ')
           ..write('title: $title, ')
           ..write('body: $body, ')
+          ..write('level: $level, ')
+          ..write('sortIndex: $sortIndex, ')
           ..write('suspended: $suspended, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -1109,6 +1182,8 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     kind,
     title,
     body,
+    level,
+    sortIndex,
     suspended,
     createdAt,
     updatedAt,
@@ -1130,6 +1205,8 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
           other.kind == this.kind &&
           other.title == this.title &&
           other.body == this.body &&
+          other.level == this.level &&
+          other.sortIndex == this.sortIndex &&
           other.suspended == this.suspended &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
@@ -1149,6 +1226,8 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
   final Value<ItemKind> kind;
   final Value<String> title;
   final Value<String?> body;
+  final Value<ExerciseLevel?> level;
+  final Value<int> sortIndex;
   final Value<bool> suspended;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -1167,6 +1246,8 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     this.kind = const Value.absent(),
     this.title = const Value.absent(),
     this.body = const Value.absent(),
+    this.level = const Value.absent(),
+    this.sortIndex = const Value.absent(),
     this.suspended = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -1186,6 +1267,8 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     required ItemKind kind,
     required String title,
     this.body = const Value.absent(),
+    this.level = const Value.absent(),
+    this.sortIndex = const Value.absent(),
     this.suspended = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
@@ -1211,6 +1294,8 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     Expression<String>? kind,
     Expression<String>? title,
     Expression<String>? body,
+    Expression<String>? level,
+    Expression<int>? sortIndex,
     Expression<bool>? suspended,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -1230,6 +1315,8 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
       if (kind != null) 'kind': kind,
       if (title != null) 'title': title,
       if (body != null) 'body': body,
+      if (level != null) 'level': level,
+      if (sortIndex != null) 'sort_index': sortIndex,
       if (suspended != null) 'suspended': suspended,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -1251,6 +1338,8 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     Value<ItemKind>? kind,
     Value<String>? title,
     Value<String?>? body,
+    Value<ExerciseLevel?>? level,
+    Value<int>? sortIndex,
     Value<bool>? suspended,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
@@ -1270,6 +1359,8 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
       kind: kind ?? this.kind,
       title: title ?? this.title,
       body: body ?? this.body,
+      level: level ?? this.level,
+      sortIndex: sortIndex ?? this.sortIndex,
       suspended: suspended ?? this.suspended,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -1304,6 +1395,14 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     }
     if (body.present) {
       map['body'] = Variable<String>(body.value);
+    }
+    if (level.present) {
+      map['level'] = Variable<String>(
+        $ItemsTable.$converterleveln.toSql(level.value),
+      );
+    }
+    if (sortIndex.present) {
+      map['sort_index'] = Variable<int>(sortIndex.value);
     }
     if (suspended.present) {
       map['suspended'] = Variable<bool>(suspended.value);
@@ -1354,6 +1453,8 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
           ..write('kind: $kind, ')
           ..write('title: $title, ')
           ..write('body: $body, ')
+          ..write('level: $level, ')
+          ..write('sortIndex: $sortIndex, ')
           ..write('suspended: $suspended, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -4985,6 +5086,8 @@ typedef $$ItemsTableCreateCompanionBuilder =
       required ItemKind kind,
       required String title,
       Value<String?> body,
+      Value<ExerciseLevel?> level,
+      Value<int> sortIndex,
       Value<bool> suspended,
       required DateTime createdAt,
       required DateTime updatedAt,
@@ -5005,6 +5108,8 @@ typedef $$ItemsTableUpdateCompanionBuilder =
       Value<ItemKind> kind,
       Value<String> title,
       Value<String?> body,
+      Value<ExerciseLevel?> level,
+      Value<int> sortIndex,
       Value<bool> suspended,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -5124,6 +5229,17 @@ class $$ItemsTableFilterComposer
 
   ColumnFilters<String> get body => $composableBuilder(
     column: $table.body,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<ExerciseLevel?, ExerciseLevel, String>
+  get level => $composableBuilder(
+    column: $table.level,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<int> get sortIndex => $composableBuilder(
+    column: $table.sortIndex,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5311,6 +5427,16 @@ class $$ItemsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get level => $composableBuilder(
+    column: $table.level,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sortIndex => $composableBuilder(
+    column: $table.sortIndex,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get suspended => $composableBuilder(
     column: $table.suspended,
     builder: (column) => ColumnOrderings(column),
@@ -5410,6 +5536,12 @@ class $$ItemsTableAnnotationComposer
 
   GeneratedColumn<String> get body =>
       $composableBuilder(column: $table.body, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<ExerciseLevel?, String> get level =>
+      $composableBuilder(column: $table.level, builder: (column) => column);
+
+  GeneratedColumn<int> get sortIndex =>
+      $composableBuilder(column: $table.sortIndex, builder: (column) => column);
 
   GeneratedColumn<bool> get suspended =>
       $composableBuilder(column: $table.suspended, builder: (column) => column);
@@ -5585,6 +5717,8 @@ class $$ItemsTableTableManager
                 Value<ItemKind> kind = const Value.absent(),
                 Value<String> title = const Value.absent(),
                 Value<String?> body = const Value.absent(),
+                Value<ExerciseLevel?> level = const Value.absent(),
+                Value<int> sortIndex = const Value.absent(),
                 Value<bool> suspended = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -5603,6 +5737,8 @@ class $$ItemsTableTableManager
                 kind: kind,
                 title: title,
                 body: body,
+                level: level,
+                sortIndex: sortIndex,
                 suspended: suspended,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -5623,6 +5759,8 @@ class $$ItemsTableTableManager
                 required ItemKind kind,
                 required String title,
                 Value<String?> body = const Value.absent(),
+                Value<ExerciseLevel?> level = const Value.absent(),
+                Value<int> sortIndex = const Value.absent(),
                 Value<bool> suspended = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
@@ -5641,6 +5779,8 @@ class $$ItemsTableTableManager
                 kind: kind,
                 title: title,
                 body: body,
+                level: level,
+                sortIndex: sortIndex,
                 suspended: suspended,
                 createdAt: createdAt,
                 updatedAt: updatedAt,

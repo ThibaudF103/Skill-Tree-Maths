@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:drift_dev/api/migrations_native.dart';
 import 'package:test/test.dart';
+import 'package:verger_core/verger_core.dart';
 import 'package:verger_data/verger_data.dart';
 
 import 'generated/schema.dart';
@@ -89,6 +90,40 @@ void main() {
     expect((await store.anchorsOf('i1')).single.page, 2);
     final note = await store.createNote(body: 'ok', documentId: 'd1');
     expect((await store.note(note.id))!.body, 'ok');
+    await store.close();
+  });
+
+  test('v3 → v4 : ordre des connaissances inchangé, difficulté vide', () async {
+    final schema = await verifier.schemaAt(3);
+    final db = schema.rawDatabase;
+    db.execute(
+      "INSERT INTO nodes (id, parent_id, title, sort_index, curriculum_key, "
+      "origin, created_at) VALUES ('n1', NULL, 'Algèbre', 0, NULL, 'user', "
+      "'2026-03-02T09:00:00.000Z')",
+    );
+    for (final (id, minute) in [('b', 1), ('a', 2), ('c', 3)]) {
+      db.execute(
+        "INSERT INTO items (id, node_id, kind, title, body, suspended, "
+        "created_at, updated_at, phase, step, stability, difficulty, due, "
+        "last_review, reps, lapses) VALUES ('$id', 'n1', 'exercise', '$id', "
+        "NULL, 0, '2026-03-02T09:0$minute:00.000Z', "
+        "'2026-03-02T09:00:00.000Z', 'newItem', NULL, NULL, NULL, NULL, NULL, "
+        "0, 0)",
+      );
+    }
+
+    final store = VergerStore(VergerDatabase(schema.newConnection()));
+    final items = await store.allItems();
+    expect(items.map((i) => i.id), ['b', 'a', 'c']);
+    expect(items.every((i) => i.level == null), isTrue);
+    final added = await store.createItem(
+      nodeId: 'n1',
+      kind: ItemKind.exercise,
+      title: 'd',
+      level: ExerciseLevel.hard,
+    );
+    expect(added.sortIndex, 1);
+    expect((await store.allItems()).last.level, ExerciseLevel.hard);
     await store.close();
   });
 }

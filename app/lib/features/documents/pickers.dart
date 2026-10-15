@@ -47,7 +47,7 @@ Future<KnowledgeItem?> pickItem(BuildContext context, {required String title}) {
             (
               value: item,
               title: item.title,
-              subtitle: '${item.kind.label} · ${paths[item.nodeId] ?? ''}',
+              subtitle: '${item.typeLabel} · ${paths[item.nodeId] ?? ''}',
               leading: ItemGlyph(
                 family: item.kind.family,
                 stage: GrowthStage.of(item.scheduling),

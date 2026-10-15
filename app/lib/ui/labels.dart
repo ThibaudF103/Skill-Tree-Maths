@@ -5,6 +5,7 @@ import 'package:verger_core/verger_core.dart';
 extension ItemKindLabel on ItemKind {
   String get label => switch (this) {
     ItemKind.definition => 'Définition',
+    ItemKind.statement => 'Énoncé',
     ItemKind.theorem => 'Théorème',
     ItemKind.proposition => 'Proposition',
     ItemKind.lemma => 'Lemme',
@@ -12,6 +13,24 @@ extension ItemKindLabel on ItemKind {
     ItemKind.corollary => 'Corollaire',
     ItemKind.exercise => 'Exercice',
   };
+}
+
+extension ExerciseLevelLabel on ExerciseLevel {
+  String get label => switch (this) {
+    ExerciseLevel.easy => 'Facile',
+    ExerciseLevel.medium => 'Moyen',
+    ExerciseLevel.hard => 'Difficile',
+  };
+}
+
+extension ItemTypeLabel on KnowledgeItem {
+  /// Type affiché, avec la difficulté d'un exercice : « Exercice · difficile ».
+  String get typeLabel {
+    final level = this.level;
+    return level == null
+        ? kind.label
+        : '${kind.label} · ${level.label.toLowerCase()}';
+  }
 }
 
 extension ItemFamilyLabel on ItemFamily {

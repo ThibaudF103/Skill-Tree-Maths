@@ -11,6 +11,8 @@ final class KnowledgeItem {
     required this.createdAt,
     required this.updatedAt,
     this.body,
+    this.level,
+    this.sortIndex = 0,
     this.suspended = false,
     this.scheduling = SchedulingState.initial,
   });
@@ -22,6 +24,12 @@ final class KnowledgeItem {
 
   /// Contenu textuel facultatif (énoncé, remarques).
   final String? body;
+
+  /// Difficulté d'un exercice, facultative (nulle pour les autres types).
+  final ExerciseLevel? level;
+
+  /// Position parmi les connaissances du même nœud.
+  final int sortIndex;
 
   /// Exclue des révisions sans être supprimée.
   final bool suspended;

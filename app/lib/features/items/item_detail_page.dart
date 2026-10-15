@@ -67,7 +67,7 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(item.kind.label),
+        title: Text(item.typeLabel),
         actions: [
           IconButton(
             tooltip: 'Modifier',
