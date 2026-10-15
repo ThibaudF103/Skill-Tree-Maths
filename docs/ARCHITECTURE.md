@@ -236,6 +236,22 @@ de démonstration (deux mois de révisions simulées).
   paquet, ses ancres sont recalées par empreintes de pages (`updateDocument`).
   Un PDF introuvable n'empêche pas l'import (miniatures conservées).
 
+## Vidéos YouTube (étape 11)
+
+- Ajout par simple adresse (watch, youtu.be, shorts, embed, live) ; titre
+  récupéré par oEmbed. Le contenu `video` garde l'identifiant (`contentHash`)
+  et l'adresse ; aucune vidéo n'est téléchargée (conditions de YouTube).
+- **Lecteur** (`YoutubePlayer`, même interface partout) : sur Windows /
+  iPad, vue web (flutter_inappwebview) ouvrant le lecteur intégré avec un
+  référent, pilotage de son élément `<video>` ; dans la version web, iframe
+  pilotée par le protocole `postMessage` de l'API IFrame. Une origine ou un
+  référent incohérent provoque l'erreur 153 de YouTube.
+- **Extraits** : « Marquer le début / la fin » (temps courant du lecteur),
+  puis note, connaissance (recto ou verso) ou rattachement ; ancres et notes
+  portent `startMs` / `endMs`. En révision, « Revoir l'extrait » joue
+  exactement ce passage (arrêt automatique à la fin).
+- Connexion Internet nécessaire pour lire une vidéo.
+
 ## Contenus et recto / verso
 
 - **Recto** : ancre `source` (énoncé encadré) ; **verso** : ancre `work`
@@ -287,5 +303,5 @@ de démonstration (deux mois de révisions simulées).
 | 8 | Visionneuse améliorée, notes liées au PDF, LaTeX ✅ |
 | 9 | Contenus (PDF, vidéos) rattachés aux nœuds, ancres généralisées, Bibliothèque ✅ |
 | 10 | Paquets d'arbres : contenus, ancres et notes ; PDF inclus ou par référence ✅ |
-| 11 | Vidéos YouTube : lecteur intégré, extraits recto/verso |
+| 11 | Vidéos YouTube : lecteur intégré, extraits recto/verso ✅ |
 | ensuite | Déplacement par l'interface, LaTeX, statistiques, programme officiel, verger, iPad… |

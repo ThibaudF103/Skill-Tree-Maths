@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:verger_core/verger_core.dart';
 
 import '../../app/app_scope.dart';
+import '../../ui/labels.dart';
 import '../../ui/math_text.dart';
 import '../documents/document_viewer_page.dart';
+import '../video/video_page.dart';
 import 'notes_panel.dart';
 
 /// Page d'édition d'une note (hors visionneuse).
@@ -49,10 +51,27 @@ class _NotePageState extends State<NotePage> {
               title: Text(
                 document == null
                     ? 'Note'
+                    : document.isVideo
+                    ? 'Note · ${document.title} '
+                          '${note?.startMs == null ? '' : formatClock(note!.startMs!)}'
                     : 'Note · ${document.title} p. ${note?.page ?? '–'}',
               ),
               actions: [
-                if (note != null && document != null)
+                if (note != null && document != null && document.isVideo)
+                  TextButton.icon(
+                    onPressed: () => Navigator.of(context).pushReplacement(
+                      MaterialPageRoute<void>(
+                        builder: (_) => VideoPage(
+                          documentId: document.id,
+                          startMs: note.startMs,
+                          endMs: note.endMs,
+                        ),
+                      ),
+                    ),
+                    icon: const Icon(Icons.smart_display_outlined),
+                    label: const Text('Ouvrir la vidéo'),
+                  ),
+                if (note != null && document != null && document.isPdf)
                   TextButton.icon(
                     onPressed: () => Navigator.of(context).pushReplacement(
                       MaterialPageRoute<void>(

@@ -4,10 +4,12 @@ import 'package:verger_core/verger_core.dart';
 import '../../app/app_scope.dart';
 import '../../pdf/pdf_region_view.dart';
 import '../../ui/labels.dart';
+import '../../video/excerpt_card.dart';
+import '../video/video_page.dart';
 import '../documents/document_viewer_page.dart';
 
 /// Zone de PDF (recto ou verso), en vectoriel avec texte sélectionnable si
-/// le PDF est sur l'appareil, sinon sa miniature.
+/// le PDF est sur l'appareil, sinon sa miniature ; ou extrait vidéo.
 class AnchorSnapshot extends StatelessWidget {
   const AnchorSnapshot({super.key, required this.anchor, this.maxHeight = 320});
 
@@ -16,8 +18,22 @@ class AnchorSnapshot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final store = AppScope.of(context).store;
     final color = anchor.role == AnchorRole.source ? rectoColor : versoColor;
-    final snapshot = anchor.snapshot;
+    if (anchor.page == null) {
+      return Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          border: Border.all(color: color.withValues(alpha: 0.5)),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: FutureBuilder<SourceDocument?>(
+          future: store.document(anchor.documentId),
+          builder: (context, snapshot) =>
+              VideoExcerptCard(anchor: anchor, document: snapshot.data),
+        ),
+      );
+    }
     return Container(
       constraints: BoxConstraints(maxHeight: maxHeight),
       decoration: BoxDecoration(
@@ -26,20 +42,13 @@ class AnchorSnapshot extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
       ),
       clipBehavior: Clip.antiAlias,
-      child: anchor.page == null
-          ? SizedBox(
-              height: 60,
-              child: Center(
-                child: Text('Extrait vidéo · ${anchorPlace(anchor)}'),
-              ),
-            )
-          : PdfRegionView(
-              store: AppScope.of(context).store,
-              documentId: anchor.documentId,
-              page: anchor.page!,
-              region: anchor.region ?? const NormalizedRect(0, 0, 1, 1),
-              snapshot: snapshot,
-            ),
+      child: PdfRegionView(
+        store: store,
+        documentId: anchor.documentId,
+        page: anchor.page!,
+        region: anchor.region ?? const NormalizedRect(0, 0, 1, 1),
+        snapshot: anchor.snapshot,
+      ),
     );
   }
 }
@@ -70,15 +79,11 @@ class _AnchorsSectionState extends State<AnchorsSection> {
     BuildContext context,
     List<SourceDocument> documents,
   ) async {
-    final pdfs = [
-      for (final d in documents)
-        if (d.isPdf) d,
-    ];
-    if (pdfs.isEmpty) {
+    if (documents.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Importez d\'abord un PDF (Bibliothèque, ou Contenus d\'une '
+            'Ajoutez d\'abord un contenu (Bibliothèque, ou Contenus d\'une '
             'branche).',
           ),
         ),
@@ -88,21 +93,38 @@ class _AnchorsSectionState extends State<AnchorsSection> {
     final document = await showDialog<SourceDocument>(
       context: context,
       builder: (context) => SimpleDialog(
-        title: const Text('Depuis quel PDF ?'),
+        title: const Text('Depuis quel contenu ?'),
         children: [
-          for (final d in pdfs)
+          for (final d in documents)
             SimpleDialogOption(
               onPressed: () => Navigator.pop(context, d),
               child: ListTile(
-                leading: const Icon(Icons.picture_as_pdf_outlined),
+                leading: Icon(
+                  d.isPdf
+                      ? Icons.picture_as_pdf_outlined
+                      : Icons.smart_display_outlined,
+                ),
                 title: Text(d.title),
-                subtitle: Text('${d.pageCount} pages'),
+                subtitle: Text(
+                  d.isPdf
+                      ? '${d.pageCount} pages'
+                      : 'Vidéo : marquez un extrait',
+                ),
               ),
             ),
         ],
       ),
     );
     if (document == null || !context.mounted) return;
+    if (document.isVideo) {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) =>
+              VideoPage(documentId: document.id, attachToItem: widget.item),
+        ),
+      );
+      return;
+    }
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => DocumentViewerPage(
@@ -202,6 +224,20 @@ class _AnchorCard extends StatelessWidget {
                   avatar: Icon(Icons.warning_amber, size: 16),
                   label: Text('Page à vérifier'),
                   visualDensity: VisualDensity.compact,
+                ),
+              ),
+            if (document != null && document!.isVideo)
+              IconButton(
+                tooltip: 'Ouvrir la vidéo',
+                icon: const Icon(Icons.open_in_new),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => VideoPage(
+                      documentId: anchor.documentId,
+                      startMs: anchor.startMs,
+                      endMs: anchor.endMs,
+                    ),
+                  ),
                 ),
               ),
             if (document != null && document!.isPdf)
