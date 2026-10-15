@@ -227,10 +227,8 @@ class OrchardFocusPage extends StatelessWidget {
                           if (hit.itemId != null) {
                             Navigator.of(context).push(
                               MaterialPageRoute<void>(
-                                builder: (_) => ItemDetailPage(
-                                  itemId: hit.itemId!,
-                                  path: path.map((n) => n.title).join(' › '),
-                                ),
+                                builder: (_) =>
+                                    ItemDetailPage(itemId: hit.itemId!),
                               ),
                             );
                           } else if (hit.branchId != null) {

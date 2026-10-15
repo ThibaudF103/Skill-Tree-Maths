@@ -247,6 +247,44 @@ class VergerStore {
     );
   });
 
+  /// Place une connaissance dans [nodeId] à la position [index] parmi les
+  /// autres connaissances de ce nœud (à la fin par défaut).
+  Future<void> moveItem(String id, {required String nodeId, int? index}) =>
+      _db.transaction(() async {
+        final moving = await item(id);
+        if (moving == null) throw ArgumentError.value(id, 'id', 'inconnu');
+        if (await node(nodeId) == null) {
+          throw ArgumentError.value(nodeId, 'nodeId', 'inconnu');
+        }
+        if (moving.nodeId != nodeId) {
+          final left = (await _itemsQuery(
+            nodeId: moving.nodeId,
+          ).get()).where((i) => i.id != id).map((i) => i.id).toList();
+          await _renumberItems(left);
+        }
+        final siblings = (await _itemsQuery(
+          nodeId: nodeId,
+        ).get()).where((i) => i.id != id).map((i) => i.id).toList();
+        siblings.insert(
+          (index ?? siblings.length).clamp(0, siblings.length),
+          id,
+        );
+        if (moving.nodeId != nodeId) {
+          await (_db.update(_db.items)..where((i) => i.id.equals(id))).write(
+            ItemsCompanion(nodeId: Value(nodeId), updatedAt: Value(_now())),
+          );
+        }
+        await _renumberItems(siblings);
+      });
+
+  Future<void> _renumberItems(List<String> orderedIds) async {
+    for (final (index, id) in orderedIds.indexed) {
+      await (_db.update(_db.items)..where((i) => i.id.equals(id))).write(
+        ItemsCompanion(sortIndex: Value(index)),
+      );
+    }
+  }
+
   Future<void> deleteItem(String id) =>
       (_db.delete(_db.items)..where((i) => i.id.equals(id))).go();
 

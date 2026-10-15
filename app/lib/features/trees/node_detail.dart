@@ -7,6 +7,8 @@ import '../../ui/item_glyph.dart';
 import '../items/item_detail_page.dart';
 import '../items/item_editor.dart';
 import '../items/item_tile.dart';
+import 'node_picker.dart';
+import 'reorder.dart';
 import 'tree_data.dart';
 
 /// Contenu d'un nœud : chemin, sous-branches et connaissances.
@@ -33,6 +35,7 @@ class NodeDetail extends StatelessWidget {
     final children = data.children(nodeId);
     final items = data.itemsIn(nodeId);
     final progress = data.progress[nodeId]!;
+    final store = AppScope.of(context).store;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 48),
@@ -71,16 +74,30 @@ class NodeDetail extends StatelessWidget {
           )
         else
           for (final child in children)
-            ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-              leading: Icon(
-                Icons.subdirectory_arrow_right,
-                color: theme.colorScheme.outline,
+            TreeDropTarget(
+              places: (drag) => nodeDropPlaces(data, child, drag),
+              onDrop: (drag, place) =>
+                  dropOnNode(store, data, child, drag, place),
+              child: TreeDraggable(
+                drag: NodeDrag(child),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                  leading: Icon(
+                    Icons.subdirectory_arrow_right,
+                    color: theme.colorScheme.outline,
+                  ),
+                  title: Text(child.title),
+                  subtitle: Text(_summary(data.progress[child.id]!)),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TreeDragHandle(drag: NodeDrag(child)),
+                      const Icon(Icons.chevron_right),
+                    ],
+                  ),
+                  onTap: () => onSelect(child.id),
+                ),
               ),
-              title: Text(child.title),
-              subtitle: Text(_summary(data.progress[child.id]!)),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => onSelect(child.id),
             ),
         const SizedBox(height: 24),
         _SectionHeader(
@@ -117,14 +134,20 @@ class NodeDetail extends StatelessWidget {
           )
         else
           for (final item in items)
-            ItemTile(
-              item: item,
-              now: data.now,
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => ItemDetailPage(
-                    itemId: item.id,
-                    path: path.map((n) => n.title).join(' › '),
+            TreeDropTarget(
+              places: (drag) => itemDropPlaces(item, drag),
+              onDrop: (drag, place) =>
+                  dropOnItem(store, data, item, drag, place),
+              child: TreeDraggable(
+                drag: ItemDrag(item),
+                child: ItemTile(
+                  item: item,
+                  now: data.now,
+                  dragHandle: TreeDragHandle(drag: ItemDrag(item)),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => ItemDetailPage(itemId: item.id),
+                    ),
                   ),
                 ),
               ),
@@ -181,6 +204,28 @@ class _NodeMenu extends StatelessWidget {
               initial: node.title,
             );
             if (name != null) await store.renameNode(node.id, name);
+          case 'move':
+            final target = await pickNode(
+              context,
+              title: 'Déplacer « ${node.title} » dans…',
+              initialId: node.parentId,
+            );
+            if (target == null || target.id == node.parentId) return;
+            if (data.pathTo(target.id).any((n) => n.id == node.id)) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Impossible de déplacer une branche dans elle-même.',
+                    ),
+                  ),
+                );
+              }
+              return;
+            }
+            await store.moveNode(node.id, newParentId: target.id);
+          case 'tree':
+            await store.moveNode(node.id);
           case 'delete':
             final branches = _descendantCount(node.id);
             final items = data.subtreeItems(node.id).length;
@@ -199,9 +244,12 @@ class _NodeMenu extends StatelessWidget {
             await store.deleteNode(node.id, recursive: true);
         }
       },
-      itemBuilder: (context) => const [
-        PopupMenuItem(value: 'rename', child: Text('Renommer')),
-        PopupMenuItem(value: 'delete', child: Text('Supprimer')),
+      itemBuilder: (context) => [
+        const PopupMenuItem(value: 'rename', child: Text('Renommer')),
+        const PopupMenuItem(value: 'move', child: Text('Déplacer vers…')),
+        if (!node.isTree)
+          const PopupMenuItem(value: 'tree', child: Text('En faire un arbre')),
+        const PopupMenuItem(value: 'delete', child: Text('Supprimer')),
       ],
     );
   }

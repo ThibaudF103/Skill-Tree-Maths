@@ -156,6 +156,35 @@ void main() {
       expect((await store.item(def.id))!.sortIndex, 1); // après « L »
     });
 
+    test('réorganisation : ordre manuel et changement de nœud', () async {
+      final n1 = await store.createNode(title: 'N1');
+      final n2 = await store.createNode(title: 'N2');
+      Future<List<String>> titles(String nodeId) async => [
+        for (final i in await store.watchItems(nodeId: nodeId).first) i.title,
+      ];
+      final ids = <String, String>{};
+      for (final t in ['a', 'b', 'c']) {
+        ids[t] = (await store.createItem(
+          nodeId: n1.id,
+          kind: ItemKind.definition,
+          title: t,
+        )).id;
+      }
+      await store.moveItem(ids['c']!, nodeId: n1.id, index: 0);
+      expect(await titles(n1.id), ['c', 'a', 'b']);
+      await store.moveItem(ids['c']!, nodeId: n1.id, index: 2);
+      expect(await titles(n1.id), ['a', 'b', 'c']);
+      await store.moveItem(ids['a']!, nodeId: n2.id);
+      expect(await titles(n1.id), ['b', 'c']);
+      expect(await titles(n2.id), ['a']);
+      await store.moveItem(ids['b']!, nodeId: n2.id, index: 0);
+      expect(await titles(n2.id), ['b', 'a']);
+      expect(
+        () => store.moveItem(ids['b']!, nodeId: 'inconnu'),
+        throwsArgumentError,
+      );
+    });
+
     test('modification du contenu sans toucher à la révision', () async {
       final n1 = await store.createNode(title: 'N1');
       final n2 = await store.createNode(title: 'N2');
