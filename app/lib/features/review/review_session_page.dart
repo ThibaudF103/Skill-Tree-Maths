@@ -6,6 +6,7 @@ import 'package:verger_data/verger_data.dart';
 import '../../app/app_scope.dart';
 import '../../ui/item_glyph.dart';
 import '../../ui/labels.dart';
+import '../../ui/math_text.dart';
 import '../items/anchors_section.dart';
 
 /// Session de révision façon cartes : on lit le titre, on tente de se
@@ -253,7 +254,7 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
                             color: theme.colorScheme.surfaceContainerLow,
                             borderRadius: BorderRadius.circular(16),
                           ),
-                          child: SelectableText(
+                          child: MathText(
                             item.body!,
                             style: theme.textTheme.bodyLarge,
                           ),

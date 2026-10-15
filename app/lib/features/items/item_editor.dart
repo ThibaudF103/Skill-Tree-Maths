@@ -4,6 +4,7 @@ import 'package:verger_core/verger_core.dart';
 import '../../app/app_scope.dart';
 import '../../ui/item_glyph.dart';
 import '../../ui/labels.dart';
+import '../../ui/math_text.dart';
 
 /// Évaluation facultative à la création : compte comme première révision.
 enum _InitialLevel {
@@ -210,10 +211,26 @@ class _ItemEditorState extends State<ItemEditor> {
                 maxLines: 8,
                 decoration: const InputDecoration(
                   labelText: 'Contenu (facultatif)',
-                  hintText: 'Énoncé, hypothèses, remarques…',
+                  hintText:
+                      r'Énoncé, remarques… Formules : $x^2$ ou $$\int_0^1 f$$',
                   border: OutlineInputBorder(),
                   alignLabelWithHint: true,
                 ),
+              ),
+              // Aperçu des formules pendant la saisie.
+              ListenableBuilder(
+                listenable: _body,
+                builder: (context, _) => _body.text.contains(r'$')
+                    ? Container(
+                        margin: const EdgeInsets.only(top: 8),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surfaceContainerLow,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: MathText(_body.text),
+                      )
+                    : const SizedBox.shrink(),
               ),
               if (!_editing) ...[
                 const SizedBox(height: 16),
