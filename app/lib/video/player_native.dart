@@ -39,12 +39,14 @@ const _bridge = '''
   function video() { return document.querySelector('video'); }
   window.vergerStopAt = null;
   window.vergerTime = function () { var v = video(); return v ? v.currentTime : null; };
-  window.vergerSeek = function (s, play) {
+  function jump(s, play) {
     var v = video(); if (!v) return;
     v.currentTime = s; if (play) v.play();
-  };
+  }
+  // Un saut libre annule l'arrêt programmé d'un extrait.
+  window.vergerSeek = function (s, play) { window.vergerStopAt = null; jump(s, play); };
   window.vergerPause = function () { var v = video(); if (v) v.pause(); };
-  window.vergerSegment = function (a, b) { window.vergerStopAt = b; window.vergerSeek(a, true); };
+  window.vergerSegment = function (a, b) { window.vergerStopAt = b; jump(a, true); };
   setInterval(function () {
     var v = video();
     if (v && window.vergerStopAt !== null && v.currentTime >= window.vergerStopAt) {
