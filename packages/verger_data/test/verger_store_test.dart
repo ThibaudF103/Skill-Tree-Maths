@@ -305,6 +305,14 @@ void main() {
       expect((await store.schedulerSettings()).desiredRetention, 0.85);
     });
 
+    test('périmètre des révisions', () async {
+      expect(await store.watchReviewScope().first, isEmpty);
+      await store.setReviewScope({'a', 'b'});
+      expect(await store.watchReviewScope().first, {'a', 'b'});
+      await store.setReviewScope({});
+      expect(await store.watchReviewScope().first, isEmpty);
+    });
+
     test('dernière branche utilisée, oubliée si elle est supprimée', () async {
       expect(await store.lastNode(), isNull);
       final tree = await store.createNode(title: 'Algèbre');

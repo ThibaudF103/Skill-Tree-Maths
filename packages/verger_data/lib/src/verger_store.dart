@@ -361,6 +361,24 @@ class VergerStore {
         SettingRow(key: _lastNodeKey, value: jsonEncode(nodeId)),
       );
 
+  static const _reviewScopeKey = 'reviewScope';
+
+  /// Nœuds auxquels les révisions sont restreintes (vide : tout le verger).
+  Stream<Set<String>> watchReviewScope() =>
+      (_db.select(_db.settings)..where((s) => s.key.equals(_reviewScopeKey)))
+          .watchSingleOrNull()
+          .map((row) {
+            if (row == null) return const <String>{};
+            final ids = jsonDecode(row.value);
+            return ids is List ? ids.whereType<String>().toSet() : const {};
+          });
+
+  Future<void> setReviewScope(Set<String> nodeIds) => _db
+      .into(_db.settings)
+      .insertOnConflictUpdate(
+        SettingRow(key: _reviewScopeKey, value: jsonEncode(nodeIds.toList())),
+      );
+
   // --- Documents PDF -------------------------------------------------------
 
   Future<List<SourceDocument>> allDocuments() async =>

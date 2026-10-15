@@ -7,6 +7,7 @@ import '../../ui/item_glyph.dart';
 import '../items/item_detail_page.dart';
 import '../items/item_editor.dart';
 import '../items/item_tile.dart';
+import '../review/reviews_page.dart';
 import 'node_picker.dart';
 import 'reorder.dart';
 import 'tree_data.dart';
@@ -226,6 +227,22 @@ class _NodeMenu extends StatelessWidget {
             await store.moveNode(node.id, newParentId: target.id);
           case 'tree':
             await store.moveNode(node.id);
+          case 'review':
+            final ids = reviewQueueOf(
+              data.subtreeItems(node.id),
+              AppScope.of(context).scheduler,
+            );
+            if (ids.isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Rien à réviser dans « ${node.title} » pour le moment.',
+                  ),
+                ),
+              );
+            } else {
+              startReviewSession(context, ids);
+            }
           case 'delete':
             final branches = _descendantCount(node.id);
             final items = data.subtreeItems(node.id).length;
@@ -245,6 +262,13 @@ class _NodeMenu extends StatelessWidget {
         }
       },
       itemBuilder: (context) => [
+        PopupMenuItem(
+          value: 'review',
+          child: Text(
+            node.isTree ? 'Réviser cet arbre' : 'Réviser cette branche',
+          ),
+        ),
+        const PopupMenuDivider(),
         const PopupMenuItem(value: 'rename', child: Text('Renommer')),
         const PopupMenuItem(value: 'move', child: Text('Déplacer vers…')),
         if (!node.isTree)

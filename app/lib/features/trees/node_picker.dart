@@ -26,17 +26,40 @@ Future<KnowledgeNode?> pickNode(
   final store = AppScope.of(context).store;
   final initial = initialId ?? (await store.lastNode())?.id;
   if (!context.mounted) return null;
-  return showDialog<KnowledgeNode>(
+  final picked = await showDialog<Object>(
     context: context,
     builder: (_) => _NodePickerDialog(title: title, initialId: initial),
   );
+  return picked is KnowledgeNode ? picked : null;
+}
+
+/// Coche plusieurs nœuds (cocher un nœud couvre toute sa descendance).
+/// Renvoie l'ensemble choisi (vide : tout le verger), ou `null` si annulé.
+Future<Set<String>?> pickNodes(
+  BuildContext context, {
+  required String title,
+  Set<String> initial = const {},
+}) async {
+  final picked = await showDialog<Object>(
+    context: context,
+    builder: (_) =>
+        _NodePickerDialog(title: title, initialId: null, checked: initial),
+  );
+  return picked is Set<String> ? picked : null;
 }
 
 class _NodePickerDialog extends StatefulWidget {
-  const _NodePickerDialog({required this.title, required this.initialId});
+  const _NodePickerDialog({
+    required this.title,
+    required this.initialId,
+    this.checked,
+  });
 
   final String title;
   final String? initialId;
+
+  /// Mode cases à cocher : nœuds cochés au départ.
+  final Set<String>? checked;
 
   @override
   State<_NodePickerDialog> createState() => _NodePickerDialogState();
@@ -46,6 +69,9 @@ class _NodePickerDialogState extends State<_NodePickerDialog> {
   Stream<List<KnowledgeNode>>? _nodes;
   final _expanded = <String>{};
   late String? _selected = widget.initialId;
+  late final Set<String>? _checked = widget.checked == null
+      ? null
+      : {...widget.checked!};
   var _revealSelected = true;
   var _query = '';
 
@@ -91,10 +117,13 @@ class _NodePickerDialogState extends State<_NodePickerDialog> {
           for (final n in nodes ?? const <KnowledgeNode>[]) n.id: n,
         };
         final selected = byId[_selected];
-        if (_revealSelected && selected != null) {
-          _reveal(byId, selected.id);
+        if (_revealSelected && nodes != null) {
+          for (final id in [?selected?.id, ...?_checked]) {
+            _reveal(byId, id);
+          }
           _revealSelected = false;
         }
+        final checked = _checked;
         return AlertDialog(
           title: Text(widget.title),
           content: SizedBox(
@@ -119,23 +148,41 @@ class _NodePickerDialogState extends State<_NodePickerDialog> {
               ],
             ),
           ),
-          actions: [
-            TextButton.icon(
-              onPressed: () => _create(),
-              icon: const Icon(Icons.add),
-              label: const Text('Nouvel arbre'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Annuler'),
-            ),
-            FilledButton(
-              onPressed: selected == null
-                  ? null
-                  : () => Navigator.pop(context, selected),
-              child: const Text('Choisir'),
-            ),
-          ],
+          actions: checked != null
+              ? [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, <String>{}),
+                    child: const Text('Tout le verger'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Annuler'),
+                  ),
+                  FilledButton(
+                    onPressed: () => Navigator.pop(context, {
+                      for (final id in checked)
+                        if (byId.containsKey(id)) id,
+                    }),
+                    child: const Text('Valider'),
+                  ),
+                ]
+              : [
+                  TextButton.icon(
+                    onPressed: () => _create(),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Nouvel arbre'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Annuler'),
+                  ),
+                  FilledButton(
+                    onPressed: selected == null
+                        ? null
+                        : () => Navigator.pop(context, selected),
+                    child: const Text('Choisir'),
+                  ),
+                ],
         );
       },
     );
@@ -182,6 +229,18 @@ class _NodePickerDialogState extends State<_NodePickerDialog> {
         final hasChildren = children[node.id]?.isNotEmpty ?? false;
         final isSelected = node.id == _selected;
         final expanded = _expanded.contains(node.id);
+        final checked = _checked;
+        // Couvert par un ancêtre coché : coché d'office.
+        var covered = false;
+        for (var p = byId[node.parentId]; p != null; p = byId[p.parentId]) {
+          if (checked?.contains(p.id) ?? false) covered = true;
+        }
+        void toggle() => setState(() {
+          if (checked!.remove(node.id)) return;
+          // Cocher un nœud rend inutiles les coches de sa descendance.
+          checked.removeWhere((id) => _isDescendant(byId, id, node.id));
+          checked.add(node.id);
+        });
         return Material(
           color: isSelected
               ? theme.colorScheme.secondaryContainer
@@ -189,7 +248,11 @@ class _NodePickerDialogState extends State<_NodePickerDialog> {
           child: InkWell(
             // Un clic choisit la branche ; « Choisir » valide la sélection
             // courante (utile après une création).
-            onTap: () => Navigator.pop(context, node),
+            onTap: checked == null
+                ? () => Navigator.pop(context, node)
+                : covered
+                ? null
+                : toggle,
             child: Padding(
               padding: EdgeInsets.only(left: 4.0 + depth * 18),
               child: SizedBox(
@@ -216,6 +279,11 @@ class _NodePickerDialogState extends State<_NodePickerDialog> {
                             )
                           : null,
                     ),
+                    if (checked != null)
+                      Checkbox(
+                        value: covered || checked.contains(node.id),
+                        onChanged: covered ? null : (_) => toggle(),
+                      ),
                     Expanded(
                       child: _query.isEmpty
                           ? Text(
@@ -241,13 +309,14 @@ class _NodePickerDialogState extends State<_NodePickerDialog> {
                               ],
                             ),
                     ),
-                    IconButton(
-                      tooltip: 'Nouvelle branche dans « ${node.title} »',
-                      iconSize: 20,
-                      visualDensity: VisualDensity.compact,
-                      icon: const Icon(Icons.add),
-                      onPressed: () => _create(parent: node),
-                    ),
+                    if (checked == null)
+                      IconButton(
+                        tooltip: 'Nouvelle branche dans « ${node.title} »',
+                        iconSize: 20,
+                        visualDensity: VisualDensity.compact,
+                        icon: const Icon(Icons.add),
+                        onPressed: () => _create(parent: node),
+                      ),
                   ],
                 ),
               ),
@@ -256,5 +325,16 @@ class _NodePickerDialogState extends State<_NodePickerDialog> {
         );
       },
     );
+  }
+
+  static bool _isDescendant(
+    Map<String, KnowledgeNode> byId,
+    String id,
+    String ancestorId,
+  ) {
+    for (var p = byId[byId[id]?.parentId]; p != null; p = byId[p.parentId]) {
+      if (p.id == ancestorId) return true;
+    }
+    return false;
   }
 }
