@@ -188,6 +188,10 @@ Indicateur séparé « à arroser » : échéance dépassée.
   sélectionne un mot (`wordBounds`, coupure aux écarts visuels pour les PDF
   sans caractères d'espace) ; ouvrir un panneau garde la page ajustée à la
   largeur.
+- **Recto / verso en PDF** : quand le PDF est sur l'appareil, une zone
+  s'affiche en vectoriel avec texte sélectionnable (`PdfRegionView`, un
+  `PdfViewer` figé et cadré sur la zone, document partagé avec la
+  visionneuse) ; la miniature PNG sert pendant le chargement et en secours.
 - **Depuis une note** : « Créer une connaissance » ou « Lier à une
   connaissance » ; la note devient le verso et, pour un cours, la zone
   devient le recto.

@@ -158,6 +158,20 @@ Future<String?> extractRegionText(PdfPage page, NormalizedRect region) async {
   return result.isEmpty ? null : result;
 }
 
+/// Zone normalisée d'un rectangle PDF (origine en bas à gauche), élargie de
+/// [margin] et bornée à la page.
+NormalizedRect regionOfPdfRect(
+  PdfRect rect,
+  double pageWidth,
+  double pageHeight, {
+  double margin = 0.004,
+}) => NormalizedRect.fromCorners(
+  rect.left / pageWidth - margin,
+  1 - rect.top / pageHeight - margin,
+  rect.right / pageWidth + margin,
+  1 - rect.bottom / pageHeight + margin,
+);
+
 /// Bornes `[début, fin[` du mot contenant le caractère [index], sans sortir
 /// de `[from, to[`. Un mot s'arrête aux espaces, à la ponctuation, ou à un
 /// écart visuel entre deux caractères (PDF sans caractères d'espace, où un
