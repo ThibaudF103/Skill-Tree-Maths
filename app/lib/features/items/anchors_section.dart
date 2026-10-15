@@ -100,10 +100,11 @@ class _AnchorsSectionState extends State<AnchorsSection> {
       MaterialPageRoute<void>(
         builder: (_) => DocumentViewerPage(
           documentId: document.id,
+          // Nouvelles pages s'il y en a, sinon la dernière page lue ; on
+          // navigue d'abord, puis on encadre.
           initialPage: document.newPages.isNotEmpty
               ? document.newPages.first
-              : 1,
-          selecting: true,
+              : null,
           attachToItem: widget.item,
         ),
       ),

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -204,10 +205,15 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
               avatar: const Icon(Icons.crop_free, size: 18),
               label: const Text('Encadrer'),
               selected: _selecting,
-              onSelected: (value) => setState(() {
-                _selecting = value;
-                _clearDrag();
-              }),
+              onSelected: (value) async {
+                // Texte surligné : on encadre directement ce texte.
+                if (value && await _frameSelectedText()) return;
+                if (!mounted) return;
+                setState(() {
+                  _selecting = value;
+                  _clearDrag();
+                });
+              },
             ),
           ),
           IconButton(
@@ -326,38 +332,52 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
       stream: _anchors,
       builder: (context, anchors) => Stack(
         children: [
-          PdfViewer.data(
-            bytes,
-            sourceName: 'verger-${document.id}-v${document.version}',
-            controller: _controller,
-            initialPageNumber: _startPage ?? 1,
-            params: PdfViewerParams(
-              panEnabled: !_selecting,
-              backgroundColor: theme.colorScheme.surfaceContainerHighest,
-              onViewerReady: (pdf, controller) {
-                setState(() {
-                  _pdf = pdf;
-                  _outline = pdf.loadOutline();
-                  _searcher ??= PdfTextSearcher(controller)
-                    ..addListener(_onSearchChanged);
-                });
-              },
-              onPageChanged: _onPageChanged,
-              onViewSizeChanged: _onViewSizeChanged,
-              onGeneralTap: _onGeneralTap,
-              // Liens du PDF : sommaire, renvois, notes de bas de page, web.
-              linkHandlerParams: _selecting
-                  ? null
-                  : PdfLinkHandlerParams(onLinkTap: _onLinkTap),
-              pagePaintCallbacks: [
-                if (_searcher != null) _searcher!.pageTextMatchPaintCallback,
-              ],
-              pageOverlaysBuilder: (context, pageRect, page) => [
-                _overlay(page, document, anchors.data ?? const [], notes),
-              ],
+          // Pavé tactile (deux doigts) : on fait défiler la page même en
+          // mode « Encadrer », au lieu de tracer une zone.
+          Listener(
+            onPointerPanZoomUpdate: (event) {
+              if (!_selecting || !_controller.isReady) return;
+              _controller.value =
+                  Matrix4.translationValues(
+                    event.panDelta.dx,
+                    event.panDelta.dy,
+                    0,
+                  ) *
+                  _controller.value;
+            },
+            child: PdfViewer.data(
+              bytes,
+              sourceName: 'verger-${document.id}-v${document.version}',
+              controller: _controller,
+              initialPageNumber: _startPage ?? 1,
+              params: PdfViewerParams(
+                panEnabled: !_selecting,
+                backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                onViewerReady: (pdf, controller) {
+                  setState(() {
+                    _pdf = pdf;
+                    _outline = pdf.loadOutline();
+                    _searcher ??= PdfTextSearcher(controller)
+                      ..addListener(_onSearchChanged);
+                  });
+                },
+                onPageChanged: _onPageChanged,
+                onViewSizeChanged: _onViewSizeChanged,
+                onGeneralTap: _onGeneralTap,
+                // Liens du PDF : sommaire, renvois, notes de bas de page, web.
+                linkHandlerParams: _selecting
+                    ? null
+                    : PdfLinkHandlerParams(onLinkTap: _onLinkTap),
+                pagePaintCallbacks: [
+                  if (_searcher != null) _searcher!.pageTextMatchPaintCallback,
+                ],
+                pageOverlaysBuilder: (context, pageRect, page) => [
+                  _overlay(page, document, anchors.data ?? const [], notes),
+                ],
+              ),
             ),
           ),
-          if (_selecting)
+          if (_selecting || widget.attachToItem != null)
             Positioned(
               left: 16,
               right: 16,
@@ -372,7 +392,10 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
                       vertical: 10,
                     ),
                     child: Text(
-                      'Tracez un rectangle autour d\'un élément du PDF',
+                      _selecting
+                          ? 'Tracez un rectangle autour d\'un élément du PDF'
+                          : 'Allez à la bonne page, puis « Encadrer » '
+                                '(ou surlignez le texte d\'abord)',
                       style: TextStyle(
                         color: theme.colorScheme.onInverseSurface,
                       ),
@@ -701,6 +724,14 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
             Positioned.fill(
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
+                // Le pavé tactile fait défiler (voir Listener) au lieu de
+                // tracer.
+                supportedDevices: const {
+                  PointerDeviceKind.mouse,
+                  PointerDeviceKind.touch,
+                  PointerDeviceKind.stylus,
+                  PointerDeviceKind.invertedStylus,
+                },
                 onPanStart: (d) => setState(() {
                   _dragPage = number;
                   _dragStart = normalize(d.localPosition);
@@ -852,6 +883,23 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
         context,
       ).showSnackBar(SnackBar(content: Text('Impossible d\'ouvrir $url')));
     }
+  }
+
+  /// Encadre le texte surligné (sur sa première page) ; `false` s'il n'y en
+  /// a pas.
+  Future<bool> _frameSelectedText() async {
+    if (!_controller.isReady) return false;
+    final delegate = _controller.textSelectionDelegate;
+    if (!delegate.hasSelectedText) return false;
+    final ranges = await delegate.getSelectedTextRanges();
+    if (ranges.isEmpty || !mounted) return false;
+    final first = ranges.first;
+    final page = _controller.pages[first.pageNumber - 1];
+    final region = regionOfPdfRect(first.bounds, page.width, page.height);
+    await delegate.clearTextSelection();
+    if (!mounted) return true;
+    await _onRegionSelected(page, region);
+    return true;
   }
 
   void _clearDrag() {
