@@ -11,6 +11,9 @@ abstract class YoutubePlayerController {
   /// Position de lecture, en millisecondes (`null` avant le chargement).
   Future<int?> currentMs();
 
+  /// Durée de la vidéo, en millisecondes (`null` tant qu'elle est inconnue).
+  Future<int?> durationMs();
+
   Future<void> seek(int ms, {bool play = true});
 
   /// Joue l'extrait [startMs]–[endMs] puis s'arrête.

@@ -252,6 +252,14 @@ de démonstration (deux mois de révisions simulées).
   exactement ce passage (arrêt automatique à la fin).
 - Connexion Internet nécessaire pour lire une vidéo.
 
+## Couverture d'un contenu
+
+- **PDF** : pastilles sous les miniatures de pages (nombre de recto, verso,
+  notes) ; dans la Bibliothèque, « N / M pages travaillées ».
+- **Vidéo** : frise sous le lecteur (extraits recto en bleu, verso en orange,
+  notes en vert, extrait en cours de marquage encadré) ; un appui déplace la
+  lecture. `pageCoverage` / `videoCoverage` (`lib/ui/coverage.dart`).
+
 ## Contenus et recto / verso
 
 - **Recto** : ancre `source` (énoncé encadré) ; **verso** : ancre `work`

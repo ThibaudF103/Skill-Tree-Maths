@@ -10,6 +10,7 @@ import 'package:verger_data/verger_data.dart';
 
 import '../../app/app_scope.dart';
 import '../../pdf/pdf_tools.dart';
+import '../../ui/coverage.dart';
 import '../../ui/labels.dart';
 import '../items/item_detail_page.dart';
 import '../items/item_editor.dart';
@@ -77,6 +78,9 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
   Future<Uint8List?>? _bytes;
   Stream<List<SourceDocument>>? _documents;
   Stream<List<Anchor>>? _anchors;
+
+  /// Ancres du document pour la couverture des miniatures.
+  Stream<List<Anchor>>? _coverage;
   StreamSubscription<List<Note>>? _notesSubscription;
   List<Note> _notes = const [];
   PdfDocument? _pdf;
@@ -103,6 +107,7 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
     _bytes ??= _store.documentBytes(widget.documentId);
     _documents ??= _store.watchDocuments();
     _anchors ??= _store.watchAnchors(documentId: widget.documentId);
+    _coverage ??= _store.watchAnchors(documentId: widget.documentId);
     _notesSubscription ??= _store
         .watchNotes(documentId: widget.documentId)
         .listen((notes) => setState(() => _notes = notes));
@@ -565,12 +570,28 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
     final theme = Theme.of(context);
     final pdf = _pdf;
     if (pdf == null) return const Center(child: CircularProgressIndicator());
+    return StreamBuilder<List<Anchor>>(
+      stream: _coverage,
+      builder: (context, anchors) {
+        final coverage = pageCoverage(anchors.data ?? const [], _notes);
+        return _thumbnailList(theme, pdf, document, coverage);
+      },
+    );
+  }
+
+  Widget _thumbnailList(
+    ThemeData theme,
+    PdfDocument pdf,
+    SourceDocument document,
+    Map<int, PageCoverage> coverage,
+  ) {
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
       itemCount: pdf.pages.length,
       itemBuilder: (context, i) {
         final number = i + 1;
         final current = number == _page;
+        final covered = coverage[number];
         return Padding(
           padding: const EdgeInsets.only(bottom: 12),
           child: InkWell(
@@ -597,11 +618,25 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  document.newPages.contains(number)
-                      ? '$number · nouvelle'
-                      : '$number',
-                  style: theme.textTheme.labelSmall,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      document.newPages.contains(number)
+                          ? '$number · nouvelle'
+                          : '$number',
+                      style: theme.textTheme.labelSmall,
+                    ),
+                    // Couverture : ce qui a déjà été tiré de la page.
+                    if (covered != null) ...[
+                      if (covered.recto > 0)
+                        _CoverageDot(rectoColor, covered.recto, 'recto'),
+                      if (covered.verso > 0)
+                        _CoverageDot(versoColor, covered.verso, 'verso'),
+                      if (covered.notes > 0)
+                        _CoverageDot(noteColor, covered.notes, 'note(s)'),
+                    ],
+                  ],
                 ),
               ],
             ),
@@ -1172,6 +1207,34 @@ class _NoteMarker extends StatelessWidget {
               color: active ? Colors.white : noteColor,
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Pastille de couverture d'une miniature : nombre de recto, verso ou notes.
+class _CoverageDot extends StatelessWidget {
+  const _CoverageDot(this.color, this.count, this.what);
+
+  final Color color;
+  final int count;
+  final String what;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: '$count $what',
+      child: Container(
+        margin: const EdgeInsets.only(left: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 5),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          '$count',
+          style: const TextStyle(color: Colors.white, fontSize: 10),
         ),
       ),
     );

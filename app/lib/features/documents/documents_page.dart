@@ -107,6 +107,11 @@ class _LibraryPageState extends State<LibraryPage> {
           d,
     ];
     final counts = <String, ({int recto, int verso, int review})>{};
+    // Couverture : pages d'où au moins un recto ou un verso a été tiré.
+    final pages = <String, Set<int>>{};
+    for (final a in anchors) {
+      if (a.page != null) (pages[a.documentId] ??= {}).add(a.page!);
+    }
     for (final a in anchors) {
       final c = counts[a.documentId] ?? (recto: 0, verso: 0, review: 0);
       counts[a.documentId] = (
@@ -197,6 +202,7 @@ class _LibraryPageState extends State<LibraryPage> {
                   _ResourceTile(
                     document: d,
                     counts: counts[d.id],
+                    coveredPages: pages[d.id]?.length ?? 0,
                     paths: [
                       for (final n in linksOf[d.id] ?? const <String>[])
                         nodePath(byId, n),
@@ -215,11 +221,15 @@ class _ResourceTile extends StatelessWidget {
   const _ResourceTile({
     required this.document,
     required this.counts,
+    required this.coveredPages,
     required this.paths,
   });
 
   final SourceDocument document;
   final ({int recto, int verso, int review})? counts;
+
+  /// Pages d'où au moins un recto ou un verso a été tiré.
+  final int coveredPages;
 
   /// Branches auxquelles le contenu est rattaché.
   final List<String> paths;
@@ -229,7 +239,12 @@ class _ResourceTile extends StatelessWidget {
     final theme = Theme.of(context);
     final c = counts;
     final parts = [
-      if (document.isPdf) '${document.pageCount} pages' else 'Vidéo',
+      if (document.isPdf)
+        coveredPages > 0
+            ? '$coveredPages / ${document.pageCount} pages travaillées'
+            : '${document.pageCount} pages'
+      else
+        'Vidéo',
       if (document.version > 1) 'version ${document.version}',
       'ajouté le ${formatDate(document.importedAt)}',
       if (c != null && c.recto > 0) '${c.recto} recto',
