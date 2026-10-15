@@ -63,14 +63,22 @@ String formatDate(DateTime date, {DateTime? now}) {
   return local.year == ref.year ? base : '$base ${local.year}';
 }
 
+/// Nombre de jours de calendrier de [from] à [to] (indépendant des
+/// changements d'heure).
+int _calendarDays(DateTime from, DateTime to) => DateTime.utc(
+  to.year,
+  to.month,
+  to.day,
+).difference(DateTime.utc(from.year, from.month, from.day)).inDays;
+
 /// Échéance relative : « en retard de 2 j », « aujourd'hui », « dans 5 h »,
 /// « demain », « dans 12 j »…
 String formatDue(DateTime due, DateTime now) {
   final window = DayWindow.around(now);
   final local = due.toLocal();
   if (local.isBefore(window.startOfToday)) {
-    final days = window.startOfToday.difference(local).inHours ~/ 24 + 1;
-    return 'en retard de $days j';
+    final days = _calendarDays(local, window.startOfToday);
+    return 'en retard de ${days < 1 ? 1 : days} j';
   }
   if (local.isBefore(window.startOfTomorrow)) {
     if (!local.isAfter(now)) return 'maintenant';

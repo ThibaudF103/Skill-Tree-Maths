@@ -79,8 +79,15 @@ Future<void> restoreBackup(BuildContext context) async {
     confirm: 'Restaurer',
   );
   if (!ok) return;
-  await scope.store.restoreArchive(archive);
-  await scope.reloadSettings();
+  try {
+    await scope.store.restoreArchive(archive);
+    await scope.reloadSettings();
+  } catch (e) {
+    if (context.mounted) {
+      _notify(context, 'Restauration impossible, rien n\'a été modifié : $e');
+    }
+    return;
+  }
   if (context.mounted) _notify(context, 'Sauvegarde restaurée.');
 }
 
@@ -89,8 +96,12 @@ Future<void> importTemplateFile(BuildContext context) async {
   final store = AppScope.of(context).store;
   final archive = await _pickArchive(context);
   if (archive == null) return;
-  final trees = await store.importTemplate(archive);
-  if (context.mounted) _importedMessage(context, trees, archive);
+  try {
+    final trees = await store.importTemplate(archive);
+    if (context.mounted) _importedMessage(context, trees, archive);
+  } catch (e) {
+    if (context.mounted) _notify(context, 'Import impossible : $e');
+  }
 }
 
 /// Ajoute l'arbre d'exemple « Algèbre ».

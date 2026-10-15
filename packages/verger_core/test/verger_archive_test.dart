@@ -198,4 +198,34 @@ void main() {
     expect(note(r'- Soit $x_n \to 0$').headline, r'Soit x_n \to 0');
     expect(note('   ').headline, '');
   });
+
+  test('refuse des réglages hors bornes et des identifiants en double', () {
+    final base = sample().toJson();
+    final badSettings = {
+      ...base,
+      'settings': {
+        ...(base['settings']! as Map<String, Object?>),
+        'desiredRetention': 1,
+      },
+    };
+    expect(
+      () => VergerArchive.fromJson(badSettings),
+      throwsA(isA<ArchiveFormatException>()),
+    );
+    final notes = base['notes']! as List;
+    final duplicated = {
+      ...base,
+      'notes': [notes.first, notes.first],
+    };
+    expect(
+      () => VergerArchive.fromJson(duplicated),
+      throwsA(isA<ArchiveFormatException>()),
+    );
+    expect(const SchedulerSettings(desiredRetention: 0.9).isValid, isTrue);
+    expect(const SchedulerSettings(desiredRetention: 90).isValid, isFalse);
+    expect(
+      const SchedulerSettings(learningSteps: [Duration.zero]).isValid,
+      isFalse,
+    );
+  });
 }

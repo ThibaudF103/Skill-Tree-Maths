@@ -8,9 +8,9 @@ import '../../ui/labels.dart';
 
 /// Minuscules sans accents, pour une recherche tolérante.
 String normalizeForSearch(String text) {
-  const from = 'àâäáãåçéèêëíìîïñóòôöõúùûüýÿœæ';
-  const to = 'aaaaaaceeeeiiiinooooouuuuyyoa';
-  final lower = text.toLowerCase();
+  const from = 'àâäáãåçéèêëíìîïñóòôöõúùûüýÿ';
+  const to = 'aaaaaaceeeeiiiinooooouuuuyy';
+  final lower = text.toLowerCase().replaceAll('œ', 'oe').replaceAll('æ', 'ae');
   final buffer = StringBuffer();
   for (final char in lower.split('')) {
     final i = from.indexOf(char);

@@ -183,7 +183,7 @@ class _NodeMenu extends StatelessWidget {
             if (name != null) await store.renameNode(node.id, name);
           case 'delete':
             final branches = _descendantCount(node.id);
-            final items = data.progress[node.id]!.itemCount;
+            final items = data.subtreeItems(node.id).length;
             final empty = branches == 0 && items == 0;
             final ok = await confirmDestructive(
               context,

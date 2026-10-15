@@ -168,4 +168,43 @@ void main() {
     final remaining = await store.watchAnchors(documentId: notes.id).first;
     expect(remaining, isEmpty);
   });
+
+  test('une ancre à vérifier n\'est pas recalée au hasard ensuite', () async {
+    final notes = await importNotes([page(0), page(1), page(2)]);
+    final anchor = await store.addAnchor(
+      itemId: item.id,
+      documentId: notes.id,
+      role: AnchorRole.work,
+      page: 2,
+    );
+    // v2 : la page 2 disparaît → à vérifier (reste « page 2 »).
+    await store.updateDocument(
+      notes.id,
+      bytes: Uint8List(1),
+      contentHash: 'v2',
+      fingerprints: [page(0), page(2)],
+    );
+    // v3 : deux pages insérées au début.
+    final update = await store.updateDocument(
+      notes.id,
+      bytes: Uint8List(1),
+      contentHash: 'v3',
+      fingerprints: [page(7), page(8), page(0), page(2)],
+    );
+    final stored = (await store.anchorsOf(item.id)).single;
+    expect(stored.id, anchor.id);
+    expect(stored.needsReview, isTrue);
+    expect(stored.page, 2);
+    expect(update.moved, 0);
+  });
+
+  test('réglages enregistrés illisibles : valeurs par défaut', () async {
+    await store.saveSchedulerSettings(
+      const SchedulerSettings(desiredRetention: 1.5),
+    );
+    expect(
+      (await store.schedulerSettings()).desiredRetention,
+      const SchedulerSettings().desiredRetention,
+    );
+  });
 }

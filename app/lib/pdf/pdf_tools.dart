@@ -77,9 +77,15 @@ Future<Uint8List?> renderRegionPng(
 }) async {
   final r = region ?? const NormalizedRect(0, 0, 1, 1);
   if (r.width <= 0 || r.height <= 0) return null;
-  // Échelle : la zone fait [targetWidth] pixels de large.
-  final fullWidth = targetWidth / r.width;
-  final fullHeight = fullWidth * page.height / page.width;
+  // Échelle : la zone fait [targetWidth] pixels de large, sans dépasser
+  // 4000 pixels dans aucune dimension (zones hautes et étroites).
+  var fullWidth = targetWidth / r.width;
+  var fullHeight = fullWidth * page.height / page.width;
+  final tallest = r.height * fullHeight;
+  if (tallest > 4000) {
+    fullWidth *= 4000 / tallest;
+    fullHeight *= 4000 / tallest;
+  }
   final width = (r.width * fullWidth).round().clamp(1, 4000);
   final height = (r.height * fullHeight).round().clamp(1, 4000);
   final image = await page.render(

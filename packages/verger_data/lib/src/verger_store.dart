@@ -254,11 +254,15 @@ class VergerStore {
     final row = await (_db.select(
       _db.settings,
     )..where((s) => s.key.equals(_schedulerKey))).getSingleOrNull();
-    return row == null
-        ? const SchedulerSettings()
-        : SchedulerSettings.fromJson(
-            jsonDecode(row.value) as Map<String, Object?>,
-          );
+    if (row == null) return const SchedulerSettings();
+    try {
+      return SchedulerSettings.fromJson(
+        jsonDecode(row.value) as Map<String, Object?>,
+      );
+    } catch (_) {
+      // Valeur illisible ou hors bornes : l'application doit démarrer.
+      return const SchedulerSettings();
+    }
   }
 
   Future<void> saveSchedulerSettings(SchedulerSettings settings) => _db
@@ -342,6 +346,9 @@ class VergerStore {
     var moved = 0;
     var flagged = 0;
     for (final anchor in await _anchorsQuery(documentId: id).get()) {
+      // Déjà à vérifier : son numéro de page ne désigne plus rien de sûr dans
+      // la version actuelle, on ne le recale pas au hasard.
+      if (anchor.needsReview) continue;
       final match = remap.matches[anchor.page];
       if (match?.page != null) {
         if (match!.page != anchor.page) moved++;
@@ -545,6 +552,18 @@ class VergerStore {
         // Les PDF déjà présents sur l'appareil sont conservés s'ils figurent
         // dans la sauvegarde (qui ne contient pas les fichiers eux-mêmes).
         final keptDocuments = {for (final d in archive.documents) d.id};
+        // Un PDF présent sur l'appareil n'est gardé que s'il est bien la
+        // version décrite par la sauvegarde ; sinon il faudra le réimporter
+        // (ancres et notes restent cohérentes avec leurs pages).
+        final archived = {for (final d in archive.documents) d.id: d};
+        for (final current in await allDocuments()) {
+          final saved = archived[current.id];
+          if (saved != null && saved.contentHash != current.contentHash) {
+            await (_db.delete(
+              _db.documentFiles,
+            )..where((f) => f.documentId.equals(current.id))).go();
+          }
+        }
         await (_db.delete(
           _db.documents,
         )..where((d) => d.id.isNotIn(keptDocuments))).go();

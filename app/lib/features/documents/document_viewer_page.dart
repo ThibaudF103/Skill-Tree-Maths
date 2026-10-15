@@ -66,6 +66,7 @@ class DocumentViewerPage extends StatefulWidget {
 class _DocumentViewerPageState extends State<DocumentViewerPage> {
   final _controller = PdfViewerController();
   final _viewerKey = GlobalKey();
+  final _notesKey = GlobalKey();
 
   /// Créé une fois la visionneuse prête (il s'appuie sur le document).
   PdfTextSearcher? _searcher;
@@ -249,20 +250,25 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
             key: _viewerKey,
             child: _buildViewer(context, document, bytes, notes),
           );
-          final notesPanel = GestureDetector(
-            onHorizontalDragEnd: (d) {
-              if ((d.primaryVelocity ?? 0) > 300) {
-                setState(() => _notesOpen = false);
-              }
-            },
-            child: NotesPanel(
-              document: document,
-              notes: notes,
-              activeNoteId: _activeNote,
-              currentPage: _page ?? 1,
-              onSelect: (id) => setState(() => _activeNote = id),
-              onClose: () => setState(() => _notesOpen = false),
-              onGoTo: (page, _) => _controller.goToPage(pageNumber: page),
+          final notesPanel = KeyedSubtree(
+            // Clé globale : l'éditeur de note survit au changement de mise en
+            // page (rotation), sans perdre la saisie en cours.
+            key: _notesKey,
+            child: GestureDetector(
+              onHorizontalDragEnd: (d) {
+                if ((d.primaryVelocity ?? 0) > 300) {
+                  setState(() => _notesOpen = false);
+                }
+              },
+              child: NotesPanel(
+                document: document,
+                notes: notes,
+                activeNoteId: _activeNote,
+                currentPage: _page ?? 1,
+                onSelect: (id) => setState(() => _activeNote = id),
+                onClose: () => setState(() => _notesOpen = false),
+                onGoTo: (page, _) => _controller.goToPage(pageNumber: page),
+              ),
             ),
           );
           final side = _side == _SidePanel.none

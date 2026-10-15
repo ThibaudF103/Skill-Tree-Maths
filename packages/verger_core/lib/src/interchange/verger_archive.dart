@@ -248,6 +248,18 @@ final class VergerArchive {
         throw ArchiveFormatException('Nœud inconnu pour « ${i.title} »');
       }
     }
+    void unique(Iterable<String> ids, String what) {
+      final seen = <String>{};
+      for (final id in ids) {
+        if (!seen.add(id)) {
+          throw ArchiveFormatException('$what en double : $id');
+        }
+      }
+    }
+
+    unique(documents.map((d) => d.id), 'Document');
+    unique(anchors.map((a) => a.id), 'Ancre');
+    unique(notes.map((n) => n.id), 'Note');
     final documentIds = {for (final d in documents) d.id};
     for (final a in anchors) {
       if (!itemIds.contains(a.itemId) || !documentIds.contains(a.documentId)) {

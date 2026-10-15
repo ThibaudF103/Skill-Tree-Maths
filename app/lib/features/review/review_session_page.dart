@@ -109,6 +109,14 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
       _results.add(rating);
     } on StaleReviewException {
       // Révisée ailleurs entre-temps : on passe simplement à la suivante.
+    } catch (e) {
+      // Connaissance supprimée entre-temps, erreur de base… : on prévient
+      // et on passe à la suivante plutôt que de bloquer la session.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Révision non enregistrée : $e')),
+        );
+      }
     }
     await _show(_index + 1);
   }

@@ -178,4 +178,31 @@ void main() {
       await other.close();
     },
   );
+
+  test(
+    'restauration : un PDF d\'une autre version que la sauvegarde est retiré',
+    () async {
+      final store = await populated();
+      final notes = await store.importDocument(
+        title: 'Carnet',
+        role: DocumentRole.notes,
+        bytes: Uint8List.fromList([1]),
+        contentHash: 'v1',
+        fingerprints: [Uint8List(4)],
+      );
+      final json = jsonEncode((await store.exportArchive()).toJson());
+      await store.updateDocument(
+        notes.id,
+        bytes: Uint8List.fromList([2]),
+        contentHash: 'v2',
+        fingerprints: [Uint8List(4), Uint8List(4)],
+      );
+      await store.restoreArchive(
+        VergerArchive.fromJson((jsonDecode(json) as Map).cast()),
+      );
+      expect(await store.documentBytes(notes.id), isNull);
+      expect((await store.document(notes.id))!.contentHash, 'v1');
+      await store.close();
+    },
+  );
 }
