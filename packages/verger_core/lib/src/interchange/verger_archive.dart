@@ -43,6 +43,7 @@ final class VergerArchive {
   });
 
   static const format = 'verger';
+
   /// 2 : contenus (PDF, vidéos) rattachés aux nœuds, ancres sans page.
   static const currentVersion = 2;
 
