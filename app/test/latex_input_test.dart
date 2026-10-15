@@ -49,6 +49,9 @@ void main() {
     expect(type(r'$\|$', '{'), r'$\{|\}$');
     expect(type(r'x^[ab]', '{'), r'x^{ab}|');
     expect(type('a|b', '}'), 'a}|b');
+    // Accolades échappées : `\}` tapé saute le `\}` inséré.
+    expect(type(r'\{x\|\}', '}'), r'\{x\}|');
+    expect(type(r'{\|}', '}'), r'{\}|}');
   });
 
   test('dollars : formule en ligne, centrée, fermeture', () {
@@ -68,7 +71,7 @@ void main() {
     expect(type('{|}', null), '|');
     expect(type(r'$|$', null), '|');
     expect(type(r'$$|$$', null), r'$|$');
-    expect(type(r'\{|\}', null), r'\|');
+    expect(type(r'\{|\}', null), '|');
     // Fermeture d'une formule suivie d'une autre : effacement simple.
     expect(type(r'$x$|$y$', null), r'$x|$y$');
     expect(type('{a|}', null), '{|}');

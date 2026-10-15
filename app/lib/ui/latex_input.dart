@@ -54,9 +54,12 @@ class LatexAutoCloseFormatter extends TextInputFormatter {
     final escaped = prev == r'\' && !_isEscaped(old, start - 1);
 
     if (char == '}') {
-      return selected.isEmpty && next == '}'
-          ? _value(old, start + 1)
-          : newValue;
+      if (selected.isNotEmpty) return newValue;
+      // `\}` tapé devant un `\}` déjà inséré : on le saute.
+      if (escaped && old.startsWith(r'\}', end)) {
+        return _value(old.replaceRange(start - 1, start, ''), start + 1);
+      }
+      return !escaped && next == '}' ? _value(old, start + 1) : newValue;
     }
     if (char == '{') {
       final close = escaped ? r'\}' : '}';
@@ -97,8 +100,9 @@ class LatexAutoCloseFormatter extends TextInputFormatter {
     final after = i + 1;
     if (char == '{') {
       final escaped = i > 0 && text[i - 1] == r'\' && !_isEscaped(text, i - 1);
-      final close = escaped ? r'\}' : '}';
-      return text.startsWith(close, after) ? (i, after + close.length) : null;
+      if (!text.startsWith(escaped ? r'\}' : '}', after)) return null;
+      // `\{|\}` : le `\` ouvrant part aussi.
+      return escaped ? (i - 1, after + 2) : (i, after + 1);
     }
     if (char != r'$' || !text.startsWith(r'$', after) || _isEscaped(text, i)) {
       return null;

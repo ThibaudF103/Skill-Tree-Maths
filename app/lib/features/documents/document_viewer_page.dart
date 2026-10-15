@@ -750,6 +750,9 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
         (viewSize.width - oldViewSize.width).abs() < 1) {
       return;
     }
+    // Au zoom minimal, pdfrx a déjà réajusté la page : ne pas zoomer deux
+    // fois.
+    if ((controller.currentZoom - controller.minScale).abs() < 1e-3) return;
     final center = controller.value.calcPosition(oldViewSize);
     final zoom = controller.currentZoom * viewSize.width / oldViewSize.width;
     // Pas pendant la construction : le rappel peut survenir en plein build.
