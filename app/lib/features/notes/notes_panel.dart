@@ -7,6 +7,7 @@ import 'package:verger_data/verger_data.dart';
 import '../../app/app_scope.dart';
 import '../../ui/dialogs.dart';
 import '../../ui/labels.dart';
+import '../../ui/latex_input.dart';
 import '../../ui/math_text.dart';
 import '../documents/pickers.dart';
 import '../items/item_detail_page.dart';
@@ -353,6 +354,7 @@ class _NoteEditorState extends State<NoteEditor> {
         if (note.snapshot != null) const SizedBox(height: 12),
         TextField(
           controller: _text,
+          inputFormatters: const [LatexAutoCloseFormatter()],
           autofocus: note.body.isEmpty,
           minLines: 6,
           maxLines: null,

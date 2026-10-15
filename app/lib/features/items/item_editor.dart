@@ -4,6 +4,7 @@ import 'package:verger_core/verger_core.dart';
 import '../../app/app_scope.dart';
 import '../../ui/item_glyph.dart';
 import '../../ui/labels.dart';
+import '../../ui/latex_input.dart';
 import '../../ui/math_text.dart';
 import '../trees/node_picker.dart';
 
@@ -282,6 +283,7 @@ class _ItemEditorState extends State<ItemEditor> {
               const SizedBox(height: 12),
               TextField(
                 controller: _body,
+                inputFormatters: const [LatexAutoCloseFormatter()],
                 minLines: 3,
                 maxLines: 8,
                 decoration: const InputDecoration(
