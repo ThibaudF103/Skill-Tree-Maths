@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:verger_core/verger_core.dart';
 
 import '../../app/app_scope.dart';
+import '../../pdf/pdf_region_view.dart';
 import '../documents/document_viewer_page.dart';
 
-/// Miniature d'une zone de PDF (recto ou verso).
+/// Zone de PDF (recto ou verso), en vectoriel avec texte sélectionnable si
+/// le PDF est sur l'appareil, sinon sa miniature.
 class AnchorSnapshot extends StatelessWidget {
   const AnchorSnapshot({super.key, required this.anchor, this.maxHeight = 320});
 
@@ -23,12 +25,13 @@ class AnchorSnapshot extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
       ),
       clipBehavior: Clip.antiAlias,
-      child: snapshot == null
-          ? const SizedBox(
-              height: 60,
-              child: Center(child: Icon(Icons.image_not_supported_outlined)),
-            )
-          : Image.memory(snapshot, fit: BoxFit.contain, gaplessPlayback: true),
+      child: PdfRegionView(
+        store: AppScope.of(context).store,
+        documentId: anchor.documentId,
+        page: anchor.page,
+        region: anchor.region ?? const NormalizedRect(0, 0, 1, 1),
+        snapshot: snapshot,
+      ),
     );
   }
 }

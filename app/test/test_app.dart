@@ -3,6 +3,7 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:verger/app/verger_app.dart';
+import 'package:verger/pdf/pdf_region_view.dart';
 import 'package:verger_core/verger_core.dart';
 import 'package:verger_data/verger_data.dart';
 
@@ -14,6 +15,8 @@ Future<VergerStore> pumpTestApp(
   Future<void> Function(VergerStore store)? seed,
 }) async {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+  // Pas de PDFium dans les tests de widgets : miniatures seulement.
+  PdfRegionView.vectorEnabled = false;
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
