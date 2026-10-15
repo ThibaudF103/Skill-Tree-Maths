@@ -43,7 +43,8 @@ final class VergerArchive {
   });
 
   static const format = 'verger';
-  static const currentVersion = 1;
+  /// 2 : contenus (PDF, vidéos) rattachés aux nœuds, ancres sans page.
+  static const currentVersion = 2;
 
   final List<KnowledgeNode> nodes;
   final List<KnowledgeItem> items;
@@ -217,13 +218,15 @@ final class VergerArchive {
         documents: documents,
         anchors: anchors,
         notes: notes,
-        resourceLinks: [
-          for (final l in list('resourceLinks'))
-            (
-              documentId: l['documentId'] as String,
-              nodeId: l['nodeId'] as String,
-            ),
-        ],
+        resourceLinks: version < 2
+            ? _linksFromAnchors(nodes, items, anchors)
+            : [
+                for (final l in list('resourceLinks'))
+                  (
+                    documentId: l['documentId'] as String,
+                    nodeId: l['nodeId'] as String,
+                  ),
+              ],
         settings: settings,
         title: json['title'] as String?,
       );
@@ -234,6 +237,33 @@ final class VergerArchive {
     } catch (e) {
       throw ArchiveFormatException('Contenu invalide : $e');
     }
+  }
+
+  /// Archives antérieures aux rattachements : chaque PDF est rattaché à la
+  /// racine des arbres où il sert, comme lors de la migration de la base.
+  static List<ResourceLink> _linksFromAnchors(
+    List<KnowledgeNode> nodes,
+    List<KnowledgeItem> items,
+    List<Anchor> anchors,
+  ) {
+    final parent = {for (final n in nodes) n.id: n.parentId};
+    final nodeOf = {for (final i in items) i.id: i.nodeId};
+    String rootOf(String id) {
+      var current = id;
+      for (var i = 0; parent[current] != null && i < nodes.length; i++) {
+        current = parent[current]!;
+      }
+      return current;
+    }
+
+    final links = <ResourceLink>{};
+    for (final a in anchors) {
+      final node = nodeOf[a.itemId];
+      if (node != null && parent.containsKey(node)) {
+        links.add((documentId: a.documentId, nodeId: rootOf(node)));
+      }
+    }
+    return links.toList();
   }
 
   /// Vérifie la cohérence des références (parents, nœuds, connaissances).
