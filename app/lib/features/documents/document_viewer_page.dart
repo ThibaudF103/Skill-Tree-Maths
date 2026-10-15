@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:verger_core/verger_core.dart';
 import 'package:verger_data/verger_data.dart';
 
@@ -342,6 +343,12 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
                 });
               },
               onPageChanged: _onPageChanged,
+              onViewSizeChanged: _onViewSizeChanged,
+              onGeneralTap: _onGeneralTap,
+              // Liens du PDF : sommaire, renvois, notes de bas de page, web.
+              linkHandlerParams: _selecting
+                  ? null
+                  : PdfLinkHandlerParams(onLinkTap: _onLinkTap),
               pagePaintCallbacks: [
                 if (_searcher != null) _searcher!.pageTextMatchPaintCallback,
               ],
@@ -729,6 +736,119 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
         return Stack(children: children);
       },
     );
+  }
+
+  /// Ouverture / fermeture d'un panneau : la page garde la même part de la
+  /// largeur (une page ajustée à la largeur le reste) autour du même point.
+  void _onViewSizeChanged(
+    Size viewSize,
+    Size? oldViewSize,
+    PdfViewerController controller,
+  ) {
+    if (oldViewSize == null ||
+        oldViewSize.width <= 0 ||
+        (viewSize.width - oldViewSize.width).abs() < 1) {
+      return;
+    }
+    final center = controller.value.calcPosition(oldViewSize);
+    final zoom = controller.currentZoom * viewSize.width / oldViewSize.width;
+    // Pas pendant la construction : le rappel peut survenir en plein build.
+    Future<void>.delayed(const Duration(milliseconds: 50), () {
+      if (!mounted || !controller.isReady) return;
+      controller.goTo(
+        controller.calcMatrixFor(center, zoom: zoom),
+        duration: Duration.zero,
+      );
+    });
+  }
+
+  /// Appui long sur du texte : sélection du mot seul (pdfrx sélectionne un
+  /// « fragment », parfois une ligne entière dans les PDF sans espaces).
+  bool _onGeneralTap(
+    BuildContext context,
+    PdfViewerController controller,
+    PdfViewerGeneralTapHandlerDetails details,
+  ) {
+    if (_selecting ||
+        details.type != PdfViewerGeneralTapType.longPress ||
+        details.tapOn != PdfViewerPart.nonSelectedText) {
+      return false;
+    }
+    _selectWordAt(controller, details.documentPosition);
+    return true;
+  }
+
+  Future<void> _selectWordAt(
+    PdfViewerController controller,
+    Offset position,
+  ) async {
+    final delegate = controller.textSelectionDelegate;
+    await delegate.selectWord(position);
+    final range = delegate.textSelectionPointRange;
+    if (range == null || range.start.text != range.end.text) return;
+    final text = range.start.text;
+    final from = range.start.index;
+    final to = range.end.index + 1;
+    if (to - from <= 1 || to > text.charRects.length) return;
+    final pageIndex = text.pageNumber - 1;
+    final pageRect = controller.layout.pageLayouts[pageIndex];
+    final point = position
+        .translate(-pageRect.left, -pageRect.top)
+        .toPdfPoint(
+          page: controller.pages[pageIndex],
+          scaledPageSize: pageRect.size,
+        );
+    // Caractère sous le doigt, sinon le plus proche horizontalement.
+    var index = from;
+    var best = double.infinity;
+    for (var i = from; i < to; i++) {
+      final r = text.charRects[i];
+      final d = point.x < r.left
+          ? r.left - point.x
+          : point.x > r.right
+          ? point.x - r.right
+          : 0.0;
+      if (d < best) {
+        best = d;
+        index = i;
+      }
+    }
+    final (start, stop) = wordBounds(
+      text.fullText,
+      [
+        for (final r in text.charRects)
+          (left: r.left, right: r.right, height: r.top - r.bottom),
+      ],
+      index,
+      from: from,
+      to: to,
+    );
+    if (start == from && stop == to) return;
+    await delegate.setTextSelectionPointRange(
+      PdfTextSelectionRange.fromPoints(
+        PdfTextSelectionPoint(text, start),
+        PdfTextSelectionPoint(text, stop - 1),
+      ),
+    );
+  }
+
+  Future<void> _onLinkTap(PdfLink link) async {
+    final dest = link.dest;
+    if (dest != null) {
+      await _controller.goToDest(dest);
+      return;
+    }
+    final url = link.url;
+    if (url == null) return;
+    final ok = await launchUrl(
+      url,
+      mode: LaunchMode.externalApplication,
+    ).catchError((_) => false);
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Impossible d\'ouvrir $url')));
+    }
   }
 
   void _clearDrag() {

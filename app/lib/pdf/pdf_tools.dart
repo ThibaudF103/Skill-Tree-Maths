@@ -157,3 +157,38 @@ Future<String?> extractRegionText(PdfPage page, NormalizedRect region) async {
   final result = buffer.toString().replaceAll(RegExp(r'\s+'), ' ').trim();
   return result.isEmpty ? null : result;
 }
+
+/// Bornes `[début, fin[` du mot contenant le caractère [index], sans sortir
+/// de `[from, to[`. Un mot s'arrête aux espaces, à la ponctuation, ou à un
+/// écart visuel entre deux caractères (PDF sans caractères d'espace, où un
+/// « fragment » couvre parfois une ligne entière).
+(int, int) wordBounds(
+  String chars,
+  List<({double left, double right, double height})> boxes,
+  int index, {
+  int from = 0,
+  int? to,
+}) {
+  final end = to ?? chars.length;
+  bool separator(int i) => _wordSeparators.contains(chars[i]);
+  bool gap(int i) {
+    // Écart entre les caractères i et i + 1.
+    final a = boxes[i];
+    final b = boxes[i + 1];
+    final h = a.height > b.height ? a.height : b.height;
+    return b.left - a.right > 0.25 * h;
+  }
+
+  if (separator(index)) return (index, index + 1);
+  var start = index;
+  while (start > from && !separator(start - 1) && !gap(start - 1)) {
+    start--;
+  }
+  var stop = index + 1;
+  while (stop < end && !separator(stop) && !gap(stop - 1)) {
+    stop++;
+  }
+  return (start, stop);
+}
+
+const _wordSeparators = ' \t\r\n.,;:!?()[]{}«»"\'’';

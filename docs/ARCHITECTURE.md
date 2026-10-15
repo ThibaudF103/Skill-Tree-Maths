@@ -183,7 +183,11 @@ Indicateur séparé « à arroser » : échéance dépassée.
   (`documents.last_page`), panneau de notes à droite (écran partagé sur
   grand écran, plein écran sur téléphone) ouvert par le bouton, un balayage
   depuis le bord droit ou un marqueur de note sur la page. Encadrer une
-  zone → « Prendre une note sur cette zone ».
+  zone → « Prendre une note sur cette zone ». Liens du PDF actifs (renvois
+  internes via `goToDest`, liens web via url_launcher) ; l'appui long
+  sélectionne un mot (`wordBounds`, coupure aux écarts visuels pour les PDF
+  sans caractères d'espace) ; ouvrir un panneau garde la page ajustée à la
+  largeur.
 - **Depuis une note** : « Créer une connaissance » ou « Lier à une
   connaissance » ; la note devient le verso et, pour un cours, la zone
   devient le recto.
