@@ -17,70 +17,79 @@ class NotePage extends StatefulWidget {
 }
 
 class _NotePageState extends State<NotePage> {
-  Future<(Note?, SourceDocument?)>? _load;
+  Stream<Note?>? _note;
+  Future<SourceDocument?>? _document;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _load ??= () async {
-      final store = AppScope.of(context).store;
-      final note = await store.note(widget.noteId);
-      final documentId = note?.documentId;
-      final document = documentId == null
-          ? null
-          : await store.document(documentId);
-      return (note, document);
-    }();
+    final store = AppScope.of(context).store;
+    _note ??= store.watchNote(widget.noteId);
+    _document ??= store
+        .note(widget.noteId)
+        .then(
+          (n) => n?.documentId == null ? null : store.document(n!.documentId!),
+        );
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<(Note?, SourceDocument?)>(
-      future: _load,
-      builder: (context, snapshot) {
-        final (note, document) = snapshot.data ?? (null, null);
-        return Scaffold(
-          appBar: AppBar(
-            title: Text(
-              document == null
-                  ? 'Note'
-                  : 'Note · ${document.title} p. ${note?.page ?? '–'}',
+    return FutureBuilder<SourceDocument?>(
+      future: _document,
+      builder: (context, docSnapshot) => StreamBuilder<Note?>(
+        stream: _note,
+        builder: (context, snapshot) {
+          final note = snapshot.data;
+          final document = docSnapshot.data;
+          final loading =
+              !snapshot.hasData &&
+              snapshot.connectionState != ConnectionState.active;
+          return Scaffold(
+            appBar: AppBar(
+              title: Text(
+                document == null
+                    ? 'Note'
+                    : 'Note · ${document.title} p. ${note?.page ?? '–'}',
+              ),
+              actions: [
+                if (note != null && document != null)
+                  TextButton.icon(
+                    onPressed: () => Navigator.of(context).pushReplacement(
+                      MaterialPageRoute<void>(
+                        builder: (_) => DocumentViewerPage(
+                          documentId: document.id,
+                          initialPage: note.page,
+                          highlight: note.region,
+                          openNoteId: note.id,
+                        ),
+                      ),
+                    ),
+                    icon: const Icon(Icons.picture_as_pdf_outlined),
+                    label: const Text('Ouvrir avec le PDF'),
+                  ),
+              ],
             ),
-            actions: [
-              if (note != null && document != null)
-                TextButton.icon(
-                  onPressed: () => Navigator.of(context).pushReplacement(
-                    MaterialPageRoute<void>(
-                      builder: (_) => DocumentViewerPage(
-                        documentId: document.id,
-                        initialPage: note.page,
-                        highlight: note.region,
-                        openNoteId: note.id,
+            body: loading
+                ? const Center(child: CircularProgressIndicator())
+                : note == null
+                ? const Center(child: Text('Note supprimée'))
+                : Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 760),
+                      child: NoteEditor(
+                        // Même éditeur tant que c'est la même note : la
+                        // saisie en cours n'est pas perdue.
+                        key: ValueKey(note.id),
+                        note: note,
+                        document: document,
+                        onGoTo: null,
+                        onDeleted: () => Navigator.of(context).pop(),
                       ),
                     ),
                   ),
-                  icon: const Icon(Icons.picture_as_pdf_outlined),
-                  label: const Text('Ouvrir avec le PDF'),
-                ),
-            ],
-          ),
-          body: !snapshot.hasData
-              ? const Center(child: CircularProgressIndicator())
-              : note == null
-              ? const Center(child: Text('Note supprimée'))
-              : Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 760),
-                    child: NoteEditor(
-                      note: note,
-                      document: document,
-                      onGoTo: null,
-                      onDeleted: () => Navigator.of(context).pop(),
-                    ),
-                  ),
-                ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }

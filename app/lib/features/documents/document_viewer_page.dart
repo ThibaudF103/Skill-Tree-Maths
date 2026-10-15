@@ -8,6 +8,7 @@ import 'package:verger_data/verger_data.dart';
 
 import '../../app/app_scope.dart';
 import '../../pdf/pdf_tools.dart';
+import '../../ui/labels.dart';
 import '../items/item_detail_page.dart';
 import '../items/item_editor.dart';
 import '../notes/notes_panel.dart';
@@ -64,6 +65,7 @@ class DocumentViewerPage extends StatefulWidget {
 
 class _DocumentViewerPageState extends State<DocumentViewerPage> {
   final _controller = PdfViewerController();
+  final _viewerKey = GlobalKey();
 
   /// Créé une fois la visionneuse prête (il s'appuie sur le document).
   PdfTextSearcher? _searcher;
@@ -72,7 +74,8 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
   Future<Uint8List?>? _bytes;
   Stream<List<SourceDocument>>? _documents;
   Stream<List<Anchor>>? _anchors;
-  Stream<List<Note>>? _notes;
+  StreamSubscription<List<Note>>? _notesSubscription;
+  List<Note> _notes = const [];
   PdfDocument? _pdf;
   Future<List<PdfOutlineNode>>? _outline;
   Timer? _saveLastPage;
@@ -97,11 +100,14 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
     _bytes ??= _store.documentBytes(widget.documentId);
     _documents ??= _store.watchDocuments();
     _anchors ??= _store.watchAnchors(documentId: widget.documentId);
-    _notes ??= _store.watchNotes(documentId: widget.documentId);
+    _notesSubscription ??= _store
+        .watchNotes(documentId: widget.documentId)
+        .listen((notes) => setState(() => _notes = notes));
   }
 
   @override
   void dispose() {
+    _notesSubscription?.cancel();
     _saveLastPage?.cancel();
     final page = _page;
     if (page != null) _store.setLastPage(widget.documentId, page);
@@ -202,18 +208,15 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
               }),
             ),
           ),
-          StreamBuilder<List<Note>>(
-            stream: _notes,
-            builder: (context, notes) => IconButton(
-              tooltip: 'Notes',
-              isSelected: _notesOpen,
-              icon: Badge(
-                isLabelVisible: (notes.data?.length ?? 0) > 0,
-                label: Text('${notes.data?.length ?? 0}'),
-                child: const Icon(Icons.edit_note),
-              ),
-              onPressed: () => setState(() => _notesOpen = !_notesOpen),
+          IconButton(
+            tooltip: 'Notes',
+            isSelected: _notesOpen,
+            icon: Badge(
+              isLabelVisible: _notes.isNotEmpty,
+              label: Text('${_notes.length}'),
+              child: const Icon(Icons.edit_note),
             ),
+            onPressed: () => setState(() => _notesOpen = !_notesOpen),
           ),
           const SizedBox(width: 4),
         ],
@@ -239,67 +242,66 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
               ),
             );
           }
-          return StreamBuilder<List<Note>>(
-            stream: _notes,
-            builder: (context, notesSnapshot) {
-              final notes = notesSnapshot.data ?? const <Note>[];
-              final viewer = _buildViewer(context, document, bytes, notes);
-              final notesPanel = GestureDetector(
-                onHorizontalDragEnd: (d) {
-                  if ((d.primaryVelocity ?? 0) > 300) {
-                    setState(() => _notesOpen = false);
-                  }
-                },
-                child: NotesPanel(
-                  document: document,
-                  notes: notes,
-                  activeNoteId: _activeNote,
-                  currentPage: _page ?? 1,
-                  onSelect: (id) => setState(() => _activeNote = id),
-                  onClose: () => setState(() => _notesOpen = false),
-                  onGoTo: (page, _) => _controller.goToPage(pageNumber: page),
-                ),
-              );
-              final side = _side == _SidePanel.none
-                  ? null
-                  : _buildSidePanel(context, document);
-              return Column(
-                children: [
-                  if (_searching) _buildSearchBar(context),
-                  Expanded(
-                    child: wide
-                        ? Row(
-                            children: [
-                              if (side != null) ...[
-                                SizedBox(width: 200, child: side),
-                                const VerticalDivider(width: 1),
-                              ],
-                              Expanded(child: viewer),
-                              if (_notesOpen) ...[
-                                const VerticalDivider(width: 1),
-                                SizedBox(width: 380, child: notesPanel),
-                              ],
-                            ],
-                          )
-                        : Stack(
-                            children: [
-                              viewer,
-                              if (side != null)
-                                Positioned(
-                                  left: 0,
-                                  top: 0,
-                                  bottom: 0,
-                                  width: 200,
-                                  child: Material(elevation: 4, child: side),
-                                ),
-                              if (_notesOpen)
-                                Positioned.fill(child: notesPanel),
-                            ],
-                          ),
-                  ),
-                ],
-              );
+          final notes = _notes;
+          // Clé globale : la visionneuse garde son état (page, zoom) quand la
+          // mise en page change (rotation, redimensionnement).
+          final viewer = KeyedSubtree(
+            key: _viewerKey,
+            child: _buildViewer(context, document, bytes, notes),
+          );
+          final notesPanel = GestureDetector(
+            onHorizontalDragEnd: (d) {
+              if ((d.primaryVelocity ?? 0) > 300) {
+                setState(() => _notesOpen = false);
+              }
             },
+            child: NotesPanel(
+              document: document,
+              notes: notes,
+              activeNoteId: _activeNote,
+              currentPage: _page ?? 1,
+              onSelect: (id) => setState(() => _activeNote = id),
+              onClose: () => setState(() => _notesOpen = false),
+              onGoTo: (page, _) => _controller.goToPage(pageNumber: page),
+            ),
+          );
+          final side = _side == _SidePanel.none
+              ? null
+              : _buildSidePanel(context, document);
+          return Column(
+            children: [
+              if (_searching) _buildSearchBar(context),
+              Expanded(
+                child: wide
+                    ? Row(
+                        children: [
+                          if (side != null) ...[
+                            SizedBox(width: 200, child: side),
+                            const VerticalDivider(width: 1),
+                          ],
+                          Expanded(child: viewer),
+                          if (_notesOpen) ...[
+                            const VerticalDivider(width: 1),
+                            SizedBox(width: 380, child: notesPanel),
+                          ],
+                        ],
+                      )
+                    : Stack(
+                        children: [
+                          viewer,
+                          if (side != null)
+                            Positioned(
+                              left: 0,
+                              top: 0,
+                              bottom: 0,
+                              width: 200,
+                              child: Material(elevation: 4, child: side),
+                            ),
+                          if (_notesOpen) Positioned.fill(child: notesPanel),
+                        ],
+                      ),
+              ),
+            ],
           );
         },
       ),
@@ -373,12 +375,12 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
               child: Chip(label: Text('p. $_page / ${document.pageCount}')),
             ),
           // Balayer depuis le bord droit ouvre les notes.
-          if (!_notesOpen)
+          if (!_notesOpen && !_selecting)
             Positioned(
               right: 0,
               top: 0,
               bottom: 0,
-              width: 24,
+              width: 16,
               child: GestureDetector(
                 behavior: HitTestBehavior.translucent,
                 onHorizontalDragEnd: (d) {
@@ -794,7 +796,6 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
     if (action == null || !mounted) return;
 
     final snapshot = await renderRegionPng(page, region);
-    final text = isCourse ? await extractRegionText(page, region) : null;
     if (!mounted) return;
 
     if (action == 'note') {
@@ -813,6 +814,8 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
       return;
     }
 
+    final text = isCourse ? await extractRegionText(page, region) : null;
+    if (!mounted) return;
     KnowledgeItem? item = target;
     if (target != null) {
       // Connaissance déjà choisie.
@@ -869,17 +872,6 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
       MaterialPageRoute<void>(builder: (_) => ItemDetailPage(itemId: itemId)),
     );
   }
-}
-
-/// Première phrase du texte extrait, raccourcie : bon titre par défaut.
-String? suggestTitle(String? text) {
-  if (text == null) return null;
-  final sentence = text
-      .split(RegExp(r'(?<=[.:])\s'))
-      .first
-      .trim()
-      .replaceFirst(RegExp(r'[.:]$'), '');
-  return sentence.length <= 80 ? sentence : '${sentence.substring(0, 77)}…';
 }
 
 class _NoteMarker extends StatelessWidget {

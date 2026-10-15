@@ -129,4 +129,51 @@ void main() {
     expect((await store.notes()).map((n) => n.body), [r'$$\int_0^1 f$$']);
     await other.close();
   });
+
+  test('mise à jour du PDF : les notes suivent leurs pages', () async {
+    Uint8List page(int seed) {
+      final pixels = Uint8List(fingerprintSide * fingerprintSide)
+        ..fillRange(0, fingerprintSide * fingerprintSide, 250);
+      for (var i = 0; i < 40; i++) {
+        pixels[(seed * 97 + i * 31) % pixels.length] = 60;
+      }
+      return pixels;
+    }
+
+    final notes = await store.importDocument(
+      title: 'Carnet',
+      role: DocumentRole.notes,
+      bytes: Uint8List(1),
+      contentHash: 'v1',
+      fingerprints: [page(1), page(2), page(3)],
+    );
+    final onPage3 = await store.createNote(
+      body: 'p3',
+      documentId: notes.id,
+      page: 3,
+    );
+    final free = await store.createNote(body: 'libre', documentId: notes.id);
+    // Deux pages insérées au début.
+    await store.updateDocument(
+      notes.id,
+      bytes: Uint8List(1),
+      contentHash: 'v2',
+      fingerprints: [page(8), page(9), page(1), page(2), page(3)],
+    );
+    expect((await store.note(onPage3.id))!.page, 5);
+    expect((await store.note(free.id))!.page, isNull);
+  });
+
+  test('watchNote suit les modifications et la suppression', () async {
+    final note = await store.createNote(body: 'a');
+    final values = <String?>[];
+    final sub = store.watchNote(note.id).listen((n) => values.add(n?.body));
+    await pumpEventQueue();
+    await store.updateNote(note.id, body: 'b');
+    await pumpEventQueue();
+    await store.deleteNote(note.id);
+    await pumpEventQueue();
+    await sub.cancel();
+    expect(values, ['a', 'b', null]);
+  });
 }

@@ -276,9 +276,11 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
                             color: theme.colorScheme.surfaceContainerLow,
                             borderRadius: BorderRadius.circular(16),
                           ),
-                          child: MathText(
-                            item.body!,
-                            style: theme.textTheme.bodyLarge,
+                          child: SelectionArea(
+                            child: MathText(
+                              item.body!,
+                              style: theme.textTheme.bodyLarge,
+                            ),
                           ),
                         )
                       else if (!_anchors.any(

@@ -102,9 +102,7 @@ class MathText extends StatelessWidget {
 
     void flushInline() {
       if (inline.isEmpty) return;
-      // Retire les sauts de ligne qui entourent une formule centrée.
-      final spans = inline;
-      blocks.add(Text.rich(TextSpan(children: spans), style: style));
+      blocks.add(Text.rich(TextSpan(children: inline), style: style));
       inline = [];
     }
 

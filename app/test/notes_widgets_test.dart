@@ -212,4 +212,20 @@ void main() {
     expect(find.textContaining('Note liée'), findsOneWidget);
     await unmountTestApp(tester);
   });
+
+  testWidgets('une note créée puis laissée vide est supprimée', (tester) async {
+    final store = await pumpTestApp(tester, seed: seedItem);
+    await tester.tap(find.text('Arbres'));
+    await settle(tester);
+    await tester.tap(find.text('Cayley-Hamilton'));
+    await settle(tester);
+    await tester.ensureVisible(find.text('Nouvelle note'));
+    await tester.tap(find.text('Nouvelle note'));
+    await settle(tester);
+    await tester.pageBack();
+    await settle(tester);
+    expect(await tester.runAsync(store.notes), isEmpty);
+    expect(find.text('Note vide'), findsNothing);
+    await unmountTestApp(tester);
+  });
 }

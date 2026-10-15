@@ -144,7 +144,12 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                   ),
                   if (item.body != null) ...[
                     const SizedBox(height: 20),
-                    MathText(item.body!, style: theme.textTheme.bodyLarge),
+                    SelectionArea(
+                      child: MathText(
+                        item.body!,
+                        style: theme.textTheme.bodyLarge,
+                      ),
+                    ),
                   ],
                   const SizedBox(height: 28),
                   _Section(

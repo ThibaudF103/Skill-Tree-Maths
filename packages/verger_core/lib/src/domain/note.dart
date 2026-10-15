@@ -43,15 +43,19 @@ final class Note {
   final DateTime createdAt;
   final DateTime updatedAt;
 
-  /// Première ligne non vide, sans LaTeX : titre lisible.
-  String get headline {
-    for (final line in body.split('\n')) {
-      final text = line
-          .replaceAll(r'$', '')
-          .replaceFirst(RegExp(r'^\s*([#>]+|[-*]\s)\s*'), '')
-          .trim();
-      if (text.isNotEmpty) return text;
-    }
-    return '';
+  /// Première ligne non vide, sans `$` ni puce : titre lisible.
+  String get headline => noteHeadline(body);
+}
+
+/// Première ligne non vide d'un texte, sans `$` ni marque de liste ou de
+/// titre Markdown.
+String noteHeadline(String body) {
+  for (final line in body.split('\n')) {
+    final text = line
+        .replaceAll(r'$', '')
+        .replaceFirst(RegExp(r'^\s*([#>]+|[-*]\s)\s*'), '')
+        .trim();
+    if (text.isNotEmpty) return text;
   }
+  return '';
 }

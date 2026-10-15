@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart' show StringCharacters;
 import 'package:verger_core/verger_core.dart';
 
 /// Libellés français de l'interface.
@@ -105,4 +106,22 @@ String formatElapsed(Duration d) {
   if (d.inSeconds < 60) return '${d.inSeconds} s';
   if (d.inMinutes < 60) return '${d.inMinutes} min';
   return '${d.inHours} h ${(d.inMinutes % 60).toString().padLeft(2, '0')}';
+}
+
+/// Raccourcit un titre à [max] caractères (points de suspension).
+String shortenTitle(String text, {int max = 80}) {
+  final chars = text.trim().characters;
+  return chars.length <= max ? chars.toString() : '${chars.take(max - 1)}…';
+}
+
+/// Première phrase d'un texte extrait d'un PDF, raccourcie : bon titre par
+/// défaut pour une connaissance.
+String? suggestTitle(String? text) {
+  if (text == null) return null;
+  final sentence = text
+      .split(RegExp(r'(?<=[.:])\s'))
+      .first
+      .trim()
+      .replaceFirst(RegExp(r'[.:]$'), '');
+  return shortenTitle(sentence);
 }

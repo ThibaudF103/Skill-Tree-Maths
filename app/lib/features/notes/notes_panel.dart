@@ -6,6 +6,7 @@ import 'package:verger_data/verger_data.dart';
 
 import '../../app/app_scope.dart';
 import '../../ui/dialogs.dart';
+import '../../ui/labels.dart';
 import '../../ui/math_text.dart';
 import '../documents/pickers.dart';
 import '../items/item_detail_page.dart';
@@ -210,6 +211,9 @@ class NoteEditor extends StatefulWidget {
 
 class _NoteEditorState extends State<NoteEditor> {
   late final _text = TextEditingController(text: widget.note.body);
+
+  /// Dernier texte enregistré (la note reçue peut être ancienne).
+  late String _saved = widget.note.body;
   Timer? _save;
   late VergerStore _store;
 
@@ -233,14 +237,23 @@ class _NoteEditorState extends State<NoteEditor> {
   Future<void> _flush() async {
     _save?.cancel();
     _save = null;
-    if (_text.text != widget.note.body) {
-      await _store.updateNote(widget.note.id, body: _text.text);
+    final text = _text.text;
+    if (text != _saved) {
+      _saved = text;
+      await _store.updateNote(widget.note.id, body: text);
     }
   }
 
   @override
   void dispose() {
-    if (_save != null) _flush();
+    // Une note sans texte ni zone n'a rien à garder : on ne laisse pas de
+    // notes vides derrière soi.
+    if (_text.text.trim().isEmpty && widget.note.region == null) {
+      _save?.cancel();
+      _store.deleteNote(widget.note.id);
+    } else if (_save != null) {
+      _flush();
+    }
     _text.dispose();
     super.dispose();
   }
@@ -250,19 +263,11 @@ class _NoteEditorState extends State<NoteEditor> {
     if (!mounted) return;
     final node = await pickNode(context, title: 'Dans quelle branche ?');
     if (node == null || !mounted) return;
-    final headline = Note(
-      id: '',
-      body: _text.text,
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-    ).headline;
     final item = await showItemEditor(
       context,
       nodeId: node.id,
       family: ItemFamily.statement,
-      initialTitle: headline.length <= 80
-          ? headline
-          : headline.substring(0, 80),
+      initialTitle: shortenTitle(noteHeadline(_text.text)),
     );
     if (item == null) return;
     await _linkTo(item);

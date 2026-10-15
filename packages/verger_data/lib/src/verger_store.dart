@@ -354,6 +354,17 @@ class VergerStore {
       }
     }
 
+    // Les notes suivent leurs pages ; une page introuvable garde son numéro.
+    for (final note in await _notesQuery(documentId: id).get()) {
+      final page = note.page;
+      final target = page == null ? null : remap.matches[page]?.page;
+      if (target != null && target != page) {
+        await (_db.update(_db.notes)..where((n) => n.id.equals(note.id))).write(
+          NotesCompanion(page: Value(target)),
+        );
+      }
+    }
+
     await (_db.update(_db.documents)..where((d) => d.id.equals(id))).write(
       DocumentsCompanion(
         pageCount: Value(fingerprints.length),
@@ -458,6 +469,12 @@ class VergerStore {
     )..where((n) => n.id.equals(id))).getSingleOrNull();
     return row == null ? null : _toNote(row);
   }
+
+  /// Suit une note (`null` si elle est supprimée).
+  Stream<Note?> watchNote(String id) =>
+      (_db.select(_db.notes)..where((n) => n.id.equals(id)))
+          .watchSingleOrNull()
+          .map((row) => row == null ? null : _toNote(row));
 
   /// Notes d'un PDF (par page puis date) ou d'une connaissance.
   Future<List<Note>> notes({String? documentId, String? itemId}) async =>
