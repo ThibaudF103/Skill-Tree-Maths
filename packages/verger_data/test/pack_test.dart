@@ -113,6 +113,17 @@ void main() {
     expect(await target.allItems(), hasLength(2));
   });
 
+  test('import sans le PDF, fichier joint ensuite', () async {
+    final target = newStore();
+    addTearDown(target.close);
+    await target.importPack(pack);
+    final doc = (await target.allDocuments()).single;
+    expect(await target.documentBytes(doc.id), isNull);
+    expect(await target.attachDocumentFile(doc.id, Uint8List(2)), isTrue);
+    expect(await target.attachDocumentFile(doc.id, Uint8List(5)), isFalse);
+    expect(await target.documentBytes(doc.id), Uint8List(2));
+  });
+
   test('PDF téléchargé d\'une autre version : ancres recalées', () async {
     final target = newStore();
     addTearDown(target.close);
