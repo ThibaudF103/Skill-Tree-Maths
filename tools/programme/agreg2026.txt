@@ -1,0 +1,618 @@
+% Programme de l'agrégation externe de mathématiques, session 2026.
+% Une ligne « # » : arbre ; « ## » : branche ; « ### » : sous-branche ;
+% « % » : commentaire.
+% Connaissances : d définition, t théorème, p proposition, l lemme,
+% c corollaire, s énoncé (propriété, formule, méthode), x exercice
+% (application, exemple à savoir traiter).
+
+# 1 Algèbre linéaire
+## 1.1 Espaces vectoriels
+### (a) Espaces vectoriels et applications linéaires
+d Espace vectoriel, application linéaire
+d Produit d'espaces vectoriels
+d Sous-espace vectoriel ; image et noyau d'une application linéaire
+d Espace quotient
+d Somme de sous-espaces, somme directe, supplémentaires
+d Familles libres, familles génératrices, bases
+d Algèbre des endomorphismes L(E), groupe linéaire GL(E)
+### (b) Sous-espaces stables, éléments propres
+d Sous-espace stable par un endomorphisme
+d Valeur propre, vecteur propre, sous-espace propre
+d Polynômes d'endomorphismes
+l Lemme des noyaux
+## 1.2 Espaces vectoriels de dimension finie
+### (a) Dimension, rang, dualité
+t Existence de bases ; isomorphisme avec K^n
+t Existence de supplémentaires d'un sous-espace
+d Rang d'une application linéaire, d'un système de vecteurs
+t Théorème du rang
+d Espace dual, base duale
+d Rang d'un système d'équations linéaires
+d Transposée d'une application linéaire
+t Bidualité : E ≅ E** en dimension finie
+d Orthogonalité dans la dualité
+### (b) Applications multilinéaires, déterminant
+d Applications multilinéaires (alternées)
+d Déterminant d'un système de vecteurs, d'un endomorphisme
+d Groupe spécial linéaire SL(E)
+d Orientation d'un R-espace vectoriel
+### (c) Matrices, pivot de Gauss
+d Matrices à coefficients dans un anneau commutatif
+s Opérations élémentaires sur les lignes et les colonnes
+p Inversibilité d'une matrice sur un anneau commutatif (déterminant inversible)
+d Rang d'une matrice
+s Représentation matricielle d'une application linéaire ; changement de base
+s Méthode du pivot de Gauss
+d Matrices échelonnées
+x Pivot de Gauss : résolution de systèmes, déterminants, inverses, rang, équations d'un sous-espace
+### (d) Réduction des endomorphismes
+d Polynôme caractéristique
+d Polynômes annulateurs, polynôme minimal
+t Théorème de Cayley-Hamilton
+t Critères de diagonalisabilité
+t Critères de trigonalisabilité
+d Endomorphisme nilpotent
+d Sous-espaces caractéristiques
+t Décomposition de Dunford
+d Exponentielle d'une matrice réelle ou complexe
+
+# 2 Groupes
+## (a) Groupes, sous-groupes, actions
+d Groupe, morphisme de groupes
+d Produit direct de groupes
+d Sous-groupe, sous-groupe engendré par une partie
+d Ordre d'un élément
+d Sous-groupe distingué, groupe quotient
+d Action d'un groupe sur un ensemble
+d Stabilisateur, orbite, espace quotient
+s Formule des classes
+d Classes de conjugaison
+x Groupes d'isométries des polytopes réguliers en dimensions 2 et 3
+## (b) Groupes cycliques, groupes abéliens finis
+d Groupe cyclique
+t Structure des groupes abéliens finis
+d Groupe des racines n-ièmes de l'unité, racines primitives
+## (c) Groupe symétrique
+d Groupe des permutations d'un ensemble fini
+t Décomposition d'une permutation en produit de transpositions
+t Décomposition en produit de cycles à supports disjoints
+d Signature d'une permutation
+d Groupe alterné
+x Application de la signature aux déterminants
+## (d) Groupes classiques
+d Groupe général linéaire, groupe spécial linéaire
+d Groupe orthogonal, groupe spécial orthogonal
+d Groupe unitaire, groupe spécial unitaire
+
+# 3 Anneaux, corps et polynômes
+## (a) Anneaux et idéaux
+d Anneau unitaire, morphisme d'anneaux, sous-anneau
+s L'anneau Z des entiers relatifs
+d Produit d'anneaux
+d Idéal d'un anneau commutatif, anneau quotient
+d Idéal premier, idéal maximal
+t Théorème chinois
+d Algèbre associative sur un anneau commutatif
+## (b) Polynômes
+d Algèbre des polynômes à une ou plusieurs indéterminées
+d Racine d'un polynôme, multiplicité
+s Relations entre coefficients et racines d'un polynôme scindé
+s Sommes de Newton
+d Polynôme dérivé
+s Formule de Taylor pour les polynômes (caractéristique nulle)
+s Décomposition en somme de polynômes homogènes
+d Polynômes symétriques
+## (c) Corps et extensions
+d Corps, sous-corps
+d Caractéristique, morphisme de Frobenius
+d Extension de corps
+d Corps des fractions d'un anneau intègre
+s Les corps Q, R et C
+t Théorème de d'Alembert-Gauss
+d Élément algébrique, élément transcendant
+d Extension algébrique
+d Corps algébriquement clos
+d Corps de rupture, corps de décomposition
+t Corps finis : existence et unicité
+## (d) Arithmétique dans les anneaux
+d Divisibilité dans un anneau intègre ; éléments inversibles, irréductibles
+d Éléments premiers entre eux
+d Anneau factoriel
+d PGCD, PPCM
+t Factorialité de A[X] pour A factoriel
+d Anneau principal
+t Théorème de Bézout
+d Anneau euclidien
+s Algorithme d'Euclide
+s Arithmétique de Z et de K[X]
+d Polynôme irréductible
+d Polynômes cyclotomiques ; irréductibilité sur Q
+t Critère d'Eisenstein
+## (e) Congruences, Z/nZ
+d Congruences dans Z
+d Nombres premiers
+s Structure de l'anneau Z/nZ ; ses éléments inversibles
+d Fonction indicatrice d'Euler
+## (f) Fractions rationnelles
+d Corps des fractions rationnelles K(X)
+t Décomposition en éléments simples (cas réel et complexe)
+
+# 4 Formes bilinéaires et quadratiques
+## (a) Formes bilinéaires
+d Forme bilinéaire, forme bilinéaire alternée
+d Forme bilinéaire symétrique, forme quadratique, forme polaire
+d Orthogonalité ; interprétation géométrique
+d Forme non dégénérée
+d Adjoint d'un endomorphisme
+s Représentation matricielle, changement de base
+d Rang d'une forme bilinéaire
+## (b) Orthogonalité, classification
+d Sous-espace isotrope
+t Décomposition d'une forme quadratique en somme de carrés (Gauss)
+t Théorème d'inertie de Sylvester
+t Classification des formes quadratiques sur R et sur C
+s Procédés d'orthogonalisation (Gram-Schmidt)
+## (c) Espaces euclidiens et hermitiens
+d Espace euclidien, espace hermitien
+t Isomorphisme d'un espace euclidien avec son dual
+t Supplémentaire orthogonal
+t Inégalité de Cauchy-Schwarz
+d Norme euclidienne
+t Existence de bases orthonormales
+## (d) Groupe orthogonal, endomorphismes symétriques
+d Groupe orthogonal, groupe spécial orthogonal
+t Décomposition d'un automorphisme orthogonal en produit de réflexions
+d Endomorphisme symétrique, endomorphisme normal
+t Théorème spectral : diagonalisation des endomorphismes symétriques
+t Décomposition en valeurs singulières (matrices réelles)
+t Réduction simultanée de deux formes quadratiques réelles (l'une définie positive)
+t Décomposition polaire dans GL(n, R)
+t Classification des éléments de O(2, R)
+t Classification des éléments de O(3, R)
+d Produit mixte, produit vectoriel
+## (e) Groupe unitaire
+d Groupe unitaire, groupe spécial unitaire
+t Diagonalisation des endomorphismes normaux
+t Décomposition polaire dans GL(n, C)
+
+# 5 Géométries affine et euclidienne
+## (a) Géométrie affine
+d Espace affine, espace vectoriel associé
+d Application affine, application linéaire associée
+d Sous-espace affine
+d Barycentre
+d Repère affine ; équations d'un sous-espace affine
+d Groupe affine ; propriété affine
+d Groupe des homothéties-translations ; affinités
+d Partie convexe, enveloppe convexe
+d Point extrémal
+## (b) Isométries
+d Isométrie d'un espace affine euclidien ; groupe des isométries
+d Déplacement, antidéplacement
+d Similitudes directes et indirectes du plan
+t Classification des isométries en dimension 2
+t Classification des isométries en dimension 3
+## (c) Angles
+d Angles de vecteurs, angles de droites
+t Théorème de l'angle inscrit
+s Cocyclicité
+## (d) Isométries et figures
+s Groupe des isométries laissant stable une partie
+d Polygones réguliers
+s Relations métriques dans le triangle
+s Nombres complexes et géométrie plane
+## (e) Coniques et quadriques
+s Coniques propres du plan euclidien : foyer, excentricité
+s Quadriques de l'espace euclidien de dimension 3
+
+# 6 Analyse à une variable réelle
+## 6.1 Nombres réels
+d Le corps R ; topologie de R
+t Sous-groupes additifs de R
+d Suite réelle convergente, valeur d'adhérence
+x Suites récurrentes
+d Limites inférieure et supérieure
+d Suite de Cauchy
+t Complétude de R
+t Théorème de Bolzano-Weierstrass
+t Parties compactes de R
+t Parties connexes de R (intervalles)
+## 6.2 Séries numériques
+d Série convergente
+s Séries géométriques, séries de Riemann
+s Séries à termes positifs : critères de comparaison
+t Sommation des relations de comparaison
+t Comparaison série-intégrale
+s Estimation des restes
+d Convergence absolue
+t Produit de Cauchy de séries
+t Critère des séries alternées
+## 6.3 Fonctions d'une variable réelle
+### (a) Continuité
+d Limite, continuité
+t Théorème des valeurs intermédiaires
+t Image continue d'un segment
+t Continuité des fonctions monotones
+t Continuité d'une fonction réciproque
+### (b) Dérivabilité
+d Dérivée en un point, fonction dérivable
+s Dérivée d'une composée, d'une réciproque
+t Théorème de Rolle
+t Théorème des accroissements finis
+s Étude des variations d'une fonction
+d Fonctions de classe C^k, de classe C^k par morceaux
+s Formule de Leibniz
+t Formule de Taylor-Young
+t Formule de Taylor avec reste intégral
+t Formule de Taylor-Lagrange
+x Calcul de développements limités et asymptotiques
+## 6.4 Fonctions usuelles
+s Fonctions polynômes et rationnelles
+s Logarithmes, exponentielles, fonctions puissances
+s Fonctions circulaires et hyperboliques
+s Fonctions circulaires et hyperboliques réciproques
+## 6.5 Intégration
+### (a) Intégrale sur un segment
+d Intégrale des fonctions continues par morceaux sur un segment
+t Sommes de Riemann
+t Primitives d'une fonction continue
+t Changement de variable
+t Intégration par parties
+x Calcul de primitives et d'intégrales
+### (b) Intégrales généralisées
+d Intégrale généralisée, absolument convergente
+t Intégration des relations de comparaison
+d Intégrale semi-convergente
+## 6.6 Suites et séries de fonctions
+d Convergence simple, convergence uniforme
+t Continuité de la limite uniforme
+t Dérivabilité de la limite
+d Convergence normale d'une série de fonctions
+t Théorème d'approximation de Weierstrass (polynomial)
+t Théorème de Weierstrass trigonométrique
+## 6.7 Convexité
+d Fonction convexe d'une variable réelle
+t Continuité et dérivabilité des fonctions convexes
+t Caractérisations de la convexité
+s Inégalités de convexité
+
+# 7 Analyse à une variable complexe
+## 7.1 Séries entières
+### (a) Rayon de convergence
+d Rayon de convergence
+t Continuité de la somme sur le disque de convergence
+t Dérivabilité complexe de la somme ; primitives
+### (b) Exponentielle complexe
+d Exponentielle complexe ; propriétés
+d Fonctions circulaires sur C
+s Développements en série entière des fonctions usuelles
+## 7.2 Fonctions d'une variable complexe
+### (a) Holomorphie
+d Fonction holomorphe
+t Conditions de Cauchy-Riemann
+d Intégrale le long d'un chemin C^1 par morceaux
+s Primitives d'une fonction holomorphe
+d Déterminations du logarithme
+t Holomorphie sous le signe intégrale
+### (b) Indice
+d Indice d'un chemin fermé par rapport à un point
+### (c) Formules de Cauchy
+t Formules de Cauchy
+t Analyticité des fonctions holomorphes
+t Principe des zéros isolés
+t Principe du prolongement analytique
+t Principe du maximum
+### (d) Singularités, résidus
+d Singularité isolée
+t Développement en série de Laurent
+d Fonction méromorphe
+t Théorème des résidus
+### (e) Suites de fonctions holomorphes
+t Stabilité de l'holomorphie par convergence uniforme (Weierstrass)
+
+# 8 Topologie
+## 8.1 Espaces métriques
+### (a) Topologie d'un espace métrique
+d Espace métrique, ouverts, fermés
+d Topologie induite
+d Produit fini d'espaces métriques
+### (b) Suites et continuité
+d Suite convergente, valeur d'adhérence
+d Application continue, homéomorphisme
+### (c) Compacité, connexité
+d Compacité : Bolzano-Weierstrass et Borel-Lebesgue
+t Équivalence des deux définitions de la compacité (espaces métriques)
+d Connexité, composantes connexes
+d Connexité par arcs
+### (d) Continuité uniforme
+d Application lipschitzienne, uniformément continue
+t Théorème de Heine
+### (e) Complétude
+d Espace métrique complet
+t Théorème du point fixe de Banach-Picard
+## 8.2 Espaces vectoriels normés
+### (a) Normes
+d Norme, topologie d'un espace vectoriel normé
+d Normes équivalentes
+t Équivalence des normes en dimension finie
+s Normes p sur R^n et C^n
+d Espace de Banach
+t Séries absolument convergentes dans un espace de Banach
+### (b) Applications linéaires continues
+t Caractérisation des applications linéaires continues
+d Norme subordonnée d'une application linéaire continue
+### (c) Convergence uniforme
+d Norme de la convergence uniforme
+t Complétude de l'espace des fonctions continues bornées à valeurs dans un Banach
+### (d) Compacité dans les evn
+t Théorème de Riesz
+t Théorème d'Ascoli
+## 8.3 Espaces de Hilbert
+### (a) Espaces préhilbertiens
+d Espace préhilbertien, espace de Hilbert
+### (b) Projections
+t Projection sur un convexe fermé
+t Projection orthogonale sur un sous-espace fermé
+### (c) Dualité, bases hilbertiennes
+t Théorème de représentation de Riesz
+s Les espaces l² et L²
+d Base hilbertienne (cas séparable)
+x Bases de polynômes trigonométriques et de polynômes orthogonaux
+
+# 9 Calcul différentiel
+## 9.1 Fonctions différentiables
+### (a) Différentielle
+d Application différentiable, différentielle
+d Dérivée selon un vecteur
+### (b) Dérivées partielles
+d Dérivées partielles, matrice jacobienne, gradient
+t Différentielle d'une composée
+t Inégalité des accroissements finis
+d Application de classe C^1
+### (c) Ordre supérieur
+d Applications de classe C^k ; dérivées partielles d'ordre k
+t Théorème de Schwarz
+d Matrice hessienne
+t Formules de Taylor (Young, reste intégral) en plusieurs variables
+### (d) Étude locale
+s Développements limités en plusieurs variables
+t Conditions nécessaires et suffisantes d'extremum local
+### (e) Convexité
+d Fonction convexe de plusieurs variables
+t Caractérisations de la convexité des fonctions C^1 et C^2
+### (f) Inversion locale
+d Difféomorphisme
+t Théorème d'inversion locale
+t Théorème des fonctions implicites
+## 9.2 Équations différentielles
+### (a) Théorie générale
+d Équation différentielle X' = f(t, X), solution maximale
+t Théorème de Cauchy-Lipschitz
+l Lemme de Grönwall
+t Théorème de sortie de tout compact
+### (b) Équations autonomes
+d Équation autonome, portrait de phase
+t Stabilité des points d'équilibre (théorème de linéarisation)
+### (c) Systèmes linéaires
+d Système différentiel linéaire
+s Variation des constantes (formule de Duhamel)
+s Cas des coefficients constants
+x Équations différentielles linéaires d'ordre supérieur
+## 9.3 Géométrie différentielle
+### (a) Sous-variétés
+d Sous-variété de R^n (graphe, paramétrisation, équation locales)
+t Équivalence des définitions d'une sous-variété
+d Espace tangent
+s Gradient et espace tangent
+s Surfaces de R³ : position par rapport au plan tangent
+### (b) Courbes
+x Construction de courbes planes paramétrées
+d Abscisse curviligne, longueur d'un arc C^1
+### (c) Extrema liés
+t Théorème des extrema liés (multiplicateurs de Lagrange)
+
+# 10 Calcul intégral
+## 10.1 Théorie de la mesure
+d Espace mesurable, tribu
+d Tribu produit, tribu borélienne
+d Mesure positive
+s Mesure de comptage, mesure de Lebesgue, mesures de probabilité
+d Mesure produit
+d Fonction mesurable
+t Approximation par des fonctions étagées
+## 10.2 Intégration
+### (a) Théorèmes de convergence
+d Intégrale des fonctions mesurables positives
+t Théorème de convergence monotone
+l Lemme de Fatou
+d Fonction intégrable
+t Théorème de convergence dominée
+### (b) Intégrales à paramètre
+d Fonctions intégrables à valeurs vectorielles
+t Continuité des intégrales à paramètre
+t Dérivabilité des intégrales à paramètre
+### (c) Espaces L^p
+d Espaces L^p (1 ≤ p ≤ ∞)
+t Inégalité de Hölder
+t Complétude des espaces L^p
+### (d) Fubini, changement de variables
+t Théorème de Fubini
+t Changement de variables dans une intégrale multiple
+x Coordonnées polaires et sphériques
+### (e) Convolution
+d Produit de convolution
+t Régularisation et approximation par convolution
+## 10.3 Analyse de Fourier
+### (a) Séries de Fourier
+d Coefficients et série de Fourier d'une fonction périodique
+l Lemme de Riemann-Lebesgue
+d Convolution des fonctions périodiques
+t Théorème de Dirichlet
+t Théorème de Fejér
+t Théorème de Parseval
+### (b) Transformée de Fourier
+d Transformée de Fourier sur L¹(R^d)
+d Espace de Schwartz
+t Théorème de Plancherel ; transformée de Fourier sur L²
+s Transformée de Fourier et convolution ; règles de calcul
+t Formule d'inversion de Fourier
+x Transformée de Fourier de la gaussienne
+
+# 11 Probabilités et statistiques
+## 11.1 Espace probabilisé
+d Événement, tribu, mesure de probabilité
+d Indépendance d'événements et de tribus
+t Loi du 0-1 de Kolmogorov
+l Lemmes de Borel-Cantelli
+d Probabilité conditionnelle
+s Formule des probabilités totales
+## 11.2 Variables aléatoires
+### (a) Lois
+d Loi discrète, loi absolument continue
+d Fonction de répartition, densité
+d Loi conjointe, indépendance de variables aléatoires
+d Espérance (variables positives ou complexes)
+t Théorème de transfert
+d Moments, variance
+s Lois usuelles : Bernoulli, binomiale, géométrique, Poisson
+s Lois usuelles : uniforme, exponentielle, gaussienne
+### (b) Fonctions caractéristique et génératrice
+d Fonction caractéristique
+d Fonction génératrice d'une variable à valeurs dans N
+x Lois de sommes de variables indépendantes
+## 11.3 Convergences
+### (a) Modes de convergence
+d Convergence en probabilité, dans L^p, presque sûre, en loi
+s Inégalité de Markov
+s Inégalité de Bienaymé-Tchebychev
+t Théorème de Lévy
+### (b) Théorèmes limites
+t Loi faible des grands nombres
+t Loi forte des grands nombres
+t Théorème central limite
+## 11.4 Statistiques
+### (a) Statistique descriptive
+d Indicateurs de position et de dispersion
+s Représentations graphiques de données
+### (b) Deux variables
+d Nuage de points, coefficient de corrélation
+s Droite de régression des moindres carrés
+### (c) Estimation
+d Estimation ponctuelle
+d Intervalle de confiance
+
+# 12 Méthodes numériques
+## 12.1 Systèmes linéaires
+d Conditionnement
+t Théorème de Gershgorin-Hadamard
+s Décomposition LU
+s Méthodes itératives de Jacobi et de Gauss-Seidel
+t Convergence des méthodes itératives : rayon spectral, normes subordonnées
+s Décomposition en valeurs singulières (aspects numériques)
+x Matrice du laplacien discrétisé en dimension 1
+## 12.2 Résolution approchée d'équations
+s Méthode de la puissance
+s Méthode du gradient à pas constant (fonctions convexes)
+s Moindres carrés
+s Méthode de dichotomie
+s Méthode de Picard (point fixe)
+t Méthode de Newton : convergence quadratique
+s Vitesse de convergence, estimation de l'erreur
+## 12.3 Intégration numérique
+s Méthode des rectangles ; estimation de l'erreur
+s Méthode de Monte-Carlo ; vitesse de convergence
+## 12.4 Approximation de fonctions
+d Polynôme d'interpolation de Lagrange
+t Erreur d'interpolation de Lagrange
+## 12.5 Équations différentielles (numérique)
+s Méthode d'Euler explicite
+d Consistance, stabilité, convergence, ordre d'un schéma
+
+# Option A — Probabilités et statistiques
+## (a) Lois et simulation
+s Lois multinomiale, hypergéométrique, Gamma, du χ²
+x Modélisation : temps d'attente, durée de vie, erreurs de mesure, sondages
+s Méthodes de simulation de variables aléatoires
+## (b) Chaînes de Markov
+d Chaîne de Markov (espace d'états fini ou dénombrable)
+t Propriétés de Markov faible et forte
+d Classification des états : transience, récurrence positive ou nulle
+d Communication entre états, irréductibilité
+t Mesure stationnaire : existence et unicité
+t Loi des grands nombres pour les chaînes de Markov
+t Apériodicité et convergence en loi
+x Marche aléatoire simple
+## (c) Processus de Poisson
+d Processus de Poisson sur R+ (construction par des exponentielles)
+t Accroissements indépendants, stationnaires ; leur loi
+## (d) Martingales
+d Espérance conditionnelle
+d Martingale, sur- et sous-martingale à temps discret
+d Temps d'arrêt
+t Théorème d'arrêt
+t Convergence presque sûre et L² des martingales
+## (e) Estimation
+d Échantillon, moments empiriques
+d Loi et fonction de répartition empiriques
+l Lemme de Slutsky
+s Construction d'intervalles de confiance
+d Estimateur du maximum de vraisemblance
+## (f) Vecteurs gaussiens
+d Vecteur gaussien
+t Théorème de Cochran
+t Théorème central limite dans R^n
+## (g) Modèle linéaire gaussien
+s Modèle linéaire gaussien, régression linéaire
+## (h) Tests
+d Test paramétrique
+s Test du χ² d'ajustement
+s Test de Kolmogorov-Smirnov
+
+# Option B — Calcul scientifique
+## (a) Systèmes linéaires
+s Méthodes directes : Gauss, LU, Cholesky ; coût
+s Méthodes itératives : Jacobi, Gauss-Seidel ; vitesse de convergence
+## (b) Équations non linéaires
+s Méthodes de Picard et de Newton : mise en œuvre et vitesse
+## (c) Intégration numérique
+s Méthode des trapèzes ; méthodes d'ordre élevé
+## (d) Équations différentielles
+s Méthodes d'Euler explicite et implicite
+d Précision, consistance, stabilité, convergence, ordre
+## (e) Équations aux dérivées partielles
+s Équation de transport : méthode des caractéristiques
+s Équations des ondes et de la chaleur : Fourier, séparation des variables
+t Théorème de Lax-Milgram
+s Différences finies : consistance, stabilité, convergence, ordre
+## (f) Optimisation et approximation
+s Interpolation linéaire par morceaux, interpolation de Lagrange
+s Gradient à pas constant ; gradient à pas optimal (cas quadratique)
+s Extrema sous contraintes : Lagrange et méthode de Newton
+s Moindres carrés
+## (g) Traitement du signal
+s Approximation par séries de Fourier ; transformée de Fourier rapide
+
+# Option C — Algèbre et calcul formel
+## (a) Représentation des nombres
+s Entiers, flottants, polynômes, éléments de Z/nZ : opérations et coût
+## (b) Algorithmes élémentaires
+s Exponentiation rapide
+s Algorithme d'Euclide étendu ; coût
+s Test de primalité de Fermat
+x Chiffrement RSA
+## (c) Corps finis (effectif)
+s Représentation des éléments d'un corps fini ; opérations et coût
+## (d) Algèbre linéaire effective
+s Pivot de Gauss : rang, déterminant, systèmes ; coût
+## (e) Codes correcteurs
+d Distance de Hamming, distance minimale d'un code linéaire
+x Codes de répétition, codes de Hamming binaires
+## (f) Polynômes à une indéterminée
+s Schéma de Horner, interpolation ; coût
+s Localisation des racines : majorations en fonction des coefficients
+## (g) Transformée de Fourier discrète
+s Transformée de Fourier discrète sur Z/nZ ; FFT et coût
+## (h) Polynômes à plusieurs indéterminées
+t Théorème des polynômes symétriques
+d Résultant ; élimination
+x Systèmes polynomiaux, intersection de courbes, implicitation

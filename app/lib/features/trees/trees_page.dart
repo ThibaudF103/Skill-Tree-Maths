@@ -322,6 +322,10 @@ class _EmptyOrchard extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               TextButton(
+                onPressed: () => loadProgramme(context),
+                child: const Text('Partir du programme de l\'agrégation 2026'),
+              ),
+              TextButton(
                 onPressed: () => loadSample(context),
                 child: const Text('Essayer avec l\'exemple « Algèbre »'),
               ),
