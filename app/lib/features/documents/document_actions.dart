@@ -98,11 +98,16 @@ Future<SourceDocument?> importPdf(
       .firstOrNull;
   if (existing != null) {
     if (targetNode != null) await store.linkResource(existing.id, targetNode);
+    // Connu par ses empreintes seulement (paquet sans le PDF) : le fichier
+    // est joint.
+    final attached = await store.attachDocumentFile(existing.id, bytes);
     if (context.mounted) {
       _notify(
         context,
-        'Ce PDF est déjà dans la bibliothèque : « ${existing.title} »'
-        '${targetNode != null ? ', rattaché ici' : ''}.',
+        attached
+            ? 'Fichier de « ${existing.title} » ajouté à la bibliothèque.'
+            : 'Ce PDF est déjà dans la bibliothèque : « ${existing.title} »'
+                  '${targetNode != null ? ', rattaché ici' : ''}.',
       );
     }
     return existing;

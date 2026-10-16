@@ -4,6 +4,7 @@ import 'package:verger_core/verger_core.dart';
 import '../../app/app_scope.dart';
 import '../../ui/dialogs.dart';
 import '../../ui/item_glyph.dart';
+import '../data/pack_actions.dart';
 import '../items/item_detail_page.dart';
 import '../items/item_editor.dart';
 import '../items/item_tile.dart';
@@ -230,6 +231,8 @@ class _NodeMenu extends StatelessWidget {
             await store.moveNode(node.id, newParentId: target.id);
           case 'tree':
             await store.moveNode(node.id);
+          case 'share':
+            await exportTreePack(context, node);
           case 'review':
             final ids = reviewQueueOf(
               data.subtreeItems(node.id),
@@ -272,6 +275,10 @@ class _NodeMenu extends StatelessWidget {
           ),
         ),
         const PopupMenuDivider(),
+        const PopupMenuItem(
+          value: 'share',
+          child: Text('Partager (paquet avec contenus)…'),
+        ),
         const PopupMenuItem(value: 'rename', child: Text('Renommer')),
         const PopupMenuItem(value: 'move', child: Text('Déplacer vers…')),
         if (!node.isTree)

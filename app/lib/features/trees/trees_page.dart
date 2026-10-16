@@ -4,6 +4,7 @@ import 'package:verger_core/verger_core.dart';
 import '../../app/app_scope.dart';
 import '../../ui/dialogs.dart';
 import '../data/data_actions.dart';
+import '../data/pack_actions.dart';
 import 'node_detail.dart';
 import 'reorder.dart';
 import 'tree_data.dart';
@@ -323,6 +324,10 @@ class _EmptyOrchard extends StatelessWidget {
               TextButton(
                 onPressed: () => loadSample(context),
                 child: const Text('Essayer avec l\'exemple « Algèbre »'),
+              ),
+              TextButton(
+                onPressed: () => importPackFile(context),
+                child: const Text('Importer un paquet (arbre + contenus)'),
               ),
               TextButton(
                 onPressed: () => restoreBackup(context),

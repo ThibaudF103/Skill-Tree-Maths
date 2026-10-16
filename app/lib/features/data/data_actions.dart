@@ -7,6 +7,7 @@ import 'package:verger_core/verger_core.dart';
 
 import '../../app/app_scope.dart';
 import '../../ui/dialogs.dart';
+import 'pack_actions.dart';
 
 void _notify(BuildContext context, String message) {
   ScaffoldMessenger.of(context)
@@ -142,6 +143,7 @@ class DataMenuButton extends StatelessWidget {
         'export' => exportBackup(context),
         'restore' => restoreBackup(context),
         'template' => importTemplateFile(context),
+        'pack' => importPackFile(context),
         _ => loadSample(context),
       },
       itemBuilder: (context) => const [
@@ -160,6 +162,13 @@ class DataMenuButton extends StatelessWidget {
           ),
         ),
         PopupMenuDivider(),
+        PopupMenuItem(
+          value: 'pack',
+          child: ListTile(
+            leading: Icon(Icons.inventory_2_outlined),
+            title: Text('Importer un paquet (arbre + contenus)'),
+          ),
+        ),
         PopupMenuItem(
           value: 'template',
           child: ListTile(

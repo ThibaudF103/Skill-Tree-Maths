@@ -7,6 +7,7 @@ environment:
   sdk: ^3.9.0
 
 dependencies:
+  archive: ^4.5.2
   crypto: ^3.0.7
   drift: ^2.35.2
   drift_flutter: ^0.3.1
@@ -14,6 +15,7 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_math_fork: ^0.7.4
+  http: ^1.6.0
   pdfrx: ^2.6.5
   url_launcher: ^6.3.3
   verger_core:
