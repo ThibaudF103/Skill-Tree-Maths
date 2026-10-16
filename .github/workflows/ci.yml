@@ -97,3 +97,34 @@ jobs:
             } else {
               await github.rest.issues.createComment({ owner, repo, issue_number, body });
             }
+
+  # À chaque fusion dans main : l'exécutable est republié sous la release
+  # « dernier », à une adresse fixe :
+  # https://github.com/<dépôt>/releases/latest/download/verger-windows.zip
+  release:
+    name: Release « dernier »
+    needs: windows
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: release-dernier
+      cancel-in-progress: false
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: verger-windows
+          path: verger
+      - name: Archive
+        run: cd verger && zip -qr ../verger-windows.zip .
+      - name: Publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release delete dernier --cleanup-tag --yes || true
+          gh release create dernier verger-windows.zip \
+            --target "$GITHUB_SHA" --latest \
+            --title "Verger — dernière version" \
+            --notes "Version de main au commit ${GITHUB_SHA::7}. Décompresser puis lancer verger.exe."
