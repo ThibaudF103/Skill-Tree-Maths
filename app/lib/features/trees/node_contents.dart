@@ -96,6 +96,12 @@ class _NodeContentsState extends State<NodeContents> {
                         child: const Text('Importer un PDF'),
                       ),
                       MenuItemButton(
+                        leadingIcon: const Icon(Icons.smart_display_outlined),
+                        onPressed: () =>
+                            addYoutubeVideo(context, nodeId: widget.node.id),
+                        child: const Text('Ajouter une vidéo YouTube'),
+                      ),
+                      MenuItemButton(
                         leadingIcon: const Icon(Icons.link),
                         onPressed: () => _linkExisting(own),
                         child: const Text('Rattacher un contenu existant'),

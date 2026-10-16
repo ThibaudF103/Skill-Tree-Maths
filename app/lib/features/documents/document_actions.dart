@@ -3,13 +3,14 @@ import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:verger_core/verger_core.dart';
 import 'package:verger_data/verger_data.dart';
 
 import '../../app/app_scope.dart';
 import '../../pdf/pdf_tools.dart';
+import '../../video/youtube.dart';
 import '../trees/node_picker.dart';
+import '../video/video_page.dart';
 import 'document_viewer_page.dart';
 
 /// Icône d'un contenu selon sa nature.
@@ -128,6 +129,141 @@ Future<SourceDocument?> importPdf(
   return document;
 }
 
+/// Ajoute une vidéo YouTube (adresse collée), rattachée à [nodeId].
+Future<SourceDocument?> addYoutubeVideo(
+  BuildContext context, {
+  String? nodeId,
+}) async {
+  final store = AppScope.of(context).store;
+  final result = await showDialog<(String, String)>(
+    context: context,
+    builder: (_) => const _VideoDialog(),
+  );
+  if (result == null || !context.mounted) return null;
+  final (id, title) = result;
+  final existing = (await store.allDocuments())
+      .where((d) => d.isVideo && d.contentHash == id)
+      .firstOrNull;
+  if (existing != null) {
+    if (nodeId != null) await store.linkResource(existing.id, nodeId);
+    if (context.mounted) {
+      _notify(context, 'Cette vidéo est déjà dans la bibliothèque.');
+      await openResource(context, existing);
+    }
+    return existing;
+  }
+  final video = await store.addVideo(
+    title: title,
+    url: youtubeUrl(id),
+    videoId: id,
+    nodeIds: [?nodeId],
+  );
+  // La vidéo s'ouvre aussitôt, pour en marquer les extraits.
+  if (context.mounted) await openResource(context, video);
+  return video;
+}
+
+class _VideoDialog extends StatefulWidget {
+  const _VideoDialog();
+
+  @override
+  State<_VideoDialog> createState() => _VideoDialogState();
+}
+
+class _VideoDialogState extends State<_VideoDialog> {
+  final _url = TextEditingController();
+  final _title = TextEditingController();
+  String? _id;
+  var _fetching = false;
+
+  @override
+  void dispose() {
+    _url.dispose();
+    _title.dispose();
+    super.dispose();
+  }
+
+  Future<void> _onUrl(String text) async {
+    final id = youtubeId(text);
+    setState(() => _id = id);
+    if (id == null || _title.text.isNotEmpty) return;
+    setState(() => _fetching = true);
+    final title = await youtubeTitle(id);
+    if (!mounted || _id != id) return;
+    setState(() {
+      _fetching = false;
+      if (title != null && _title.text.isEmpty) _title.text = title;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final id = _id;
+    return AlertDialog(
+      title: const Text('Ajouter une vidéo YouTube'),
+      content: SizedBox(
+        width: 480,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(
+              controller: _url,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: 'Adresse de la vidéo',
+                hintText: 'https://www.youtube.com/watch?v=…',
+                border: const OutlineInputBorder(),
+                errorText: _url.text.isNotEmpty && id == null
+                    ? 'Adresse YouTube non reconnue'
+                    : null,
+              ),
+              onChanged: _onUrl,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _title,
+              decoration: InputDecoration(
+                labelText: 'Titre',
+                border: const OutlineInputBorder(),
+                suffixIcon: _fetching
+                    ? const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: SizedBox.square(
+                          dimension: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      )
+                    : null,
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Annuler'),
+        ),
+        ListenableBuilder(
+          listenable: _title,
+          builder: (context, _) => FilledButton(
+            onPressed: id == null
+                ? null
+                : () => Navigator.pop(context, (
+                    id,
+                    _title.text.trim().isEmpty
+                        ? 'Vidéo $id'
+                        : _title.text.trim(),
+                  )),
+            child: const Text('Ajouter'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 /// Rattache [document] à une branche choisie dans l'arbre.
 Future<void> linkResourceToNode(
   BuildContext context,
@@ -186,8 +322,11 @@ Future<SourceDocument?> pickResource(
 /// Ouvre un contenu : visionneuse pour un PDF, navigateur pour une vidéo.
 Future<void> openResource(BuildContext context, SourceDocument document) async {
   if (document.isVideo) {
-    final url = Uri.tryParse(document.url ?? '');
-    if (url != null) await launchUrl(url);
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => VideoPage(documentId: document.id),
+      ),
+    );
     return;
   }
   await Navigator.of(context).push(

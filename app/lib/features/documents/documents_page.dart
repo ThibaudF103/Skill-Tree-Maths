@@ -133,6 +133,12 @@ class _LibraryPageState extends State<LibraryPage> {
                         style: theme.textTheme.headlineMedium,
                       ),
                     ),
+                    OutlinedButton.icon(
+                      onPressed: () => addYoutubeVideo(context),
+                      icon: const Icon(Icons.smart_display_outlined),
+                      label: const Text('Vidéo'),
+                    ),
+                    const SizedBox(width: 8),
                     FilledButton.icon(
                       onPressed: () => importPdf(context),
                       icon: const Icon(Icons.upload_file),
