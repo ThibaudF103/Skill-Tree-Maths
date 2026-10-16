@@ -1,9 +1,17 @@
 name: CI
 
+# Une seule exécution par commit (les PR via pull_request, main via push),
+# et une exécution dépassée par un nouveau commit est annulée : la CI reste
+# rapide et sobre (et tiendrait dans le forfait d'un dépôt privé).
 on:
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
   FLUTTER_VERSION: '3.47.7'
@@ -70,7 +78,8 @@ jobs:
         with:
           name: verger-windows
           path: app/build/windows/x64/runner/Release/
-          retention-days: 30
+          # Sur main, la release « dernier » reprend l'exécutable aussitôt.
+          retention-days: ${{ github.event_name == 'pull_request' && 7 || 1 }}
       # Lien direct vers l'exécutable dans la PR (un seul commentaire, mis à
       # jour à chaque compilation).
       - name: Lien dans la PR
@@ -86,7 +95,7 @@ jobs:
               marker,
               `**Exécutable Windows** (commit ${sha}) : [télécharger verger-windows.zip](${process.env.ARTIFACT_URL})`,
               '',
-              'Décompresser puis lancer `verger.exe`. Lien valable 30 jours, connexion à GitHub requise.',
+              'Décompresser puis lancer `verger.exe`. Lien valable 7 jours, connexion à GitHub requise.',
             ].join('\n');
             const { owner, repo } = context.repo;
             const issue_number = context.payload.pull_request.number;
@@ -129,14 +138,32 @@ jobs:
             --title "Verger — dernière version" \
             --notes "Version de main au commit ${GITHUB_SHA::7}. Décompresser puis lancer verger.exe."
 
+  # Les machines macOS coûtent 10 fois plus de minutes : le job TestFlight ne
+  # démarre que si les secrets Apple sont configurés (vérifié sur Linux).
+  apple:
+    name: Secrets Apple
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+    steps:
+      - id: check
+        env:
+          IOS_P12_BASE64: ${{ secrets.IOS_P12_BASE64 }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+        run: |
+          if [ -n "$IOS_P12_BASE64" ] && [ -n "$ASC_KEY_ID" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Secrets Apple absents : pas d'envoi à TestFlight (voir docs/TESTFLIGHT.md)."
+          fi
+
   # Appli iPad envoyée à TestFlight à chaque fusion dans main (ou à la
   # demande, depuis l'onglet Actions). Configuration : docs/TESTFLIGHT.md.
-  # Sans les secrets Apple, l'appli est seulement compilée, sans signature,
-  # pour vérifier qu'elle se construit.
   testflight:
     name: TestFlight (iPad)
-    needs: test
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    needs: [test, apple]
+    if: needs.apple.outputs.ready == 'true'
     runs-on: macos-latest
     env:
       # Team ID Apple : public (il figure dans toute appli signée).
@@ -160,12 +187,6 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
-      - name: Compilation sans signature (vérification)
-        if: '!steps.secrets.outputs.ready'
-        working-directory: app
-        run: |
-          flutter pub get
-          flutter build ios --release --no-codesign
       - name: Certificat, profil et clé App Store Connect
         if: steps.secrets.outputs.ready
         env:
