@@ -21,6 +21,30 @@ final class PrerequisiteGraph {
   /// Connaissances qui s'appuient directement sur [itemId].
   Set<String> usedBy(String itemId) => _usedBy[itemId] ?? const {};
 
+  /// Vrai si tous les prérequis directs de [itemId] ont été vus (sont dans
+  /// [seen]) : la connaissance est alors débloquée. Il suffit d'avoir vu une
+  /// fois une définition pour aborder les énoncés qui l'utilisent, qui
+  /// aident à la comprendre.
+  bool isUnlocked(String itemId, Set<String> seen) =>
+      requires(itemId).every(seen.contains);
+
+  /// Prérequis directs et indirects de [itemId].
+  Set<String> ancestors(String itemId) => _reach(itemId, requires);
+
+  /// Connaissances qui s'appuient, directement ou non, sur [itemId].
+  Set<String> descendants(String itemId) => _reach(itemId, usedBy);
+
+  Set<String> _reach(String from, Set<String> Function(String) next) {
+    final seen = <String>{};
+    final stack = [from];
+    while (stack.isNotEmpty) {
+      for (final n in next(stack.removeLast())) {
+        if (seen.add(n)) stack.add(n);
+      }
+    }
+    return seen;
+  }
+
   /// Vrai si [itemId] s'appuie, directement ou non, sur [requiresId].
   bool dependsOn(String itemId, String requiresId) {
     final seen = <String>{};

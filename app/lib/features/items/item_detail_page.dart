@@ -41,6 +41,10 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
     return StreamBuilder<List<KnowledgeItem>>(
       stream: _items,
       builder: (context, snapshot) {
+        final titles = {
+          for (final i in snapshot.data ?? const <KnowledgeItem>[])
+            i.id: i.title,
+        };
         final item = snapshot.data
             ?.where((i) => i.id == widget.itemId)
             .firstOrNull;
@@ -52,12 +56,18 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                 : const Center(child: CircularProgressIndicator()),
           );
         }
-        return _buildItem(context, item);
+        return _buildItem(context, item, titles);
       },
     );
   }
 
-  Widget _buildItem(BuildContext context, KnowledgeItem item) {
+  /// [titles] : titre de chaque connaissance, pour les révisions
+  /// implicites (« via … »).
+  Widget _buildItem(
+    BuildContext context,
+    KnowledgeItem item,
+    Map<String, String> titles,
+  ) {
     final scope = AppScope.of(context);
     final theme = Theme.of(context);
     final now = DateTime.now();
@@ -241,7 +251,12 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                               ListTile(
                                 dense: true,
                                 contentPadding: EdgeInsets.zero,
-                                title: Text(record.rating.label),
+                                title: Text(
+                                  record.impliedBy == null
+                                      ? record.rating.label
+                                      : '${record.rating.label} · via '
+                                            '« ${titles[record.impliedBy] ?? 'connaissance supprimée'} »',
+                                ),
                                 subtitle: Text(
                                   formatDate(record.reviewedAt, now: now),
                                 ),

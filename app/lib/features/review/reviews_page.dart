@@ -9,7 +9,17 @@ import '../trees/tree_data.dart';
 import 'review_session_page.dart';
 
 /// File d'une session lancée maintenant parmi [items] (dues et nouvelles).
-List<String> reviewQueueOf(Iterable<KnowledgeItem> items, Scheduler scheduler) {
+///
+/// Avec [prerequisites] (déblocage progressif), une nouvelle connaissance
+/// n'est proposée qu'après tous ses prérequis, vus dans [all] (tout le
+/// verger : un prérequis peut être dans une autre branche) ou plus tôt dans
+/// la session.
+List<String> reviewQueueOf(
+  Iterable<KnowledgeItem> items,
+  Scheduler scheduler, {
+  PrerequisiteGraph? prerequisites,
+  Iterable<KnowledgeItem> all = const [],
+}) {
   final queue = buildReviewQueue(
     [
       for (final item in items)
@@ -18,8 +28,31 @@ List<String> reviewQueueOf(Iterable<KnowledgeItem> items, Scheduler scheduler) {
     ],
     now: DateTime.now(),
     scheduler: scheduler,
+    requires: prerequisites?.requires,
+    seen: seenIds(all),
   );
   return [for (final e in queue) e.id];
+}
+
+/// Connaissances déjà vues au moins une fois.
+Set<String> seenIds(Iterable<KnowledgeItem> items) => {
+  for (final item in items)
+    if (!item.scheduling.isNew) item.id,
+};
+
+/// File d'une session sur [items] selon les réglages enregistrés
+/// (déblocage progressif ou non).
+Future<List<String>> loadReviewQueue(
+  BuildContext context,
+  Iterable<KnowledgeItem> items,
+  Iterable<KnowledgeItem> all,
+) async {
+  final scope = AppScope.of(context);
+  final strict = await scope.store.strictPrerequisites();
+  final graph = strict
+      ? PrerequisiteGraph(await scope.store.prerequisites())
+      : null;
+  return reviewQueueOf(items, scope.scheduler, prerequisites: graph, all: all);
 }
 
 /// Ouvre une session de révision sur [ids], dans cet ordre.
@@ -43,25 +76,47 @@ class ReviewsPage extends StatefulWidget {
 
 class _ReviewsPageState extends State<ReviewsPage> {
   Stream<Set<String>>? _scope;
+  Stream<bool>? _strict;
+  Stream<List<Prerequisite>>? _edges;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _scope ??= AppScope.of(context).store.watchReviewScope();
+    final store = AppScope.of(context).store;
+    _scope ??= store.watchReviewScope();
+    _strict ??= store.watchStrictPrerequisites();
+    _edges ??= store.watchPrerequisites();
   }
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<Set<String>>(
       stream: _scope,
-      builder: (context, snapshot) => TreeDataBuilder(
-        builder: (context, data) =>
-            _build(context, data, snapshot.data ?? const {}),
+      builder: (context, snapshot) => StreamBuilder<bool>(
+        stream: _strict,
+        builder: (context, strict) => StreamBuilder<List<Prerequisite>>(
+          stream: _edges,
+          builder: (context, edges) => TreeDataBuilder(
+            builder: (context, data) => _build(
+              context,
+              data,
+              snapshot.data ?? const {},
+              strict: strict.data ?? true,
+              graph: PrerequisiteGraph(edges.data ?? const []),
+            ),
+          ),
+        ),
       ),
     );
   }
 
-  Widget _build(BuildContext context, TreeData data, Set<String> savedScope) {
+  Widget _build(
+    BuildContext context,
+    TreeData data,
+    Set<String> savedScope, {
+    required bool strict,
+    required PrerequisiteGraph graph,
+  }) {
     final scheduler = AppScope.of(context).scheduler;
     // Nœuds ciblés encore existants (vide : tout le verger).
     final scope = [
@@ -86,18 +141,31 @@ class _ReviewsPageState extends State<ReviewsPage> {
       now: data.now,
       scheduler: scheduler,
     );
+    final seen = seenIds(data.items);
     final queue = buildReviewQueue(
       candidates,
       now: data.now,
       scheduler: scheduler,
+      requires: strict ? graph.requires : null,
+      seen: seen,
     );
+    final queued = {for (final e in queue) e.id};
     return _ReviewList(
       data: data,
       byId: byId,
       groups: groups,
       queue: [for (final e in queue) e.id],
+      locked: strict
+          ? {
+              for (final item in active)
+                if (item.scheduling.isNew && !queued.contains(item.id)) item.id,
+            }
+          : const {},
+      strict: strict,
       scope: scope,
       onScopeChanged: (ids) => AppScope.of(context).store.setReviewScope(ids),
+      onStrictChanged: (v) =>
+          AppScope.of(context).store.setStrictPrerequisites(v),
     );
   }
 }
@@ -108,8 +176,11 @@ class _ReviewList extends StatelessWidget {
     required this.byId,
     required this.groups,
     required this.queue,
+    required this.locked,
+    required this.strict,
     required this.scope,
     required this.onScopeChanged,
+    required this.onStrictChanged,
   });
 
   final TreeData data;
@@ -118,6 +189,13 @@ class _ReviewList extends StatelessWidget {
 
   /// File d'une session lancée maintenant (connaissances dues et nouvelles).
   final List<String> queue;
+
+  /// Nouvelles connaissances en attente de leurs prérequis.
+  final Set<String> locked;
+
+  /// Déblocage progressif activé.
+  final bool strict;
+  final ValueChanged<bool> onStrictChanged;
 
   /// Nœuds ciblés (vide : tout le verger).
   final List<KnowledgeNode> scope;
@@ -156,6 +234,18 @@ class _ReviewList extends StatelessWidget {
                 if (n.id != node.id) n.id,
             }),
           ),
+        Tooltip(
+          message:
+              'Une nouvelle connaissance n\'est proposée qu\'une fois tous '
+              'ses prérequis vus au moins une fois.',
+          child: FilterChip(
+            avatar: Icon(strict ? Icons.lock_outline : Icons.lock_open),
+            showCheckmark: false,
+            label: const Text('Déblocage progressif'),
+            selected: strict,
+            onSelected: onStrictChanged,
+          ),
+        ),
       ],
     );
   }
@@ -198,6 +288,9 @@ class _ReviewList extends StatelessWidget {
                                       if (dueNow > 0) '$dueNow à réviser',
                                       if (fresh > 0)
                                         '$fresh nouvelle${fresh > 1 ? 's' : ''}',
+                                      if (locked.isNotEmpty)
+                                        '${locked.length} en attente de '
+                                            'prérequis',
                                     ].join(' · '),
                               style: theme.textTheme.bodyLarge?.copyWith(
                                 color: theme.colorScheme.outline,
@@ -238,6 +331,7 @@ class _ReviewList extends StatelessWidget {
                               .map((n) => n.title)
                               .join(' → '),
                           now: data.now,
+                          locked: locked.contains(entry.id),
                           onTap: () => _start(context, [
                             entry.id,
                             ...queue.where((id) => id != entry.id),
@@ -335,6 +429,7 @@ class _ReviewRow extends StatelessWidget {
     required this.bucket,
     required this.path,
     required this.now,
+    required this.locked,
     required this.onTap,
   });
 
@@ -342,6 +437,9 @@ class _ReviewRow extends StatelessWidget {
   final ReviewBucket bucket;
   final String path;
   final DateTime now;
+
+  /// Nouvelle en attente de prérequis (on peut quand même la lancer).
+  final bool locked;
   final VoidCallback onTap;
 
   @override
@@ -353,7 +451,8 @@ class _ReviewRow extends StatelessWidget {
         'retard : ${formatDue(due!, now).replaceFirst('en retard de ', '')}',
       ReviewBucket.today => 'prévu ${formatDue(due!, now)}',
       ReviewBucket.tomorrow => 'prévu demain',
-      ReviewBucket.newItem => item.typeLabel,
+      ReviewBucket.newItem =>
+        locked ? '${item.typeLabel} · verrouillée' : item.typeLabel,
       ReviewBucket.later => formatDue(due!, now),
     };
     return ListTile(
@@ -366,11 +465,24 @@ class _ReviewRow extends StatelessWidget {
       ),
       title: Text(item.title),
       subtitle: Text(path),
-      trailing: Text(
-        when,
-        style: theme.textTheme.labelMedium?.copyWith(
-          color: theme.colorScheme.outline,
-        ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (locked) ...[
+            Icon(
+              Icons.lock_outline,
+              size: 16,
+              color: theme.colorScheme.outline,
+            ),
+            const SizedBox(width: 4),
+          ],
+          Text(
+            when,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: theme.colorScheme.outline,
+            ),
+          ),
+        ],
       ),
     );
   }

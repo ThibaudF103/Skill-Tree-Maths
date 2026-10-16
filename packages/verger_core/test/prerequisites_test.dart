@@ -55,4 +55,12 @@ void main() {
     });
     expect(graph.levels(['c', 'x']), {'c': 0, 'x': 1});
   });
+
+  test('déblocage : prérequis vus une fois ; chaînes complètes', () {
+    expect(graph.isUnlocked('d1', {}), isTrue);
+    expect(graph.isUnlocked('t', {'d1'}), isFalse);
+    expect(graph.isUnlocked('t', {'d1', 'd2'}), isTrue);
+    expect(graph.ancestors('x'), {'c', 't', 'd1', 'd2'});
+    expect(graph.descendants('d1'), {'t', 'c', 'x'});
+  });
 }

@@ -1563,6 +1563,17 @@ class $ReviewLogsTable extends ReviewLogs
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _impliedByMeta = const VerificationMeta(
+    'impliedBy',
+  );
+  @override
+  late final GeneratedColumn<String> impliedBy = GeneratedColumn<String>(
+    'implied_by',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1573,6 +1584,7 @@ class $ReviewLogsTable extends ReviewLogs
     schedulerId,
     stateBefore,
     stateAfter,
+    impliedBy,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1643,6 +1655,12 @@ class $ReviewLogsTable extends ReviewLogs
     } else if (isInserting) {
       context.missing(_stateAfterMeta);
     }
+    if (data.containsKey('implied_by')) {
+      context.handle(
+        _impliedByMeta,
+        impliedBy.isAcceptableOrUnknown(data['implied_by']!, _impliedByMeta),
+      );
+    }
     return context;
   }
 
@@ -1686,6 +1704,10 @@ class $ReviewLogsTable extends ReviewLogs
         DriftSqlType.string,
         data['${effectivePrefix}state_after'],
       )!,
+      impliedBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}implied_by'],
+      ),
     );
   }
 
@@ -1709,6 +1731,10 @@ class ReviewLogRow extends DataClass implements Insertable<ReviewLogRow> {
   /// États avant/après (JSON de `SchedulingState`).
   final String stateBefore;
   final String stateAfter;
+
+  /// Révision implicite : connaissance réussie qui s'appuie sur celle-ci
+  /// (v7). Sans clé étrangère : la trace survit à sa suppression.
+  final String? impliedBy;
   const ReviewLogRow({
     required this.id,
     required this.itemId,
@@ -1718,6 +1744,7 @@ class ReviewLogRow extends DataClass implements Insertable<ReviewLogRow> {
     required this.schedulerId,
     required this.stateBefore,
     required this.stateAfter,
+    this.impliedBy,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1736,6 +1763,9 @@ class ReviewLogRow extends DataClass implements Insertable<ReviewLogRow> {
     map['scheduler_id'] = Variable<String>(schedulerId);
     map['state_before'] = Variable<String>(stateBefore);
     map['state_after'] = Variable<String>(stateAfter);
+    if (!nullToAbsent || impliedBy != null) {
+      map['implied_by'] = Variable<String>(impliedBy);
+    }
     return map;
   }
 
@@ -1751,6 +1781,9 @@ class ReviewLogRow extends DataClass implements Insertable<ReviewLogRow> {
       schedulerId: Value(schedulerId),
       stateBefore: Value(stateBefore),
       stateAfter: Value(stateAfter),
+      impliedBy: impliedBy == null && nullToAbsent
+          ? const Value.absent()
+          : Value(impliedBy),
     );
   }
 
@@ -1770,6 +1803,7 @@ class ReviewLogRow extends DataClass implements Insertable<ReviewLogRow> {
       schedulerId: serializer.fromJson<String>(json['schedulerId']),
       stateBefore: serializer.fromJson<String>(json['stateBefore']),
       stateAfter: serializer.fromJson<String>(json['stateAfter']),
+      impliedBy: serializer.fromJson<String?>(json['impliedBy']),
     );
   }
   @override
@@ -1786,6 +1820,7 @@ class ReviewLogRow extends DataClass implements Insertable<ReviewLogRow> {
       'schedulerId': serializer.toJson<String>(schedulerId),
       'stateBefore': serializer.toJson<String>(stateBefore),
       'stateAfter': serializer.toJson<String>(stateAfter),
+      'impliedBy': serializer.toJson<String?>(impliedBy),
     };
   }
 
@@ -1798,6 +1833,7 @@ class ReviewLogRow extends DataClass implements Insertable<ReviewLogRow> {
     String? schedulerId,
     String? stateBefore,
     String? stateAfter,
+    Value<String?> impliedBy = const Value.absent(),
   }) => ReviewLogRow(
     id: id ?? this.id,
     itemId: itemId ?? this.itemId,
@@ -1807,6 +1843,7 @@ class ReviewLogRow extends DataClass implements Insertable<ReviewLogRow> {
     schedulerId: schedulerId ?? this.schedulerId,
     stateBefore: stateBefore ?? this.stateBefore,
     stateAfter: stateAfter ?? this.stateAfter,
+    impliedBy: impliedBy.present ? impliedBy.value : this.impliedBy,
   );
   ReviewLogRow copyWithCompanion(ReviewLogsCompanion data) {
     return ReviewLogRow(
@@ -1828,6 +1865,7 @@ class ReviewLogRow extends DataClass implements Insertable<ReviewLogRow> {
       stateAfter: data.stateAfter.present
           ? data.stateAfter.value
           : this.stateAfter,
+      impliedBy: data.impliedBy.present ? data.impliedBy.value : this.impliedBy,
     );
   }
 
@@ -1841,7 +1879,8 @@ class ReviewLogRow extends DataClass implements Insertable<ReviewLogRow> {
           ..write('durationMs: $durationMs, ')
           ..write('schedulerId: $schedulerId, ')
           ..write('stateBefore: $stateBefore, ')
-          ..write('stateAfter: $stateAfter')
+          ..write('stateAfter: $stateAfter, ')
+          ..write('impliedBy: $impliedBy')
           ..write(')'))
         .toString();
   }
@@ -1856,6 +1895,7 @@ class ReviewLogRow extends DataClass implements Insertable<ReviewLogRow> {
     schedulerId,
     stateBefore,
     stateAfter,
+    impliedBy,
   );
   @override
   bool operator ==(Object other) =>
@@ -1868,7 +1908,8 @@ class ReviewLogRow extends DataClass implements Insertable<ReviewLogRow> {
           other.durationMs == this.durationMs &&
           other.schedulerId == this.schedulerId &&
           other.stateBefore == this.stateBefore &&
-          other.stateAfter == this.stateAfter);
+          other.stateAfter == this.stateAfter &&
+          other.impliedBy == this.impliedBy);
 }
 
 class ReviewLogsCompanion extends UpdateCompanion<ReviewLogRow> {
@@ -1880,6 +1921,7 @@ class ReviewLogsCompanion extends UpdateCompanion<ReviewLogRow> {
   final Value<String> schedulerId;
   final Value<String> stateBefore;
   final Value<String> stateAfter;
+  final Value<String?> impliedBy;
   final Value<int> rowid;
   const ReviewLogsCompanion({
     this.id = const Value.absent(),
@@ -1890,6 +1932,7 @@ class ReviewLogsCompanion extends UpdateCompanion<ReviewLogRow> {
     this.schedulerId = const Value.absent(),
     this.stateBefore = const Value.absent(),
     this.stateAfter = const Value.absent(),
+    this.impliedBy = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ReviewLogsCompanion.insert({
@@ -1901,6 +1944,7 @@ class ReviewLogsCompanion extends UpdateCompanion<ReviewLogRow> {
     required String schedulerId,
     required String stateBefore,
     required String stateAfter,
+    this.impliedBy = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        itemId = Value(itemId),
@@ -1918,6 +1962,7 @@ class ReviewLogsCompanion extends UpdateCompanion<ReviewLogRow> {
     Expression<String>? schedulerId,
     Expression<String>? stateBefore,
     Expression<String>? stateAfter,
+    Expression<String>? impliedBy,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1929,6 +1974,7 @@ class ReviewLogsCompanion extends UpdateCompanion<ReviewLogRow> {
       if (schedulerId != null) 'scheduler_id': schedulerId,
       if (stateBefore != null) 'state_before': stateBefore,
       if (stateAfter != null) 'state_after': stateAfter,
+      if (impliedBy != null) 'implied_by': impliedBy,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1942,6 +1988,7 @@ class ReviewLogsCompanion extends UpdateCompanion<ReviewLogRow> {
     Value<String>? schedulerId,
     Value<String>? stateBefore,
     Value<String>? stateAfter,
+    Value<String?>? impliedBy,
     Value<int>? rowid,
   }) {
     return ReviewLogsCompanion(
@@ -1953,6 +2000,7 @@ class ReviewLogsCompanion extends UpdateCompanion<ReviewLogRow> {
       schedulerId: schedulerId ?? this.schedulerId,
       stateBefore: stateBefore ?? this.stateBefore,
       stateAfter: stateAfter ?? this.stateAfter,
+      impliedBy: impliedBy ?? this.impliedBy,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1986,6 +2034,9 @@ class ReviewLogsCompanion extends UpdateCompanion<ReviewLogRow> {
     if (stateAfter.present) {
       map['state_after'] = Variable<String>(stateAfter.value);
     }
+    if (impliedBy.present) {
+      map['implied_by'] = Variable<String>(impliedBy.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2003,6 +2054,7 @@ class ReviewLogsCompanion extends UpdateCompanion<ReviewLogRow> {
           ..write('schedulerId: $schedulerId, ')
           ..write('stateBefore: $stateBefore, ')
           ..write('stateAfter: $stateAfter, ')
+          ..write('impliedBy: $impliedBy, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -6788,6 +6840,7 @@ typedef $$ReviewLogsTableCreateCompanionBuilder =
       required String schedulerId,
       required String stateBefore,
       required String stateAfter,
+      Value<String?> impliedBy,
       Value<int> rowid,
     });
 typedef $$ReviewLogsTableUpdateCompanionBuilder =
@@ -6800,6 +6853,7 @@ typedef $$ReviewLogsTableUpdateCompanionBuilder =
       Value<String> schedulerId,
       Value<String> stateBefore,
       Value<String> stateAfter,
+      Value<String?> impliedBy,
       Value<int> rowid,
     });
 
@@ -6867,6 +6921,11 @@ class $$ReviewLogsTableFilterComposer
 
   ColumnFilters<String> get stateAfter => $composableBuilder(
     column: $table.stateAfter,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get impliedBy => $composableBuilder(
+    column: $table.impliedBy,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6938,6 +6997,11 @@ class $$ReviewLogsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get impliedBy => $composableBuilder(
+    column: $table.impliedBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$ItemsTableOrderingComposer get itemId {
     final $$ItemsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -7002,6 +7066,9 @@ class $$ReviewLogsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get impliedBy =>
+      $composableBuilder(column: $table.impliedBy, builder: (column) => column);
+
   $$ItemsTableAnnotationComposer get itemId {
     final $$ItemsTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -7062,6 +7129,7 @@ class $$ReviewLogsTableTableManager
                 Value<String> schedulerId = const Value.absent(),
                 Value<String> stateBefore = const Value.absent(),
                 Value<String> stateAfter = const Value.absent(),
+                Value<String?> impliedBy = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ReviewLogsCompanion(
                 id: id,
@@ -7072,6 +7140,7 @@ class $$ReviewLogsTableTableManager
                 schedulerId: schedulerId,
                 stateBefore: stateBefore,
                 stateAfter: stateAfter,
+                impliedBy: impliedBy,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -7084,6 +7153,7 @@ class $$ReviewLogsTableTableManager
                 required String schedulerId,
                 required String stateBefore,
                 required String stateAfter,
+                Value<String?> impliedBy = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ReviewLogsCompanion.insert(
                 id: id,
@@ -7094,6 +7164,7 @@ class $$ReviewLogsTableTableManager
                 schedulerId: schedulerId,
                 stateBefore: stateBefore,
                 stateAfter: stateAfter,
+                impliedBy: impliedBy,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

@@ -94,4 +94,37 @@ void main() {
     await target.importPack(pack);
     expect(await target.prerequisites(), hasLength(1));
   });
+
+  test('déblocage progressif : activé par défaut, réglable', () async {
+    expect(await store.strictPrerequisites(), isTrue);
+    await store.setStrictPrerequisites(false);
+    expect(await store.strictPrerequisites(), isFalse);
+  });
+
+  test('révision implicite conservée par la sauvegarde', () async {
+    final scheduler = const SchedulerSettings().build();
+    final record = scheduler.record(
+      def.scheduling,
+      Rating.good,
+      DateTime.now(),
+    );
+    await store.applyReview(
+      def.id,
+      ReviewRecord(
+        rating: record.rating,
+        reviewedAt: record.reviewedAt,
+        before: record.before,
+        after: record.after,
+        schedulerId: record.schedulerId,
+        impliedBy: thm.id,
+      ),
+    );
+    final archive = VergerArchive.fromJson(
+      (await store.exportArchive()).toJson(),
+    );
+    final copy = newStore();
+    await copy.restoreArchive(archive);
+    expect((await copy.history(def.id)).single.impliedBy, thm.id);
+    await copy.close();
+  });
 }

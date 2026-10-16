@@ -85,11 +85,21 @@ KnowledgeItem          ce que j'ai décidé d'apprendre
 
 Prerequisite           item → item dont il dépend (une définition pour un théorème,
                        un théorème pour un exercice) ; graphe sans cycle, vérifié à
-                       l'ajout et à la lecture d'une archive (PrerequisiteGraph)
+                       l'ajout et à la lecture d'une archive (PrerequisiteGraph).
+                       Déblocage progressif (réglage, activé par défaut) : une
+                       nouvelle connaissance n'entre dans une session qu'une fois
+                       tous ses prérequis vus, ou présentés plus tôt dans la même
+                       session. Révision implicite : noter « Correct » ou
+                       « Facile » une connaissance enregistre une révision
+                       « Correct » de chaque prérequis direct déjà vu et à réviser
+                       maintenant (trace `impliedBy`) ; « À revoir » propose
+                       d'ajouter à la séance les prérequis nouveaux ou fragiles
+                       (rappel estimé < 80 %).
 
 ReviewLog              append-only, source de vérité (permet de rejouer l'historique)
   id, itemId, reviewedAt, rating, durationMs?,
-  stateBefore / stateAfter (JSON de SchedulingState), schedulerId
+  stateBefore / stateAfter (JSON de SchedulingState), schedulerId,
+  impliedBy? (révision implicite, via la connaissance réussie)
 
 Settings               clé → JSON (réglages de révision : SchedulerSettings)
 
@@ -320,5 +330,5 @@ de démonstration (deux mois de révisions simulées).
 | 9 | Contenus (PDF, vidéos) rattachés aux nœuds, ancres généralisées, Bibliothèque ✅ |
 | 10 | Paquets d'arbres : contenus, ancres et notes ; PDF inclus ou par référence ✅ |
 | 11 | Vidéos YouTube : lecteur intégré, extraits recto/verso ✅ |
-| 12 | Arbre de compétences : prérequis entre connaissances (modèle, fiche) ✅, liens tirés du poly, vue graphe, déblocage progressif des nouvelles cartes |
+| 12 | Arbre de compétences : prérequis entre connaissances (modèle, fiche) ✅, liens tirés du poly ✅, vue graphe ✅, déblocage progressif des nouvelles cartes et révisions implicites ✅ |
 | ensuite | Déplacement par l'interface, LaTeX, statistiques, programme officiel, verger, iPad… |

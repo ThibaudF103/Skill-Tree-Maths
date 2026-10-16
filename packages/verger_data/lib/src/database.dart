@@ -67,6 +67,10 @@ class ReviewLogs extends Table {
   TextColumn get stateBefore => text()();
   TextColumn get stateAfter => text()();
 
+  /// Révision implicite : connaissance réussie qui s'appuie sur celle-ci
+  /// (v7). Sans clé étrangère : la trace survit à sa suppression.
+  TextColumn get impliedBy => text().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -232,7 +236,7 @@ class VergerDatabase extends _$VergerDatabase {
   VergerDatabase(super.executor);
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -299,6 +303,11 @@ class VergerDatabase extends _$VergerDatabase {
         // v6 : prérequis entre connaissances.
         await m.createTable(schema.prerequisites);
         await m.createIndex(schema.prerequisitesRequires);
+      },
+      from6To7: (m, schema) async {
+        // v7 : révisions implicites (via une connaissance qui s'appuie
+        // sur celle révisée).
+        await m.addColumn(schema.reviewLogs, schema.reviewLogs.impliedBy);
       },
     ),
     beforeOpen: (details) async {

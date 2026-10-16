@@ -133,4 +133,61 @@ void main() {
       ]);
     });
   });
+
+  group('prérequis', () {
+    final edges = <String, Set<String>>{
+      'thm': {'def'},
+      'cor': {'thm'},
+      'ext': {'ailleurs'},
+    };
+    Set<String> requires(String id) => edges[id] ?? const {};
+    final fresh = [
+      c('cor', SchedulingState.initial),
+      c('thm', SchedulingState.initial),
+      c('def', SchedulingState.initial),
+      c('ext', SchedulingState.initial),
+      c('libre', SchedulingState.initial),
+    ];
+
+    test('à égalité de date, l\'ordre donné est conservé', () {
+      final queue = buildReviewQueue(fresh, now: now, scheduler: scheduler);
+      expect(queue.map((e) => e.id), ['cor', 'thm', 'def', 'ext', 'libre']);
+    });
+
+    test('chaque nouvelle vient après ses prérequis', () {
+      final queue = buildReviewQueue(
+        fresh,
+        now: now,
+        scheduler: scheduler,
+        requires: requires,
+      );
+      // « ext » attend un prérequis jamais vu, absent de la session.
+      expect(queue.map((e) => e.id), ['def', 'thm', 'cor', 'libre']);
+    });
+
+    test('un prérequis déjà vu débloque', () {
+      final queue = buildReviewQueue(
+        fresh,
+        now: now,
+        scheduler: scheduler,
+        requires: requires,
+        seen: {'ailleurs'},
+        newLimit: 3,
+      );
+      expect(queue.map((e) => e.id), ['def', 'thm', 'cor']);
+    });
+
+    test('révisions implicites : seulement après une réussite, si dû', () {
+      final prereqs = [
+        (id: 'dû', state: reviewDue(DateTime(2026, 3, 4, 9))),
+        (id: 'plus tard', state: reviewDue(DateTime(2026, 3, 9))),
+        (id: 'nouveau', state: SchedulingState.initial),
+        (id: 'étape', state: step(DateTime(2026, 3, 4, 14))),
+      ];
+      expect(impliedReviews(Rating.good, prereqs, now), ['dû', 'étape']);
+      expect(impliedReviews(Rating.easy, prereqs, now), ['dû', 'étape']);
+      expect(impliedReviews(Rating.hard, prereqs, now), isEmpty);
+      expect(impliedReviews(Rating.again, prereqs, now), isEmpty);
+    });
+  });
 }

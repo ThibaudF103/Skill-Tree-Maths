@@ -9,6 +9,7 @@ import '../items/item_detail_page.dart';
 import '../items/item_editor.dart';
 import '../items/item_tile.dart';
 import '../review/reviews_page.dart';
+import '../skills/skill_graph_page.dart';
 import 'node_contents.dart';
 import 'node_picker.dart';
 import 'reorder.dart';
@@ -49,6 +50,11 @@ class NodeDetail extends StatelessWidget {
           children: [
             Expanded(
               child: Text(node.title, style: theme.textTheme.headlineMedium),
+            ),
+            IconButton(
+              tooltip: 'Arbre de compétences',
+              onPressed: () => openSkillGraph(context, node.id),
+              icon: const Icon(Icons.account_tree_outlined),
             ),
             _NodeMenu(data: data, node: node, onSelect: onSelect),
           ],
@@ -231,13 +237,17 @@ class _NodeMenu extends StatelessWidget {
             await store.moveNode(node.id, newParentId: target.id);
           case 'tree':
             await store.moveNode(node.id);
+          case 'skills':
+            openSkillGraph(context, node.id);
           case 'share':
             await exportTreePack(context, node);
           case 'review':
-            final ids = reviewQueueOf(
+            final ids = await loadReviewQueue(
+              context,
               data.subtreeItems(node.id),
-              AppScope.of(context).scheduler,
+              data.items,
             );
+            if (!context.mounted) return;
             if (ids.isEmpty) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
@@ -273,6 +283,10 @@ class _NodeMenu extends StatelessWidget {
           child: Text(
             node.isTree ? 'Réviser cet arbre' : 'Réviser cette branche',
           ),
+        ),
+        const PopupMenuItem(
+          value: 'skills',
+          child: Text('Arbre de compétences'),
         ),
         const PopupMenuDivider(),
         const PopupMenuItem(
