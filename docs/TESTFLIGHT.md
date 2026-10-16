@@ -12,8 +12,7 @@ Identifiant de l'appli (*bundle ID*) : `io.github.thibaudf103.verger`.
 1. S'inscrire au programme sur <https://developer.apple.com/programs/enroll/>
    (99 € par an, en tant que particulier). La validation peut prendre
    jusqu'à 48 heures.
-2. Noter votre **Team ID** : <https://developer.apple.com/account>, rubrique
-   *Membership details* (10 caractères, par exemple `AB12CD34EF`).
+2. Team ID : `B37Y3K6Z76`, déjà inscrit dans la CI (`.github/workflows/ci.yml`).
 
 ## 2. Identifiant de l'appli
 
@@ -89,7 +88,6 @@ Le script crée `verger.key` (clé privée, à garder pour vous) et
 
 | Secret | Valeur |
 |---|---|
-| `APPLE_TEAM_ID` | Team ID (étape 1) |
 | `IOS_P12_BASE64` | sortie de `tools/ios/certificat.sh base64 ~/verger-ios/verger.p12` |
 | `IOS_P12_PASSWORD` | mot de passe affiché à l'étape 4 |
 | `IOS_PROFILE_BASE64` | sortie de `tools/ios/certificat.sh base64 ~/Downloads/Verger_App_Store.mobileprovision` |
