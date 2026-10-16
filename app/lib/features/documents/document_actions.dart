@@ -148,6 +148,7 @@ Future<SourceDocument?> addYoutubeVideo(
     if (nodeId != null) await store.linkResource(existing.id, nodeId);
     if (context.mounted) {
       _notify(context, 'Cette vidéo est déjà dans la bibliothèque.');
+      await openResource(context, existing);
     }
     return existing;
   }
@@ -157,7 +158,8 @@ Future<SourceDocument?> addYoutubeVideo(
     videoId: id,
     nodeIds: [?nodeId],
   );
-  if (context.mounted) _notify(context, '« ${video.title} » ajoutée.');
+  // La vidéo s'ouvre aussitôt, pour en marquer les extraits.
+  if (context.mounted) await openResource(context, video);
   return video;
 }
 
