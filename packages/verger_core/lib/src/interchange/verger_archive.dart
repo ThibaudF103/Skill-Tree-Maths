@@ -142,6 +142,7 @@ final class VergerArchive {
               duration: r['durationMs'] == null
                   ? null
                   : Duration(milliseconds: r['durationMs'] as int),
+              impliedBy: r['impliedBy'] as String?,
             ),
           ),
       ];
@@ -478,6 +479,7 @@ final class VergerArchive {
           'schedulerId': r.record.schedulerId,
           'before': r.record.before.toJson(),
           'after': r.record.after.toJson(),
+          'impliedBy': ?r.record.impliedBy,
         },
     ],
   };

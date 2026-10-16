@@ -242,10 +242,12 @@ class _NodeMenu extends StatelessWidget {
           case 'share':
             await exportTreePack(context, node);
           case 'review':
-            final ids = reviewQueueOf(
+            final ids = await loadReviewQueue(
+              context,
               data.subtreeItems(node.id),
-              AppScope.of(context).scheduler,
+              data.items,
             );
+            if (!context.mounted) return;
             if (ids.isEmpty) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(

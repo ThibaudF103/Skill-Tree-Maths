@@ -386,6 +386,23 @@ class VergerStore {
         SettingRow(key: _reviewScopeKey, value: jsonEncode(nodeIds.toList())),
       );
 
+  static const _strictKey = 'strictPrerequisites';
+
+  /// Déblocage progressif : une nouvelle connaissance n'est proposée qu'une
+  /// fois tous ses prérequis vus (activé par défaut).
+  Stream<bool> watchStrictPrerequisites() =>
+      (_db.select(_db.settings)..where((s) => s.key.equals(_strictKey)))
+          .watchSingleOrNull()
+          .map((row) => row == null || jsonDecode(row.value) != false);
+
+  Future<bool> strictPrerequisites() => watchStrictPrerequisites().first;
+
+  Future<void> setStrictPrerequisites(bool strict) => _db
+      .into(_db.settings)
+      .insertOnConflictUpdate(
+        SettingRow(key: _strictKey, value: jsonEncode(strict)),
+      );
+
   // --- Documents PDF -------------------------------------------------------
 
   Future<List<SourceDocument>> allDocuments() async =>
@@ -1166,6 +1183,7 @@ class VergerStore {
           schedulerId: record.schedulerId,
           stateBefore: jsonEncode(record.before.toJson()),
           stateAfter: jsonEncode(record.after.toJson()),
+          impliedBy: record.impliedBy,
         ),
       );
 
@@ -1182,6 +1200,7 @@ class VergerStore {
     duration: row.durationMs == null
         ? null
         : Duration(milliseconds: row.durationMs!),
+    impliedBy: row.impliedBy,
   );
 
   // --- Interne -------------------------------------------------------------
