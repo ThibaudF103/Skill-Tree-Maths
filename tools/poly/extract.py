@@ -150,8 +150,9 @@ def extract(pdf):
             'sectionTitle': section[deepest][1] if deepest is not None else '',
             'page': r['page'],
             'recto': regions(picked, sizes),
-            'verso': [], 'start': i, 'end': end,
+            'verso': [], 'versoText': '', 'start': i, 'end': end,
             'text': ' '.join(p['text'] for p in picked)[:1500],
+            'fullText': ' '.join(p['text'] for p in picked),
         })
     attach_proofs(out, seq, sizes)
     for st in out:
@@ -186,6 +187,7 @@ def attach_proofs(statements, seq, sizes):
                           f"{row['chapter']}.{ref.group(1)}"), None)
             if owner and owner['kind'] != 'exercise':
                 owner['verso'] += regions(seq[ps:pe + 1], sizes)
+                owner['versoText'] += ' ' + ' '.join(r['text'] for r in seq[ps:pe + 1])
             continue
         # Les exercices intercalés n'ont pas de démonstration : on les saute.
         before = [st for st in by_start if st['start'] < ps
@@ -202,3 +204,4 @@ def attach_proofs(statements, seq, sizes):
             continue
         first = owner['end'] if len(between) <= MAX_GAP and not skipped else ps
         owner['verso'] = regions(seq[first:pe + 1], sizes)
+        owner['versoText'] = ' '.join(r['text'] for r in seq[first:pe + 1])
