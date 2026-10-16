@@ -185,6 +185,26 @@ def exercise_parts(statements):
     return edges
 
 
+def load_corriges(paths, exercises):
+    """Corrigés {numéro: texte} lus dans [paths]. Refuse un numéro qui
+    n'est pas celui d'un exercice extrait, un texte qui n'est pas une
+    chaîne, ou un même exercice corrigé dans deux fichiers."""
+    corriges, errors = {}, []
+    for path in paths:
+        for number, body in json.load(open(path, encoding='utf-8')).items():
+            if number not in exercises:
+                errors.append(f"{path} : {number} n'est pas un exercice du poly")
+            elif not isinstance(body, str):
+                errors.append(f"{path} : le corrigé de {number} n'est pas un texte")
+            elif number in corriges:
+                errors.append(f"{path} : {number} est déjà corrigé dans un autre fichier")
+            else:
+                corriges[number] = body
+    if errors:
+        sys.exit('Corrigés refusés :\n  ' + '\n  '.join(errors))
+    return corriges
+
+
 def common_branch(nodes, parent_of):
     """Branche la plus profonde qui contient toutes [nodes] (None si elles
     sont dans des arbres différents)."""
@@ -220,6 +240,9 @@ def main():
     args.add_argument('pdf')
     args.add_argument('-o', '--output', default='programme-agreg-2026-lamboley.verger')
     args.add_argument('-v', '--verbose', action='store_true')
+    args.add_argument('--corriges', action='append', default=[],
+                      help="JSON {numéro: texte} : corrigés ajoutés en note au verso "
+                           "des exercices (option répétable)")
     args = args.parse_args()
     prog = json.load(open(PROGRAMME, encoding='utf-8'))
     statements = extract(args.pdf)
@@ -277,6 +300,8 @@ def main():
         (item_of[a], item_of[b]) for a, b in references(statements)
         if item_of[a] != item_of[b]
     })
+    corriges = load_corriges(args.corriges, {
+        s['number'] for s in statements if s['kind'] == 'exercise'})
     data = open(args.pdf, 'rb').read()
     import pymupdf
     pages = pymupdf.open(args.pdf).page_count
@@ -295,7 +320,11 @@ def main():
         }],
         'resourceLinks': [{'documentId': DOC, 'nodeId': f'agreg2026.{t}'} for t in trees],
         'anchors': [{k: v for k, v in a.items() if v is not None} for a in anchors],
-        'notes': [],
+        'notes': [
+            {'id': f'corrige.{number}', 'itemId': item_of[number], 'body': body,
+             'createdAt': NOW, 'updatedAt': NOW}
+            for number, body in corriges.items()
+        ],
         'prerequisites': [
             {'itemId': a, 'requiresId': b} for a, b in prerequisites
         ],
@@ -305,7 +334,7 @@ def main():
     print(f"{len(items)} connaissances du programme, {len(new_items)} ajoutées depuis le poly,",
           f"{len(matches)} énoncés rattachés à une connaissance du programme,",
           f"{len(anchors)} cadres ({sum(a['role'] == 'work' for a in anchors)} démonstrations),",
-          f"{len(prerequisites)} prérequis")
+          f"{len(prerequisites)} prérequis, {len(corriges)} corrigés")
     print('contenu rattaché aux arbres', trees)
     if args.verbose:
         for m in matches: print('  ', m)
