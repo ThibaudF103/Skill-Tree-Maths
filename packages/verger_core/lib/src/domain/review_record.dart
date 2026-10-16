@@ -11,6 +11,7 @@ final class ReviewRecord {
     required this.after,
     required this.schedulerId,
     this.duration,
+    this.impliedBy,
   });
 
   final Rating rating;
@@ -23,4 +24,8 @@ final class ReviewRecord {
 
   /// Temps passé sur la révision, si mesuré.
   final Duration? duration;
+
+  /// Révision implicite : la connaissance réussie qui s'appuie sur celle-ci
+  /// (`null` pour une révision ordinaire).
+  final String? impliedBy;
 }

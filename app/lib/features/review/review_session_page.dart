@@ -29,6 +29,13 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
   final _focus = FocusNode();
 
   Map<String, KnowledgeNode>? _nodes;
+  PrerequisiteGraph _graph = PrerequisiteGraph(const []);
+
+  /// File de la session ; on peut y ajouter des prérequis en cours de route.
+  late final List<String> _ids = [...widget.itemIds];
+
+  /// Révisées implicitement pendant la session : on ne les repropose pas.
+  final _implied = <String>{};
   KnowledgeItem? _item;
   List<ReviewRecord> _history = const [];
   List<Anchor> _anchors = const [];
@@ -53,6 +60,7 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
 
   Future<void> _load() async {
     final nodes = await _store.allNodes();
+    _graph = PrerequisiteGraph(await _store.prerequisites());
     _nodes = {for (final n in nodes) n.id: n};
     await _show(0);
   }
@@ -62,8 +70,8 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
   Future<void> _show(int index) async {
     var i = index;
     KnowledgeItem? item;
-    while (i < widget.itemIds.length) {
-      item = await _store.item(widget.itemIds[i]);
+    while (i < _ids.length) {
+      item = _implied.contains(_ids[i]) ? null : await _store.item(_ids[i]);
       if (item != null && !item.suspended) break;
       i++;
     }
@@ -79,7 +87,7 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
     if (!mounted) return;
     setState(() {
       _index = i;
-      _item = i < widget.itemIds.length ? item : null;
+      _item = i < _ids.length ? item : null;
       _history = history;
       _anchors = anchors;
       _notes = notes;
@@ -107,6 +115,7 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
     try {
       await _store.applyReview(item.id, record);
       _results.add(rating);
+      await _afterReview(item, rating, record.reviewedAt);
     } on StaleReviewException {
       // Révisée ailleurs entre-temps : on passe simplement à la suivante.
     } catch (e) {
@@ -119,6 +128,99 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
       }
     }
     await _show(_index + 1);
+  }
+
+  /// Prérequis directs de [item] encore existants et actifs.
+  Future<List<KnowledgeItem>> _prerequisitesOf(KnowledgeItem item) async => [
+    for (final id in _graph.requires(item.id))
+      if (await _store.item(id) case final p? when !p.suspended) p,
+  ];
+
+  /// Réussir une connaissance revient à revoir ses prérequis à réviser ;
+  /// l'oublier invite à consolider ceux qui sont fragiles.
+  Future<void> _afterReview(
+    KnowledgeItem item,
+    Rating rating,
+    DateTime now,
+  ) async {
+    final prerequisites = await _prerequisitesOf(item);
+    if (prerequisites.isEmpty || !mounted) return;
+    final scheduler = AppScope.of(context).scheduler;
+    final byId = {for (final p in prerequisites) p.id: p};
+    final implied = impliedReviews(rating, [
+      for (final p in prerequisites) (id: p.id, state: p.scheduling),
+    ], now);
+    final revised = <String>[];
+    for (final id in implied) {
+      final p = byId[id]!;
+      final r = scheduler.record(p.scheduling, Rating.good, now, fuzzKey: id);
+      try {
+        await _store.applyReview(
+          id,
+          ReviewRecord(
+            rating: r.rating,
+            reviewedAt: r.reviewedAt,
+            before: r.before,
+            after: r.after,
+            schedulerId: r.schedulerId,
+            impliedBy: item.id,
+          ),
+        );
+        _implied.add(id);
+        revised.add(p.title);
+      } on StaleReviewException {
+        // Révisée ailleurs entre-temps.
+      }
+    }
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    if (revised.isNotEmpty) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Revu en même temps : ${revised.map((t) => '« $t »').join(', ')}.',
+          ),
+        ),
+      );
+    }
+    if (rating != Rating.again) return;
+    final ahead = _ids.skip(_index + 1).toSet();
+    final weak = [
+      for (final p in prerequisites)
+        if (!ahead.contains(p.id) &&
+            (p.scheduling.isNew ||
+                scheduler.retrievability(p.scheduling, now) < 0.8))
+          p,
+    ];
+    if (weak.isEmpty) return;
+    messenger.showSnackBar(
+      SnackBar(
+        duration: const Duration(seconds: 10),
+        content: Text(
+          '« ${item.title} » s\'appuie sur '
+          '${weak.map((p) => '« ${p.title} »').join(', ')}, '
+          '${weak.length > 1 ? 'fragiles ou pas encore vus' : 'fragile ou pas encore vu'}.',
+        ),
+        action: SnackBarAction(
+          label: 'Ajouter à la séance',
+          onPressed: () => _insertNext([for (final p in weak) p.id]),
+        ),
+      ),
+    );
+  }
+
+  /// Place [ids] juste après la carte affichée (ou à la suite, si la
+  /// session était finie).
+  void _insertNext(List<String> ids) {
+    if (!mounted) return;
+    final finished = _item == null;
+    final at = finished ? _ids.length : _index + 1;
+    setState(() {
+      // Celles déjà plus loin dans la file n'ont pas été proposées.
+      _ids.insertAll(at, ids);
+      _implied.removeAll(ids);
+    });
+    if (finished) _show(at);
   }
 
   void _reveal() {
@@ -153,7 +255,7 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
 
   @override
   Widget build(BuildContext context) {
-    final total = widget.itemIds.length;
+    final total = _ids.length;
     final done = _nodes != null && _item == null;
     return Focus(
       focusNode: _focus,
