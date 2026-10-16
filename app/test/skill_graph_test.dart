@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:verger_core/verger_core.dart';
+import 'package:verger/features/skills/skill_graph_page.dart';
 import 'package:verger_data/verger_data.dart';
 
 import 'test_app.dart';
@@ -66,5 +67,20 @@ void main() {
     await settle(tester);
     expect(find.text('S\'appuie sur'), findsOneWidget);
     await unmountTestApp(tester);
+  });
+
+  test('numéro de l\'énoncé affiché à part', () {
+    expect(splitTitle('Proposition I.6.19 : Soit f convexe'), (
+      number: 'I.6.19',
+      text: 'Soit f convexe',
+    ));
+    expect(splitTitle('Théorème de Rolle · I.3.40'), (
+      number: 'I.3.40',
+      text: 'Théorème de Rolle',
+    ));
+    expect(splitTitle('Cayley-Hamilton'), (
+      number: null,
+      text: 'Cayley-Hamilton',
+    ));
   });
 }

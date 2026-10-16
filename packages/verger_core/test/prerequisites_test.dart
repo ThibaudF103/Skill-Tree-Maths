@@ -63,4 +63,29 @@ void main() {
     expect(graph.ancestors('x'), {'c', 't', 'd1', 'd2'});
     expect(graph.descendants('d1'), {'t', 'c', 'x'});
   });
+
+  test('réduction transitive : les liens impliqués sont omis', () {
+    final g = PrerequisiteGraph([
+      (itemId: 'thm', requiresId: 'def'),
+      (itemId: 'ex', requiresId: 'thm'),
+      (itemId: 'ex', requiresId: 'def'),
+      (itemId: 'ex', requiresId: 'lemme'),
+    ]);
+    expect(
+      g.reduction(['def', 'thm', 'lemme', 'ex']),
+      unorderedEquals([
+        (itemId: 'thm', requiresId: 'def'),
+        (itemId: 'ex', requiresId: 'thm'),
+        (itemId: 'ex', requiresId: 'lemme'),
+      ]),
+    );
+    // Sans le théorème, le lien direct vers la définition reste.
+    expect(
+      g.reduction(['def', 'lemme', 'ex']),
+      unorderedEquals([
+        (itemId: 'ex', requiresId: 'def'),
+        (itemId: 'ex', requiresId: 'lemme'),
+      ]),
+    );
+  });
 }
