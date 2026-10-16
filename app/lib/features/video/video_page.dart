@@ -4,6 +4,8 @@ import 'package:verger_data/verger_data.dart';
 
 import '../../app/app_scope.dart';
 import '../../ui/labels.dart';
+import '../../ui/coverage.dart';
+import '../../video/video_timeline.dart';
 import '../../video/youtube_player.dart';
 import '../documents/document_viewer_page.dart'
     show noteColor, rectoColor, versoColor;
@@ -43,6 +45,8 @@ class _VideoPageState extends State<VideoPage> {
   Stream<List<Anchor>>? _anchors;
   Stream<List<Note>>? _notes;
   Stream<List<KnowledgeItem>>? _items;
+  Stream<List<Anchor>>? _timelineAnchors;
+  Stream<List<Note>>? _timelineNotes;
   int? _start;
   int? _end;
 
@@ -69,6 +73,8 @@ class _VideoPageState extends State<VideoPage> {
     _anchors ??= _store.watchAnchors(documentId: widget.documentId);
     _notes ??= _store.watchNotes(documentId: widget.documentId);
     _items ??= _store.watchItems();
+    _timelineAnchors ??= _store.watchAnchors(documentId: widget.documentId);
+    _timelineNotes ??= _store.watchNotes(documentId: widget.documentId);
   }
 
   Future<void> _mark({required bool start}) async {
@@ -238,7 +244,28 @@ class _VideoPageState extends State<VideoPage> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
+                      StreamBuilder<List<Anchor>>(
+                        stream: _timelineAnchors,
+                        builder: (context, anchors) =>
+                            StreamBuilder<List<Note>>(
+                              stream: _timelineNotes,
+                              builder: (context, notes) => VideoTimeline(
+                                controller: _player,
+                                spans: videoCoverage(
+                                  anchors.data ?? const [],
+                                  notes.data ?? const [],
+                                ),
+                                selection: _start == null
+                                    ? null
+                                    : (_start!, _end),
+                                rectoColor: rectoColor,
+                                versoColor: versoColor,
+                                noteColor: noteColor,
+                              ),
+                            ),
+                      ),
+                      const SizedBox(height: 8),
                       _excerptBar(document),
                       const SizedBox(height: 24),
                       _linked(context),

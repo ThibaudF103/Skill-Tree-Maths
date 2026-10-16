@@ -12,6 +12,7 @@ import 'youtube_player.dart';
 class PlatformYoutubeController implements YoutubePlayerController {
   web.HTMLIFrameElement? _frame;
   double? _time;
+  double? _duration;
   double? _stopAt;
 
   void _post(String func, [List<Object?> args = const []]) {
@@ -28,6 +29,10 @@ class PlatformYoutubeController implements YoutubePlayerController {
 
   void _onMessage(Map<String, Object?> message) {
     final info = message['info'];
+    if (info is Map && info['duration'] is num) {
+      final duration = (info['duration'] as num).toDouble();
+      if (duration > 0) _duration = duration;
+    }
     if (info is Map && info['currentTime'] is num) {
       _time = (info['currentTime'] as num).toDouble();
       final stop = _stopAt;
@@ -41,6 +46,10 @@ class PlatformYoutubeController implements YoutubePlayerController {
   @override
   Future<int?> currentMs() async =>
       _time == null ? null : (_time! * 1000).round();
+
+  @override
+  Future<int?> durationMs() async =>
+      _duration == null ? null : (_duration! * 1000).round();
 
   @override
   Future<void> seek(int ms, {bool play = true}) async {

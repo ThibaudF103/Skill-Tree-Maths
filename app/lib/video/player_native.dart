@@ -26,6 +26,14 @@ class PlatformYoutubeController implements YoutubePlayerController {
   }
 
   @override
+  Future<int?> durationMs() async {
+    final value = await _js(
+      'window.vergerDuration ? window.vergerDuration() : null',
+    );
+    return value is num && value > 0 ? (value * 1000).round() : null;
+  }
+
+  @override
   Future<void> seek(int ms, {bool play = true}) =>
       _js('window.vergerSeek && window.vergerSeek(${ms / 1000}, $play)');
 
