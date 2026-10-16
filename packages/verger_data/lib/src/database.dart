@@ -126,6 +126,20 @@ class ResourceLinks extends Table {
   Set<Column> get primaryKey => {documentId, nodeId};
 }
 
+/// Prérequis entre connaissances : [itemId] s'appuie sur [requiresId] (v6).
+/// Le graphe reste sans cycle (vérifié par le magasin).
+@DataClassName('PrerequisiteRow')
+@TableIndex(name: 'prerequisites_requires', columns: {#requiresId})
+class Prerequisites extends Table {
+  TextColumn get itemId =>
+      text().references(Items, #id, onDelete: KeyAction.cascade)();
+  TextColumn get requiresId =>
+      text().references(Items, #id, onDelete: KeyAction.cascade)();
+
+  @override
+  Set<Column> get primaryKey => {itemId, requiresId};
+}
+
 /// Liens connaissance ↔ endroit d'un contenu : zone d'une page de PDF, ou
 /// extrait de vidéo (v5).
 @DataClassName('AnchorRow')
@@ -211,13 +225,14 @@ class Settings extends Table {
     Anchors,
     Notes,
     ResourceLinks,
+    Prerequisites,
   ],
 )
 class VergerDatabase extends _$VergerDatabase {
   VergerDatabase(super.executor);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -279,6 +294,11 @@ class VergerDatabase extends _$VergerDatabase {
           JOIN items i ON i.id = a.item_id
           JOIN up ON up.id = i.node_id
         ''');
+      },
+      from5To6: (m, schema) async {
+        // v6 : prérequis entre connaissances.
+        await m.createTable(schema.prerequisites);
+        await m.createIndex(schema.prerequisitesRequires);
       },
     ),
     beforeOpen: (details) async {

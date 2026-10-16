@@ -164,4 +164,32 @@ void main() {
     expect(await store.resourceLinks(), [(documentId: 'd', nodeId: 't')]);
     await store.close();
   });
+  test('v5 → v6 : connaissances conservées, prérequis disponibles', () async {
+    final schema = await verifier.schemaAt(5);
+    final db = schema.rawDatabase;
+    db.execute(
+      "INSERT INTO nodes (id, parent_id, title, sort_index, curriculum_key, "
+      "origin, created_at) VALUES ('n1', NULL, 'Analyse', 0, NULL, 'user', "
+      "'2026-03-02T09:00:00.000Z')",
+    );
+    for (final (id, kind) in [('d', 'definition'), ('t', 'theorem')]) {
+      db.execute(
+        "INSERT INTO items (id, node_id, kind, title, body, level, "
+        "sort_index, suspended, created_at, updated_at, phase, step, "
+        "stability, difficulty, due, last_review, reps, lapses) VALUES "
+        "('$id', 'n1', '$kind', '$id', NULL, NULL, 0, 0, "
+        "'2026-03-02T09:00:00.000Z', '2026-03-02T09:00:00.000Z', 'newItem', "
+        "NULL, NULL, NULL, NULL, NULL, 0, 0)",
+      );
+    }
+
+    final store = VergerStore(VergerDatabase(schema.newConnection()));
+    expect((await store.allItems()).map((i) => i.id), ['d', 't']);
+    expect(await store.prerequisites(), isEmpty);
+    await store.addPrerequisite('t', 'd');
+    expect(await store.prerequisites(), [(itemId: 't', requiresId: 'd')]);
+    await store.deleteItem('d');
+    expect(await store.prerequisites(), isEmpty);
+    await store.close();
+  });
 }

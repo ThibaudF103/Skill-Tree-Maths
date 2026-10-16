@@ -1675,11 +1675,285 @@ i1.GeneratedColumn<String> _column_57(String aliasedName) =>
       type: i1.DriftSqlType.string,
       $customConstraints: 'NOT NULL REFERENCES nodes(id)ON DELETE CASCADE',
     );
+
+final class Schema6 extends i0.VersionedSchema {
+  Schema6({required super.database}) : super(version: 6);
+  @override
+  late final List<i1.DatabaseSchemaEntity> entities = [
+    nodes,
+    items,
+    reviewLogs,
+    settings,
+    documents,
+    documentFiles,
+    anchors,
+    notes,
+    resourceLinks,
+    prerequisites,
+    nodesParent,
+    itemsNode,
+    itemsDue,
+    reviewLogsItem,
+    anchorsItem,
+    anchorsDocument,
+    notesDocument,
+    notesItem,
+    resourceLinksNode,
+    prerequisitesRequires,
+  ];
+  late final Shape0 nodes = Shape0(
+    source: i0.VersionedTable(
+      entityName: 'nodes',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(id)'],
+      columns: [
+        _column_0,
+        _column_1,
+        _column_2,
+        _column_3,
+        _column_4,
+        _column_5,
+        _column_6,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape9 items = Shape9(
+    source: i0.VersionedTable(
+      entityName: 'items',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(id)'],
+      columns: [
+        _column_0,
+        _column_7,
+        _column_8,
+        _column_2,
+        _column_9,
+        _column_51,
+        _column_52,
+        _column_10,
+        _column_6,
+        _column_11,
+        _column_12,
+        _column_13,
+        _column_14,
+        _column_15,
+        _column_16,
+        _column_17,
+        _column_18,
+        _column_19,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape2 reviewLogs = Shape2(
+    source: i0.VersionedTable(
+      entityName: 'review_logs',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(id)'],
+      columns: [
+        _column_0,
+        _column_20,
+        _column_21,
+        _column_22,
+        _column_23,
+        _column_24,
+        _column_25,
+        _column_26,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape3 settings = Shape3(
+    source: i0.VersionedTable(
+      entityName: 'settings',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY("key")'],
+      columns: [_column_27, _column_28],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape10 documents = Shape10(
+    source: i0.VersionedTable(
+      entityName: 'documents',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(id)'],
+      columns: [
+        _column_0,
+        _column_2,
+        _column_53,
+        _column_54,
+        _column_30,
+        _column_31,
+        _column_32,
+        _column_33,
+        _column_34,
+        _column_35,
+        _column_46,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape5 documentFiles = Shape5(
+    source: i0.VersionedTable(
+      entityName: 'document_files',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(document_id)'],
+      columns: [_column_36, _column_37],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape11 anchors = Shape11(
+    source: i0.VersionedTable(
+      entityName: 'anchors',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(id)'],
+      columns: [
+        _column_0,
+        _column_20,
+        _column_36,
+        _column_29,
+        _column_49,
+        _column_55,
+        _column_56,
+        _column_39,
+        _column_40,
+        _column_41,
+        _column_42,
+        _column_43,
+        _column_44,
+        _column_45,
+        _column_6,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape12 notes = Shape12(
+    source: i0.VersionedTable(
+      entityName: 'notes',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(id)'],
+      columns: [
+        _column_0,
+        _column_47,
+        _column_48,
+        _column_49,
+        _column_55,
+        _column_56,
+        _column_39,
+        _column_40,
+        _column_41,
+        _column_42,
+        _column_44,
+        _column_50,
+        _column_6,
+        _column_11,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape13 resourceLinks = Shape13(
+    source: i0.VersionedTable(
+      entityName: 'resource_links',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(document_id, node_id)'],
+      columns: [_column_36, _column_57],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape14 prerequisites = Shape14(
+    source: i0.VersionedTable(
+      entityName: 'prerequisites',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(item_id, requires_id)'],
+      columns: [_column_20, _column_58],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  final i1.Index nodesParent = i1.Index(
+    'nodes_parent',
+    'CREATE INDEX nodes_parent ON nodes (parent_id)',
+  );
+  final i1.Index itemsNode = i1.Index(
+    'items_node',
+    'CREATE INDEX items_node ON items (node_id)',
+  );
+  final i1.Index itemsDue = i1.Index(
+    'items_due',
+    'CREATE INDEX items_due ON items (due)',
+  );
+  final i1.Index reviewLogsItem = i1.Index(
+    'review_logs_item',
+    'CREATE INDEX review_logs_item ON review_logs (item_id)',
+  );
+  final i1.Index anchorsItem = i1.Index(
+    'anchors_item',
+    'CREATE INDEX anchors_item ON anchors (item_id)',
+  );
+  final i1.Index anchorsDocument = i1.Index(
+    'anchors_document',
+    'CREATE INDEX anchors_document ON anchors (document_id)',
+  );
+  final i1.Index notesDocument = i1.Index(
+    'notes_document',
+    'CREATE INDEX notes_document ON notes (document_id)',
+  );
+  final i1.Index notesItem = i1.Index(
+    'notes_item',
+    'CREATE INDEX notes_item ON notes (item_id)',
+  );
+  final i1.Index resourceLinksNode = i1.Index(
+    'resource_links_node',
+    'CREATE INDEX resource_links_node ON resource_links (node_id)',
+  );
+  final i1.Index prerequisitesRequires = i1.Index(
+    'prerequisites_requires',
+    'CREATE INDEX prerequisites_requires ON prerequisites (requires_id)',
+  );
+}
+
+class Shape14 extends i0.VersionedTable {
+  Shape14({required super.source, required super.alias}) : super.aliased();
+  i1.GeneratedColumn<String> get itemId =>
+      columnsByName['item_id']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get requiresId =>
+      columnsByName['requires_id']! as i1.GeneratedColumn<String>;
+}
+
+i1.GeneratedColumn<String> _column_58(String aliasedName) =>
+    i1.GeneratedColumn<String>(
+      'requires_id',
+      aliasedName,
+      false,
+      type: i1.DriftSqlType.string,
+      $customConstraints: 'NOT NULL REFERENCES items(id)ON DELETE CASCADE',
+    );
 i0.MigrationStepWithVersion migrationSteps({
   required Future<void> Function(i1.Migrator m, Schema2 schema) from1To2,
   required Future<void> Function(i1.Migrator m, Schema3 schema) from2To3,
   required Future<void> Function(i1.Migrator m, Schema4 schema) from3To4,
   required Future<void> Function(i1.Migrator m, Schema5 schema) from4To5,
+  required Future<void> Function(i1.Migrator m, Schema6 schema) from5To6,
 }) {
   return (currentVersion, database) async {
     switch (currentVersion) {
@@ -1703,6 +1977,11 @@ i0.MigrationStepWithVersion migrationSteps({
         final migrator = i1.Migrator(database, schema);
         await from4To5(migrator, schema);
         return 5;
+      case 5:
+        final schema = Schema6(database: database);
+        final migrator = i1.Migrator(database, schema);
+        await from5To6(migrator, schema);
+        return 6;
       default:
         throw ArgumentError.value('Unknown migration from $currentVersion');
     }
@@ -1714,11 +1993,13 @@ i1.OnUpgrade stepByStep({
   required Future<void> Function(i1.Migrator m, Schema3 schema) from2To3,
   required Future<void> Function(i1.Migrator m, Schema4 schema) from3To4,
   required Future<void> Function(i1.Migrator m, Schema5 schema) from4To5,
+  required Future<void> Function(i1.Migrator m, Schema6 schema) from5To6,
 }) => i0.VersionedSchema.stepByStepHelper(
   step: migrationSteps(
     from1To2: from1To2,
     from2To3: from2To3,
     from3To4: from3To4,
     from4To5: from4To5,
+    from5To6: from5To6,
   ),
 );

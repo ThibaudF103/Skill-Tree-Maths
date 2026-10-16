@@ -4994,6 +4994,230 @@ class ResourceLinksCompanion extends UpdateCompanion<ResourceLinkRow> {
   }
 }
 
+class $PrerequisitesTable extends Prerequisites
+    with TableInfo<$PrerequisitesTable, PrerequisiteRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PrerequisitesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _itemIdMeta = const VerificationMeta('itemId');
+  @override
+  late final GeneratedColumn<String> itemId = GeneratedColumn<String>(
+    'item_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES items (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _requiresIdMeta = const VerificationMeta(
+    'requiresId',
+  );
+  @override
+  late final GeneratedColumn<String> requiresId = GeneratedColumn<String>(
+    'requires_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES items (id) ON DELETE CASCADE',
+    ),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [itemId, requiresId];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'prerequisites';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PrerequisiteRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('item_id')) {
+      context.handle(
+        _itemIdMeta,
+        itemId.isAcceptableOrUnknown(data['item_id']!, _itemIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_itemIdMeta);
+    }
+    if (data.containsKey('requires_id')) {
+      context.handle(
+        _requiresIdMeta,
+        requiresId.isAcceptableOrUnknown(data['requires_id']!, _requiresIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_requiresIdMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {itemId, requiresId};
+  @override
+  PrerequisiteRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PrerequisiteRow(
+      itemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}item_id'],
+      )!,
+      requiresId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}requires_id'],
+      )!,
+    );
+  }
+
+  @override
+  $PrerequisitesTable createAlias(String alias) {
+    return $PrerequisitesTable(attachedDatabase, alias);
+  }
+}
+
+class PrerequisiteRow extends DataClass implements Insertable<PrerequisiteRow> {
+  final String itemId;
+  final String requiresId;
+  const PrerequisiteRow({required this.itemId, required this.requiresId});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['item_id'] = Variable<String>(itemId);
+    map['requires_id'] = Variable<String>(requiresId);
+    return map;
+  }
+
+  PrerequisitesCompanion toCompanion(bool nullToAbsent) {
+    return PrerequisitesCompanion(
+      itemId: Value(itemId),
+      requiresId: Value(requiresId),
+    );
+  }
+
+  factory PrerequisiteRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PrerequisiteRow(
+      itemId: serializer.fromJson<String>(json['itemId']),
+      requiresId: serializer.fromJson<String>(json['requiresId']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'itemId': serializer.toJson<String>(itemId),
+      'requiresId': serializer.toJson<String>(requiresId),
+    };
+  }
+
+  PrerequisiteRow copyWith({String? itemId, String? requiresId}) =>
+      PrerequisiteRow(
+        itemId: itemId ?? this.itemId,
+        requiresId: requiresId ?? this.requiresId,
+      );
+  PrerequisiteRow copyWithCompanion(PrerequisitesCompanion data) {
+    return PrerequisiteRow(
+      itemId: data.itemId.present ? data.itemId.value : this.itemId,
+      requiresId: data.requiresId.present
+          ? data.requiresId.value
+          : this.requiresId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PrerequisiteRow(')
+          ..write('itemId: $itemId, ')
+          ..write('requiresId: $requiresId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(itemId, requiresId);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PrerequisiteRow &&
+          other.itemId == this.itemId &&
+          other.requiresId == this.requiresId);
+}
+
+class PrerequisitesCompanion extends UpdateCompanion<PrerequisiteRow> {
+  final Value<String> itemId;
+  final Value<String> requiresId;
+  final Value<int> rowid;
+  const PrerequisitesCompanion({
+    this.itemId = const Value.absent(),
+    this.requiresId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  PrerequisitesCompanion.insert({
+    required String itemId,
+    required String requiresId,
+    this.rowid = const Value.absent(),
+  }) : itemId = Value(itemId),
+       requiresId = Value(requiresId);
+  static Insertable<PrerequisiteRow> custom({
+    Expression<String>? itemId,
+    Expression<String>? requiresId,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (itemId != null) 'item_id': itemId,
+      if (requiresId != null) 'requires_id': requiresId,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  PrerequisitesCompanion copyWith({
+    Value<String>? itemId,
+    Value<String>? requiresId,
+    Value<int>? rowid,
+  }) {
+    return PrerequisitesCompanion(
+      itemId: itemId ?? this.itemId,
+      requiresId: requiresId ?? this.requiresId,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (itemId.present) {
+      map['item_id'] = Variable<String>(itemId.value);
+    }
+    if (requiresId.present) {
+      map['requires_id'] = Variable<String>(requiresId.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PrerequisitesCompanion(')
+          ..write('itemId: $itemId, ')
+          ..write('requiresId: $requiresId, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$VergerDatabase extends GeneratedDatabase {
   _$VergerDatabase(QueryExecutor e) : super(e);
   $VergerDatabaseManager get managers => $VergerDatabaseManager(this);
@@ -5006,6 +5230,7 @@ abstract class _$VergerDatabase extends GeneratedDatabase {
   late final $AnchorsTable anchors = $AnchorsTable(this);
   late final $NotesTable notes = $NotesTable(this);
   late final $ResourceLinksTable resourceLinks = $ResourceLinksTable(this);
+  late final $PrerequisitesTable prerequisites = $PrerequisitesTable(this);
   late final Index nodesParent = Index(
     'nodes_parent',
     'CREATE INDEX nodes_parent ON nodes (parent_id)',
@@ -5042,6 +5267,10 @@ abstract class _$VergerDatabase extends GeneratedDatabase {
     'resource_links_node',
     'CREATE INDEX resource_links_node ON resource_links (node_id)',
   );
+  late final Index prerequisitesRequires = Index(
+    'prerequisites_requires',
+    'CREATE INDEX prerequisites_requires ON prerequisites (requires_id)',
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -5056,6 +5285,7 @@ abstract class _$VergerDatabase extends GeneratedDatabase {
     anchors,
     notes,
     resourceLinks,
+    prerequisites,
     nodesParent,
     itemsNode,
     itemsDue,
@@ -5065,6 +5295,7 @@ abstract class _$VergerDatabase extends GeneratedDatabase {
     notesDocument,
     notesItem,
     resourceLinksNode,
+    prerequisitesRequires,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -5123,6 +5354,20 @@ abstract class _$VergerDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('resource_links', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'items',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('prerequisites', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'items',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('prerequisites', kind: UpdateKind.delete)],
     ),
   ]);
   @override
@@ -9572,6 +9817,359 @@ typedef $$ResourceLinksTableProcessedTableManager =
       ResourceLinkRow,
       PrefetchHooks Function({bool documentId, bool nodeId})
     >;
+typedef $$PrerequisitesTableCreateCompanionBuilder =
+    PrerequisitesCompanion Function({
+      required String itemId,
+      required String requiresId,
+      Value<int> rowid,
+    });
+typedef $$PrerequisitesTableUpdateCompanionBuilder =
+    PrerequisitesCompanion Function({
+      Value<String> itemId,
+      Value<String> requiresId,
+      Value<int> rowid,
+    });
+
+final class $$PrerequisitesTableReferences
+    extends
+        BaseReferences<_$VergerDatabase, $PrerequisitesTable, PrerequisiteRow> {
+  $$PrerequisitesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $ItemsTable _itemIdTable(_$VergerDatabase db) =>
+      db.items.createAlias('prerequisites__item_id__items__id');
+
+  $$ItemsTableProcessedTableManager get itemId {
+    final $_column = $_itemColumn<String>('item_id')!;
+
+    final manager = $$ItemsTableTableManager(
+      $_db,
+      $_db.items,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_itemIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $ItemsTable _requiresIdTable(_$VergerDatabase db) =>
+      db.items.createAlias('prerequisites__requires_id__items__id');
+
+  $$ItemsTableProcessedTableManager get requiresId {
+    final $_column = $_itemColumn<String>('requires_id')!;
+
+    final manager = $$ItemsTableTableManager(
+      $_db,
+      $_db.items,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_requiresIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$PrerequisitesTableFilterComposer
+    extends Composer<_$VergerDatabase, $PrerequisitesTable> {
+  $$PrerequisitesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  $$ItemsTableFilterComposer get itemId {
+    final $$ItemsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.itemId,
+      referencedTable: $db.items,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemsTableFilterComposer(
+            $db: $db,
+            $table: $db.items,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ItemsTableFilterComposer get requiresId {
+    final $$ItemsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.requiresId,
+      referencedTable: $db.items,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemsTableFilterComposer(
+            $db: $db,
+            $table: $db.items,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PrerequisitesTableOrderingComposer
+    extends Composer<_$VergerDatabase, $PrerequisitesTable> {
+  $$PrerequisitesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  $$ItemsTableOrderingComposer get itemId {
+    final $$ItemsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.itemId,
+      referencedTable: $db.items,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemsTableOrderingComposer(
+            $db: $db,
+            $table: $db.items,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ItemsTableOrderingComposer get requiresId {
+    final $$ItemsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.requiresId,
+      referencedTable: $db.items,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemsTableOrderingComposer(
+            $db: $db,
+            $table: $db.items,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PrerequisitesTableAnnotationComposer
+    extends Composer<_$VergerDatabase, $PrerequisitesTable> {
+  $$PrerequisitesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  $$ItemsTableAnnotationComposer get itemId {
+    final $$ItemsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.itemId,
+      referencedTable: $db.items,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.items,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ItemsTableAnnotationComposer get requiresId {
+    final $$ItemsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.requiresId,
+      referencedTable: $db.items,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ItemsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.items,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PrerequisitesTableTableManager
+    extends
+        RootTableManager<
+          _$VergerDatabase,
+          $PrerequisitesTable,
+          PrerequisiteRow,
+          $$PrerequisitesTableFilterComposer,
+          $$PrerequisitesTableOrderingComposer,
+          $$PrerequisitesTableAnnotationComposer,
+          $$PrerequisitesTableCreateCompanionBuilder,
+          $$PrerequisitesTableUpdateCompanionBuilder,
+          (PrerequisiteRow, $$PrerequisitesTableReferences),
+          PrerequisiteRow,
+          PrefetchHooks Function({bool itemId, bool requiresId})
+        > {
+  $$PrerequisitesTableTableManager(
+    _$VergerDatabase db,
+    $PrerequisitesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PrerequisitesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PrerequisitesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$PrerequisitesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> itemId = const Value.absent(),
+                Value<String> requiresId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PrerequisitesCompanion(
+                itemId: itemId,
+                requiresId: requiresId,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String itemId,
+                required String requiresId,
+                Value<int> rowid = const Value.absent(),
+              }) => PrerequisitesCompanion.insert(
+                itemId: itemId,
+                requiresId: requiresId,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$PrerequisitesTable, PrerequisiteRow>(table),
+                  $$PrerequisitesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({itemId = false, requiresId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (itemId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.itemId,
+                                referencedTable: $$PrerequisitesTableReferences
+                                    ._itemIdTable(db),
+                                referencedColumn: $$PrerequisitesTableReferences
+                                    ._itemIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+                    if (requiresId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.requiresId,
+                                referencedTable: $$PrerequisitesTableReferences
+                                    ._requiresIdTable(db),
+                                referencedColumn: $$PrerequisitesTableReferences
+                                    ._requiresIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$PrerequisitesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$VergerDatabase,
+      $PrerequisitesTable,
+      PrerequisiteRow,
+      $$PrerequisitesTableFilterComposer,
+      $$PrerequisitesTableOrderingComposer,
+      $$PrerequisitesTableAnnotationComposer,
+      $$PrerequisitesTableCreateCompanionBuilder,
+      $$PrerequisitesTableUpdateCompanionBuilder,
+      (PrerequisiteRow, $$PrerequisitesTableReferences),
+      PrerequisiteRow,
+      PrefetchHooks Function({bool itemId, bool requiresId})
+    >;
 
 class $VergerDatabaseManager {
   final _$VergerDatabase _db;
@@ -9594,4 +10192,6 @@ class $VergerDatabaseManager {
       $$NotesTableTableManager(_db, _db.notes);
   $$ResourceLinksTableTableManager get resourceLinks =>
       $$ResourceLinksTableTableManager(_db, _db.resourceLinks);
+  $$PrerequisitesTableTableManager get prerequisites =>
+      $$PrerequisitesTableTableManager(_db, _db.prerequisites);
 }

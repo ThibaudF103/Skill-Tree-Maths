@@ -10,6 +10,7 @@ import '../notes/note_page.dart';
 import '../trees/node_picker.dart';
 import 'anchors_section.dart';
 import 'item_editor.dart';
+import 'prerequisites_section.dart';
 
 /// Fiche d'une connaissance : contenu, état de révision, historique.
 class ItemDetailPage extends StatefulWidget {
@@ -171,6 +172,11 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                   _Section(
                     title: 'Recto / verso',
                     child: AnchorsSection(item: item),
+                  ),
+                  const SizedBox(height: 28),
+                  _Section(
+                    title: 'Prérequis',
+                    child: PrerequisitesSection(item: item),
                   ),
                   const SizedBox(height: 28),
                   _Section(

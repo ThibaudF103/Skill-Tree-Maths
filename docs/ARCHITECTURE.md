@@ -83,6 +83,10 @@ KnowledgeItem          ce que j'ai décidé d'apprendre
   due, stability?, difficulty?, phase (new|learning|review|relearning),
   step?, lastReview?, reps, lapses
 
+Prerequisite           item → item dont il dépend (une définition pour un théorème,
+                       un théorème pour un exercice) ; graphe sans cycle, vérifié à
+                       l'ajout et à la lecture d'une archive (PrerequisiteGraph)
+
 ReviewLog              append-only, source de vérité (permet de rejouer l'historique)
   id, itemId, reviewedAt, rating, durationMs?,
   stateBefore / stateAfter (JSON de SchedulingState), schedulerId
@@ -216,7 +220,11 @@ Un seul format (`{"format": "verger", "version": 1, …}`) pour deux usages :
   nœuds et connaissances seulement ; à l'import, nouveaux identifiants et
   aucune progression. Champs facultatifs : `curriculumKey`, `body`, dates.
 
-Validation à la lecture : format, version, références, cycles.
+Validation à la lecture : format, version, références, cycles (des nœuds
+comme des prérequis). Version 3 : prérequis entre connaissances
+(`prerequisites`), recréés sous les nouveaux identifiants à l'import d'un
+modèle ou d'un paquet ; le paquet d'une branche n'emporte que les prérequis
+internes à la branche.
 `packages/verger_core/tool/generate_demo_backup.dart` produit une sauvegarde
 de démonstration (deux mois de révisions simulées).
 
@@ -312,4 +320,5 @@ de démonstration (deux mois de révisions simulées).
 | 9 | Contenus (PDF, vidéos) rattachés aux nœuds, ancres généralisées, Bibliothèque ✅ |
 | 10 | Paquets d'arbres : contenus, ancres et notes ; PDF inclus ou par référence ✅ |
 | 11 | Vidéos YouTube : lecteur intégré, extraits recto/verso ✅ |
+| 12 | Arbre de compétences : prérequis entre connaissances (modèle, fiche) ✅, liens tirés du poly, vue graphe, déblocage progressif des nouvelles cartes |
 | ensuite | Déplacement par l'interface, LaTeX, statistiques, programme officiel, verger, iPad… |
