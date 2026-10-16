@@ -62,10 +62,14 @@ CHAPTERS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X']
 
 
 def references(statements):
-    """Prérequis tirés des renvois explicites de chaque énoncé et de sa
-    démonstration (« d'après le théorème 2.8 », « la proposition 4.17 du
-    Chapitre I ») : seulement vers un énoncé antérieur dans le poly (les
-    renvois en avant sont des « voir plus loin »), ce qui exclut les cycles."""
+    """Prérequis du poly, toujours vers un énoncé antérieur (ce qui exclut
+    les cycles) :
+    - renvois explicites de chaque énoncé et de sa démonstration (« d'après
+      le théorème 2.8 », « la proposition 4.17 du Chapitre I ») ; les renvois
+      en avant sont des « voir plus loin », ignorés ;
+    - emploi d'un terme défini plus haut dans le chapitre (term_references) ;
+    - pour un exercice, tout ce qui le précède dans sa partie
+      (exercise_parts)."""
     rank = {s['number']: n for n, s in enumerate(statements)}
     edges = []
     for n, s in enumerate(statements):
@@ -89,7 +93,7 @@ _END = r"\s*(?:\d+\s+)?(?:si|s’il|s'il|s’ils|lorsque|quand|lorsqu|\()"
 DEFINES = [re.compile(p, re.IGNORECASE) for p in (
     rf"\bon dit qu(?:e|’|')\s?.{{0,80}}?\b(?:est|sont|admet|admettent)\s+{_ART}{_TERM}{_END}",
     rf"\b(?:est|sont) (?:dite?s?|appel[ée]e?s?)\s+{_ART}{_TERM}{_END}",
-    rf"\bs(?:’|')appellen?t?\s+{_ART}{_TERM}\b",
+    rf"\bs(?:’|')appellen?t?\s+{_ART}{_TERM}\s*(?:\(|,|\.|$|\bde\b|\bdu\b|\bd’|\bd')",
     rf"\bon d[ée]finit\s+{_ART}{_TERM}\s+(?:de|du|des|d’|d'|par|pour|sur)\b",
     rf"\bon (?:appelle|nomme)\s+{_TERM}\s*(?:\(|\bune?\b|\bla\b|\ble\b|\bl’|\bl'|\btoute?\b|\bles\b)",
     rf"(?:^|\. )\s*(?:une?|la|le|l’|l')\s*{_TERM}\s*(?:\d+\s+)?(?:est|sur|entre|de|du|d’|d')\b",
@@ -181,6 +185,25 @@ def exercise_parts(statements):
     return edges
 
 
+def common_branch(nodes, parent_of):
+    """Branche la plus profonde qui contient toutes [nodes] (None si elles
+    sont dans des arbres différents)."""
+    def path(n):
+        out = []
+        while n is not None:
+            out.insert(0, n)
+            n = parent_of.get(n)
+        return out
+    paths = [path(n) for n in nodes]
+    common = paths[0]
+    for p in paths[1:]:
+        k = 0
+        while k < min(len(common), len(p)) and common[k] == p[k]:
+            k += 1
+        common = common[:k]
+    return common[-1] if common else None
+
+
 def title_of(s):
     if s['name']:
         name = s['name'][0].upper() + s['name'][1:]
@@ -202,6 +225,7 @@ def main():
     statements = extract(args.pdf)
     items = prog['items']
     node_of_item = {i['id']: i['nodeId'] for i in items}
+    parent_of = {n['id']: n['parentId'] for n in prog['nodes']}
     cores = {i['id']: core(i['title']) for i in items
              if i['kind'] != 'exercise' and len(core(i['title'])) >= 5}
     anchors, new_items, used, matches = [], [], set(), []
@@ -213,10 +237,10 @@ def main():
         # exercices rejoignent celle de la partie qu'elle clôt.
         if s['kind'] == 'exercise' and plain(s['sectionTitle']) == 'exercices':
             prefix = s['section'].rsplit('.', 1)[0] + '.'
-            for t in reversed(statements[:n]):
-                if t['kind'] != 'exercise' and t['section'].startswith(prefix):
-                    node = node_for(t['section'])
-                    break
+            part = {node_for(t['section']) for t in statements[:n]
+                    if t['kind'] != 'exercise' and t['section'].startswith(prefix)}
+            if part:
+                node = common_branch(part, parent_of) or node
         target = None
         if s['name'] and s['kind'] != 'exercise' and s['label'] not in NO_MATCH:
             name = plain(s['name'])

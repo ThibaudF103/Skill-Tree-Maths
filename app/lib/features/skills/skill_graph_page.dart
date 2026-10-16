@@ -173,7 +173,7 @@ class SkillGraphModel {
   /// Connaissances de la branche sans aucun lien, masquées par défaut.
   final int unlinkedCount;
 
-  /// Exercices liés de la branche (qu'on peut masquer).
+  /// Exercices de la branche qu'on peut afficher (ou masquer).
   final int exerciseCount;
 
   Map<String, SkillCell> get cells => layout.cells;
@@ -202,7 +202,10 @@ class SkillGraphModel {
     final external = <String>{
       for (final i in shown)
         for (final r in graph.requires(i.id))
-          if (!inScope.contains(r) && byId.containsKey(r)) r,
+          if (!inScope.contains(r) &&
+              byId.containsKey(r) &&
+              (showExercises || !exercise(byId[r]!)))
+            r,
     };
     final ids = [
       for (final i in data.items)
@@ -277,7 +280,9 @@ class SkillGraphModel {
                 e,
           ],
       unlinkedCount: scope.where((i) => !linked(i.id)).length,
-      exerciseCount: scope.where((i) => exercise(i) && linked(i.id)).length,
+      exerciseCount: scope
+          .where((i) => exercise(i) && (showUnlinked || linked(i.id)))
+          .length,
     );
   }
 }
