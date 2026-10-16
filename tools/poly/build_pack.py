@@ -185,6 +185,26 @@ def exercise_parts(statements):
     return edges
 
 
+def load_corriges(paths, exercises):
+    """Corrigés {numéro: texte} lus dans [paths]. Refuse un numéro qui
+    n'est pas celui d'un exercice extrait, un texte qui n'est pas une
+    chaîne, ou un même exercice corrigé dans deux fichiers."""
+    corriges, errors = {}, []
+    for path in paths:
+        for number, body in json.load(open(path, encoding='utf-8')).items():
+            if number not in exercises:
+                errors.append(f"{path} : {number} n'est pas un exercice du poly")
+            elif not isinstance(body, str):
+                errors.append(f"{path} : le corrigé de {number} n'est pas un texte")
+            elif number in corriges:
+                errors.append(f"{path} : {number} est déjà corrigé dans un autre fichier")
+            else:
+                corriges[number] = body
+    if errors:
+        sys.exit('Corrigés refusés :\n  ' + '\n  '.join(errors))
+    return corriges
+
+
 def common_branch(nodes, parent_of):
     """Branche la plus profonde qui contient toutes [nodes] (None si elles
     sont dans des arbres différents)."""
@@ -280,9 +300,8 @@ def main():
         (item_of[a], item_of[b]) for a, b in references(statements)
         if item_of[a] != item_of[b]
     })
-    corriges = {}
-    for path in args.corriges:
-        corriges.update(json.load(open(path, encoding='utf-8')))
+    corriges = load_corriges(args.corriges, {
+        s['number'] for s in statements if s['kind'] == 'exercise'})
     data = open(args.pdf, 'rb').read()
     import pymupdf
     pages = pymupdf.open(args.pdf).page_count
@@ -304,7 +323,7 @@ def main():
         'notes': [
             {'id': f'corrige.{number}', 'itemId': item_of[number], 'body': body,
              'createdAt': NOW, 'updatedAt': NOW}
-            for number, body in corriges.items() if number in item_of
+            for number, body in corriges.items()
         ],
         'prerequisites': [
             {'itemId': a, 'requiresId': b} for a, b in prerequisites
