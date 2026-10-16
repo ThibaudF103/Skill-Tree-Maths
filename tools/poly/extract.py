@@ -3,12 +3,20 @@ et de la démonstration (verso), page par page."""
 import re
 from structure import *
 
-KINDS = {'Définition': 'definition', 'Théorème': 'theorem',
+KINDS = {'Définition-Proposition': 'proposition',
+         'Proposition-Définition': 'proposition',
+         'Théorème-Définition': 'theorem',
+         'Définition': 'definition', 'Théorème': 'theorem',
          'Proposition': 'proposition', 'Lemme': 'lemma',
          'Corollaire': 'corollary', 'Exercice': 'exercise'}
-STOPWORDS = set(KINDS) | {'Remarque', 'Exemple', 'Exemples', 'Remarques',
-                          'Notation', 'Notations', 'Rappel', 'Rappels'}
-HEADER = re.compile(r"^([A-ZÉ][a-zéèêû]+) (\d+\.\d+)\.?\s*(.*)$")
+ASIDES = {'Remarque', 'Exemple', 'Exemples', 'Remarques',
+          'Notation', 'Notations', 'Rappel', 'Rappels'}
+STOPWORDS = set(KINDS) | ASIDES
+HEADER = re.compile(r"^([A-ZÉ][a-zéèêû]+(?:-[A-ZÉ][a-zéèêû]+)?) (\d+\.\d+)\.?\s*(.*)$")
+REFERENCED = re.compile(
+    r"^(?:Preuve|Démonstration) (?:de la [a-zéè]+ partie )?d[ue] (?:la )?"
+    r"(?:th[ée]r?or[èe]me|proposition|lemme|corollaire) (\d+\.\d+)", re.IGNORECASE)
+MAX_GAP = 40  # lignes entre énoncé et démonstration incluses au verso
 SECTION = re.compile(r"^\d+(?:\.\d+){0,3}$")
 MAX_PAGES = 4  # au-delà, cadre tronqué
 
@@ -46,13 +54,21 @@ def qed_marks(page):
             ys.append((r.y0 + r.y1) / 2)
     return sorted(set(round(y, 1) for y in ys))
 
+def is_statement(row):
+    m = HEADER.match(row['text'])
+    return bool(row['bold'] and m and m.group(1) in KINDS)
+
 def is_header_stop(row):
     t = row['text']
     if row['bold']:
         w = t.split(' ')[0]
-        if w in STOPWORDS or SECTION.match(w):
+        if w in STOPWORDS or SECTION.match(w) or is_statement(row):
             return True
     return False
+
+def is_subproof(row):
+    """Preuve alternative ou partielle : « Preuve 2 : », « Preuve par… »."""
+    return bool(re.match(r"^Preuve (\d|par )", row['text']))
 
 def is_proof_start(row):
     return row['text'].startswith('Démonstration') or row['text'].startswith('Preuve')
@@ -81,11 +97,18 @@ def extract(pdf):
         W, H = page.rect.width, page.rect.height
         sizes[p1] = (W, H)
         qeds = qed_marks(page)
-        for r in rows_of(page):
-            if r['y0'] < 50: continue                         # en-tête courant
-            if r['size'] < 9.6 and r['y0'] > 0.55 * H: continue  # notes de bas de page
+        kept = [r for r in rows_of(page)
+                if r['y0'] >= 50                                   # en-tête courant
+                and not (r['size'] < 9.6 and r['y0'] > 0.55 * H)]  # notes de bas de page
+        for n, r in enumerate(kept):
+            # Le carré est sur la ligne, ou seul sous la dernière ligne.
+            below = kept[n + 1]['y0'] - 1 if n + 1 < len(kept) else H
             r['page'], r['chapter'] = p1, ch
-            r['qed'] = any(r['y0'] - 4 <= q <= r['y1'] + 4 for q in qeds)
+            marks = [q for q in qeds if r['y0'] - 4 <= q < below]
+            r['qed'] = bool(marks)
+            if marks:  # le cadre englobe le carré de fin de preuve
+                r['y1'] = max(r['y1'], max(marks) + 4)
+                r['x1'] = max(r['x1'], 0.94 * W)
             seq.append(r)
 
     out, section, current = [], {}, None
@@ -118,15 +141,7 @@ def extract(pdf):
             if n['chapter'] != current or is_header_stop(n) or is_proof_start(n): break
             if italic and n['lead'].startswith('SFRM') and not n['text'].startswith('—'): break
             picked.append(n); j += 1
-        proof = []
-        if j < len(seq) and is_proof_start(seq[j]) and kind != 'definition':
-            k = j
-            while k < len(seq) and seq[k]['chapter'] == current:
-                n = seq[k]
-                if k > j and is_header_stop(n): break
-                proof.append(n)
-                if n['qed']: break
-                k += 1
+        end = j
         deepest = max(section, default=None)
         out.append({
             'kind': kind, 'label': f"{m.group(1)} {current}.{m.group(2)}",
@@ -135,7 +150,55 @@ def extract(pdf):
             'sectionTitle': section[deepest][1] if deepest is not None else '',
             'page': r['page'],
             'recto': regions(picked, sizes),
-            'verso': regions(proof, sizes) if proof and proof[-1]['qed'] else [],
+            'verso': [], 'start': i, 'end': end,
             'text': ' '.join(p['text'] for p in picked)[:1500],
         })
+    attach_proofs(out, seq, sizes)
+    for st in out:
+        del st['start'], st['end']
     return out
+
+
+def attach_proofs(statements, seq, sizes):
+    """Chaque « Démonstration » va à l'énoncé qui la précède (ce qui les
+    sépare, remarque ou commentaire, va au verso avec elle) ; une « Preuve du
+    théorème X.Y » va à l'énoncé X.Y du chapitre."""
+    by_start = sorted(statements, key=lambda st: st['start'])
+    covered = set()
+    for ps, row in enumerate(seq):
+        if not is_proof_start(row) or ps in covered:
+            continue
+        # Fin : carré de fin de preuve, sauf si d'autres preuves suivent
+        # (« Preuve 1 : », « Preuve 2 : »…), qui vont au même verso.
+        pe = ps
+        while pe + 1 < len(seq):
+            nxt = seq[pe + 1]
+            if seq[pe]['qed'] and not is_subproof(nxt):
+                break
+            if nxt['chapter'] != row['chapter'] or is_header_stop(nxt) or \
+                    (is_proof_start(nxt) and not is_subproof(nxt)):
+                break
+            pe += 1
+        covered.update(range(ps, pe + 1))
+        ref = REFERENCED.match(row['text'])
+        if ref:
+            owner = next((st for st in statements if st['number'] ==
+                          f"{row['chapter']}.{ref.group(1)}"), None)
+            if owner and owner['kind'] != 'exercise':
+                owner['verso'] += regions(seq[ps:pe + 1], sizes)
+            continue
+        # Les exercices intercalés n'ont pas de démonstration : on les saute.
+        before = [st for st in by_start if st['start'] < ps
+                  and seq[st['start']]['chapter'] == row['chapter']]
+        exercises = [st for st in before if st['kind'] == 'exercise']
+        before = [st for st in before if st['kind'] != 'exercise']
+        if not before:
+            continue
+        owner = before[-1]
+        between = range(owner['end'], ps)
+        skipped = [st for st in exercises if owner['start'] < st['start'] < ps]
+        if owner['verso'] or any(is_statement(seq[k]) for k in between
+                                 if not any(st['start'] == k for st in skipped)):
+            continue
+        first = owner['end'] if len(between) <= MAX_GAP and not skipped else ps
+        owner['verso'] = regions(seq[first:pe + 1], sizes)
