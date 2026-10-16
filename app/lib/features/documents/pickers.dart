@@ -33,8 +33,13 @@ Map<String, String> _paths(List<KnowledgeNode> nodes) {
   return {for (final n in nodes) n.id: path(n.id)};
 }
 
-/// Choisit une connaissance existante (recherche par titre ou chemin).
-Future<KnowledgeItem?> pickItem(BuildContext context, {required String title}) {
+/// Choisit une connaissance existante (recherche par titre ou chemin), hors
+/// celles de [exclude].
+Future<KnowledgeItem?> pickItem(
+  BuildContext context, {
+  required String title,
+  Set<String> exclude = const {},
+}) {
   return showDialog<KnowledgeItem>(
     context: context,
     builder: (_) => _PickerDialog<KnowledgeItem>(
@@ -44,17 +49,18 @@ Future<KnowledgeItem?> pickItem(BuildContext context, {required String title}) {
         final paths = _paths(await store.allNodes());
         return [
           for (final item in await store.allItems())
-            (
-              value: item,
-              title: item.title,
-              subtitle: '${item.typeLabel} · ${paths[item.nodeId] ?? ''}',
-              leading: ItemGlyph(
-                family: item.kind.family,
-                stage: GrowthStage.of(item.scheduling),
-                size: 28,
+            if (!exclude.contains(item.id))
+              (
+                value: item,
+                title: item.title,
+                subtitle: '${item.typeLabel} · ${paths[item.nodeId] ?? ''}',
+                leading: ItemGlyph(
+                  family: item.kind.family,
+                  stage: GrowthStage.of(item.scheduling),
+                  size: 28,
+                ),
+                indent: 0,
               ),
-              indent: 0,
-            ),
         ];
       },
     ),

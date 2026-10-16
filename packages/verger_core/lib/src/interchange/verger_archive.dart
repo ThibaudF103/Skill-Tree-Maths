@@ -6,6 +6,7 @@ import '../domain/item_kind.dart';
 import '../domain/knowledge_item.dart';
 import '../domain/knowledge_node.dart';
 import '../domain/note.dart';
+import '../domain/prerequisites.dart';
 import '../domain/rating.dart';
 import '../domain/review_record.dart';
 import '../domain/scheduling_state.dart';
@@ -38,6 +39,7 @@ final class VergerArchive {
     this.anchors = const [],
     this.notes = const [],
     this.resourceLinks = const [],
+    this.prerequisites = const [],
     this.settings,
     this.title,
   });
@@ -45,7 +47,8 @@ final class VergerArchive {
   static const format = 'verger';
 
   /// 2 : contenus (PDF, vidéos) rattachés aux nœuds, ancres sans page.
-  static const currentVersion = 2;
+  /// 3 : prérequis entre connaissances.
+  static const currentVersion = 3;
 
   final List<KnowledgeNode> nodes;
   final List<KnowledgeItem> items;
@@ -62,6 +65,9 @@ final class VergerArchive {
 
   /// Rattachement des contenus aux nœuds.
   final List<ResourceLink> resourceLinks;
+
+  /// Prérequis entre connaissances de l'archive (graphe sans cycle).
+  final List<Prerequisite> prerequisites;
   final SchedulerSettings? settings;
 
   /// Nom lisible (ex. « Algèbre — exemple »).
@@ -228,6 +234,13 @@ final class VergerArchive {
                     nodeId: l['nodeId'] as String,
                   ),
               ],
+        prerequisites: [
+          for (final p in list('prerequisites'))
+            (
+              itemId: p['itemId'] as String,
+              requiresId: p['requiresId'] as String,
+            ),
+        ],
         settings: settings,
         title: json['title'] as String?,
       );
@@ -328,6 +341,18 @@ final class VergerArchive {
       if (!documentIds.contains(l.documentId) || !nodeIds.contains(l.nodeId)) {
         throw const ArchiveFormatException('Contenu rattaché à un inconnu');
       }
+    }
+    unique(
+      prerequisites.map((p) => '${p.itemId} → ${p.requiresId}'),
+      'Prérequis',
+    );
+    for (final p in prerequisites) {
+      if (!itemIds.contains(p.itemId) || !itemIds.contains(p.requiresId)) {
+        throw const ArchiveFormatException('Prérequis vers un inconnu');
+      }
+    }
+    if (PrerequisiteGraph(prerequisites).order(itemIds.toList()) == null) {
+      throw const ArchiveFormatException('Cycle dans les prérequis');
     }
     for (final r in reviews) {
       if (!itemIds.contains(r.itemId)) {
@@ -438,6 +463,10 @@ final class VergerArchive {
     'resourceLinks': [
       for (final l in resourceLinks)
         {'documentId': l.documentId, 'nodeId': l.nodeId},
+    ],
+    'prerequisites': [
+      for (final p in prerequisites)
+        {'itemId': p.itemId, 'requiresId': p.requiresId},
     ],
     'reviews': [
       for (final r in reviews)

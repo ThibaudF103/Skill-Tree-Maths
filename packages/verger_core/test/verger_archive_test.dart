@@ -351,4 +351,54 @@ void main() {
       throwsA(isA<ArchiveFormatException>()),
     );
   });
+  test('prérequis : aller-retour, inconnus et cycles refusés', () {
+    Map<String, Object?> json(List<Map<String, String>> prerequisites) => {
+      'format': 'verger',
+      'version': 3,
+      'nodes': [
+        {'id': 'n', 'title': 'Analyse'},
+      ],
+      'items': [
+        for (final (id, kind) in [
+          ('d', 'definition'),
+          ('t', 'theorem'),
+          ('x', 'exercise'),
+        ])
+          {'id': id, 'nodeId': 'n', 'kind': kind, 'title': id},
+      ],
+      'prerequisites': prerequisites,
+    };
+    final archive = VergerArchive.fromJson(
+      json([
+        {'itemId': 't', 'requiresId': 'd'},
+        {'itemId': 'x', 'requiresId': 't'},
+      ]),
+    );
+    expect(archive.prerequisites, [
+      (itemId: 't', requiresId: 'd'),
+      (itemId: 'x', requiresId: 't'),
+    ]);
+    final copy = VergerArchive.fromJson(
+      jsonDecode(jsonEncode(archive.toJson())) as Map<String, Object?>,
+    );
+    expect(copy.prerequisites, archive.prerequisites);
+    for (final bad in [
+      [
+        {'itemId': 't', 'requiresId': 'inconnu'},
+      ],
+      [
+        {'itemId': 't', 'requiresId': 't'},
+      ],
+      [
+        {'itemId': 't', 'requiresId': 'x'},
+        {'itemId': 'x', 'requiresId': 't'},
+      ],
+    ]) {
+      expect(
+        () => VergerArchive.fromJson(json(bad)),
+        throwsA(isA<ArchiveFormatException>()),
+        reason: '$bad',
+      );
+    }
+  });
 }

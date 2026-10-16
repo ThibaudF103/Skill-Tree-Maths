@@ -508,6 +508,52 @@ class VergerStore {
   static ResourceLink _toLink(ResourceLinkRow row) =>
       (documentId: row.documentId, nodeId: row.nodeId);
 
+  // --- Prérequis entre connaissances ---------------------------------------
+
+  /// Ajoute « [itemId] s'appuie sur [requiresId] » (sans effet s'il existe
+  /// déjà). Lève [StateError] si le lien créerait un cycle.
+  Future<void> addPrerequisite(String itemId, String requiresId) =>
+      _db.transaction(() async {
+        final graph = PrerequisiteGraph(await prerequisites());
+        if (graph.wouldCreateCycle(itemId, requiresId)) {
+          throw StateError(
+            'Prérequis refusé : la connaissance en dépendrait d\'elle-même.',
+          );
+        }
+        await _db
+            .into(_db.prerequisites)
+            .insertOnConflictUpdate(
+              PrerequisiteRow(itemId: itemId, requiresId: requiresId),
+            );
+      });
+
+  Future<void> removePrerequisite(String itemId, String requiresId) =>
+      (_db.delete(_db.prerequisites)..where(
+            (p) => p.itemId.equals(itemId) & p.requiresId.equals(requiresId),
+          ))
+          .go();
+
+  Future<List<Prerequisite>> prerequisites() async =>
+      (await _db.select(_db.prerequisites).get()).map(_toPrerequisite).toList();
+
+  Stream<List<Prerequisite>> watchPrerequisites() => _db
+      .select(_db.prerequisites)
+      .watch()
+      .map((rows) => rows.map(_toPrerequisite).toList());
+
+  static Prerequisite _toPrerequisite(PrerequisiteRow row) =>
+      (itemId: row.itemId, requiresId: row.requiresId);
+
+  Future<void> _insertPrerequisites(Iterable<Prerequisite> edges) async {
+    for (final e in edges) {
+      await _db
+          .into(_db.prerequisites)
+          .insertOnConflictUpdate(
+            PrerequisiteRow(itemId: e.itemId, requiresId: e.requiresId),
+          );
+    }
+  }
+
   /// Adresse de téléchargement d'un PDF (paquets « par référence »).
   Future<void> setDocumentUrl(String id, String? url) =>
       (_db.update(_db.documents)..where((d) => d.id.equals(id))).write(
@@ -738,6 +784,7 @@ class VergerStore {
       anchors: (await _anchorsQuery().get()).map(_toAnchor).toList(),
       notes: (await _notesQuery().get()).map(_toNote).toList(),
       resourceLinks: await resourceLinks(),
+      prerequisites: await prerequisites(),
     );
   }
 
@@ -747,6 +794,7 @@ class VergerStore {
       _db.transaction(() async {
         archive.validate();
         await _db.delete(_db.reviewLogs).go();
+        await _db.delete(_db.prerequisites).go();
         await _db.delete(_db.resourceLinks).go();
         await _db.delete(_db.notes).go();
         await _db.delete(_db.anchors).go();
@@ -802,6 +850,7 @@ class VergerStore {
         for (final link in archive.resourceLinks) {
           await linkResource(link.documentId, link.nodeId);
         }
+        await _insertPrerequisites(archive.prerequisites);
         for (final review in archive.reviews) {
           await _insertReview(review.itemId, review.record);
         }
@@ -864,6 +913,10 @@ class VergerStore {
             ),
           );
     }
+    await _insertPrerequisites([
+      for (final e in archive.prerequisites)
+        (itemId: itemIds[e.itemId]!, requiresId: itemIds[e.requiresId]!),
+    ]);
     return (nodes.where((n) => n.isTree).toList(), newIds, itemIds);
   }
 
@@ -955,6 +1008,11 @@ class VergerStore {
       anchors: anchors,
       notes: notes,
       resourceLinks: links.toList(),
+      // Prérequis internes au paquet (ceux vers d'autres arbres sont omis).
+      prerequisites: [
+        for (final e in await prerequisites())
+          if (itemIds.contains(e.itemId) && itemIds.contains(e.requiresId)) e,
+      ],
       title: root.title,
     );
   }
