@@ -1,0 +1,4330 @@
+{
+ "format": "verger",
+ "version": 2,
+ "title": "Programme de l'agrégation externe 2026",
+ "nodes": [
+  {
+   "id": "agreg2026.1",
+   "parentId": null,
+   "title": "1. Algèbre linéaire",
+   "sortIndex": 0,
+   "curriculumKey": "agreg2026.1",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.1.1",
+   "parentId": "agreg2026.1",
+   "title": "1.1 Espaces vectoriels",
+   "sortIndex": 0,
+   "curriculumKey": "agreg2026.1.1",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.1.1.a",
+   "parentId": "agreg2026.1.1",
+   "title": "(a) Espaces vectoriels et applications linéaires",
+   "sortIndex": 0,
+   "curriculumKey": "agreg2026.1.1.a",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.1.1.b",
+   "parentId": "agreg2026.1.1",
+   "title": "(b) Sous-espaces stables, éléments propres",
+   "sortIndex": 1,
+   "curriculumKey": "agreg2026.1.1.b",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.1.2",
+   "parentId": "agreg2026.1",
+   "title": "1.2 Espaces vectoriels de dimension finie",
+   "sortIndex": 1,
+   "curriculumKey": "agreg2026.1.2",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.1.2.a",
+   "parentId": "agreg2026.1.2",
+   "title": "(a) Dimension, rang, dualité",
+   "sortIndex": 0,
+   "curriculumKey": "agreg2026.1.2.a",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.1.2.b",
+   "parentId": "agreg2026.1.2",
+   "title": "(b) Applications multilinéaires, déterminant",
+   "sortIndex": 1,
+   "curriculumKey": "agreg2026.1.2.b",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.1.2.c",
+   "parentId": "agreg2026.1.2",
+   "title": "(c) Matrices, pivot de Gauss",
+   "sortIndex": 2,
+   "curriculumKey": "agreg2026.1.2.c",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.1.2.d",
+   "parentId": "agreg2026.1.2",
+   "title": "(d) Réduction des endomorphismes",
+   "sortIndex": 3,
+   "curriculumKey": "agreg2026.1.2.d",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.2",
+   "parentId": null,
+   "title": "2. Groupes",
+   "sortIndex": 1,
+   "curriculumKey": "agreg2026.2",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.2.a",
+   "parentId": "agreg2026.2",
+   "title": "(a) Groupes, sous-groupes, actions",
+   "sortIndex": 0,
+   "curriculumKey": "agreg2026.2.a",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.2.b",
+   "parentId": "agreg2026.2",
+   "title": "(b) Groupes cycliques, groupes abéliens finis",
+   "sortIndex": 1,
+   "curriculumKey": "agreg2026.2.b",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.2.c",
+   "parentId": "agreg2026.2",
+   "title": "(c) Groupe symétrique",
+   "sortIndex": 2,
+   "curriculumKey": "agreg2026.2.c",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.2.d",
+   "parentId": "agreg2026.2",
+   "title": "(d) Groupes classiques",
+   "sortIndex": 3,
+   "curriculumKey": "agreg2026.2.d",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.3",
+   "parentId": null,
+   "title": "3. Anneaux, corps et polynômes",
+   "sortIndex": 2,
+   "curriculumKey": "agreg2026.3",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.3.a",
+   "parentId": "agreg2026.3",
+   "title": "(a) Anneaux et idéaux",
+   "sortIndex": 0,
+   "curriculumKey": "agreg2026.3.a",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.3.b",
+   "parentId": "agreg2026.3",
+   "title": "(b) Polynômes",
+   "sortIndex": 1,
+   "curriculumKey": "agreg2026.3.b",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.3.c",
+   "parentId": "agreg2026.3",
+   "title": "(c) Corps et extensions",
+   "sortIndex": 2,
+   "curriculumKey": "agreg2026.3.c",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.3.d",
+   "parentId": "agreg2026.3",
+   "title": "(d) Arithmétique dans les anneaux",
+   "sortIndex": 3,
+   "curriculumKey": "agreg2026.3.d",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.3.e",
+   "parentId": "agreg2026.3",
+   "title": "(e) Congruences, Z/nZ",
+   "sortIndex": 4,
+   "curriculumKey": "agreg2026.3.e",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.3.f",
+   "parentId": "agreg2026.3",
+   "title": "(f) Fractions rationnelles",
+   "sortIndex": 5,
+   "curriculumKey": "agreg2026.3.f",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.4",
+   "parentId": null,
+   "title": "4. Formes bilinéaires et quadratiques",
+   "sortIndex": 3,
+   "curriculumKey": "agreg2026.4",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.4.a",
+   "parentId": "agreg2026.4",
+   "title": "(a) Formes bilinéaires",
+   "sortIndex": 0,
+   "curriculumKey": "agreg2026.4.a",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.4.b",
+   "parentId": "agreg2026.4",
+   "title": "(b) Orthogonalité, classification",
+   "sortIndex": 1,
+   "curriculumKey": "agreg2026.4.b",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.4.c",
+   "parentId": "agreg2026.4",
+   "title": "(c) Espaces euclidiens et hermitiens",
+   "sortIndex": 2,
+   "curriculumKey": "agreg2026.4.c",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.4.d",
+   "parentId": "agreg2026.4",
+   "title": "(d) Groupe orthogonal, endomorphismes symétriques",
+   "sortIndex": 3,
+   "curriculumKey": "agreg2026.4.d",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.4.e",
+   "parentId": "agreg2026.4",
+   "title": "(e) Groupe unitaire",
+   "sortIndex": 4,
+   "curriculumKey": "agreg2026.4.e",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.5",
+   "parentId": null,
+   "title": "5. Géométries affine et euclidienne",
+   "sortIndex": 4,
+   "curriculumKey": "agreg2026.5",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.5.a",
+   "parentId": "agreg2026.5",
+   "title": "(a) Géométrie affine",
+   "sortIndex": 0,
+   "curriculumKey": "agreg2026.5.a",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.5.b",
+   "parentId": "agreg2026.5",
+   "title": "(b) Isométries",
+   "sortIndex": 1,
+   "curriculumKey": "agreg2026.5.b",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.5.c",
+   "parentId": "agreg2026.5",
+   "title": "(c) Angles",
+   "sortIndex": 2,
+   "curriculumKey": "agreg2026.5.c",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.5.d",
+   "parentId": "agreg2026.5",
+   "title": "(d) Isométries et figures",
+   "sortIndex": 3,
+   "curriculumKey": "agreg2026.5.d",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.5.e",
+   "parentId": "agreg2026.5",
+   "title": "(e) Coniques et quadriques",
+   "sortIndex": 4,
+   "curriculumKey": "agreg2026.5.e",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.6",
+   "parentId": null,
+   "title": "6. Analyse à une variable réelle",
+   "sortIndex": 5,
+   "curriculumKey": "agreg2026.6",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.6.1",
+   "parentId": "agreg2026.6",
+   "title": "6.1 Nombres réels",
+   "sortIndex": 0,
+   "curriculumKey": "agreg2026.6.1",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.6.2",
+   "parentId": "agreg2026.6",
+   "title": "6.2 Séries numériques",
+   "sortIndex": 1,
+   "curriculumKey": "agreg2026.6.2",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.6.3",
+   "parentId": "agreg2026.6",
+   "title": "6.3 Fonctions d'une variable réelle",
+   "sortIndex": 2,
+   "curriculumKey": "agreg2026.6.3",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.6.3.a",
+   "parentId": "agreg2026.6.3",
+   "title": "(a) Continuité",
+   "sortIndex": 0,
+   "curriculumKey": "agreg2026.6.3.a",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.6.3.b",
+   "parentId": "agreg2026.6.3",
+   "title": "(b) Dérivabilité",
+   "sortIndex": 1,
+   "curriculumKey": "agreg2026.6.3.b",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.6.4",
+   "parentId": "agreg2026.6",
+   "title": "6.4 Fonctions usuelles",
+   "sortIndex": 3,
+   "curriculumKey": "agreg2026.6.4",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.6.5",
+   "parentId": "agreg2026.6",
+   "title": "6.5 Intégration",
+   "sortIndex": 4,
+   "curriculumKey": "agreg2026.6.5",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.6.5.a",
+   "parentId": "agreg2026.6.5",
+   "title": "(a) Intégrale sur un segment",
+   "sortIndex": 0,
+   "curriculumKey": "agreg2026.6.5.a",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.6.5.b",
+   "parentId": "agreg2026.6.5",
+   "title": "(b) Intégrales généralisées",
+   "sortIndex": 1,
+   "curriculumKey": "agreg2026.6.5.b",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.6.6",
+   "parentId": "agreg2026.6",
+   "title": "6.6 Suites et séries de fonctions",
+   "sortIndex": 5,
+   "curriculumKey": "agreg2026.6.6",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.6.7",
+   "parentId": "agreg2026.6",
+   "title": "6.7 Convexité",
+   "sortIndex": 6,
+   "curriculumKey": "agreg2026.6.7",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.7",
+   "parentId": null,
+   "title": "7. Analyse à une variable complexe",
+   "sortIndex": 6,
+   "curriculumKey": "agreg2026.7",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.7.1",
+   "parentId": "agreg2026.7",
+   "title": "7.1 Séries entières",
+   "sortIndex": 0,
+   "curriculumKey": "agreg2026.7.1",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.7.1.a",
+   "parentId": "agreg2026.7.1",
+   "title": "(a) Rayon de convergence",
+   "sortIndex": 0,
+   "curriculumKey": "agreg2026.7.1.a",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.7.1.b",
+   "parentId": "agreg2026.7.1",
+   "title": "(b) Exponentielle complexe",
+   "sortIndex": 1,
+   "curriculumKey": "agreg2026.7.1.b",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.7.2",
+   "parentId": "agreg2026.7",
+   "title": "7.2 Fonctions d'une variable complexe",
+   "sortIndex": 1,
+   "curriculumKey": "agreg2026.7.2",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.7.2.a",
+   "parentId": "agreg2026.7.2",
+   "title": "(a) Holomorphie",
+   "sortIndex": 0,
+   "curriculumKey": "agreg2026.7.2.a",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.7.2.b",
+   "parentId": "agreg2026.7.2",
+   "title": "(b) Indice",
+   "sortIndex": 1,
+   "curriculumKey": "agreg2026.7.2.b",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.7.2.c",
+   "parentId": "agreg2026.7.2",
+   "title": "(c) Formules de Cauchy",
+   "sortIndex": 2,
+   "curriculumKey": "agreg2026.7.2.c",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.7.2.d",
+   "parentId": "agreg2026.7.2",
+   "title": "(d) Singularités, résidus",
+   "sortIndex": 3,
+   "curriculumKey": "agreg2026.7.2.d",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.7.2.e",
+   "parentId": "agreg2026.7.2",
+   "title": "(e) Suites de fonctions holomorphes",
+   "sortIndex": 4,
+   "curriculumKey": "agreg2026.7.2.e",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.8",
+   "parentId": null,
+   "title": "8. Topologie",
+   "sortIndex": 7,
+   "curriculumKey": "agreg2026.8",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.8.1",
+   "parentId": "agreg2026.8",
+   "title": "8.1 Espaces métriques",
+   "sortIndex": 0,
+   "curriculumKey": "agreg2026.8.1",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.8.1.a",
+   "parentId": "agreg2026.8.1",
+   "title": "(a) Topologie d'un espace métrique",
+   "sortIndex": 0,
+   "curriculumKey": "agreg2026.8.1.a",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.8.1.b",
+   "parentId": "agreg2026.8.1",
+   "title": "(b) Suites et continuité",
+   "sortIndex": 1,
+   "curriculumKey": "agreg2026.8.1.b",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.8.1.c",
+   "parentId": "agreg2026.8.1",
+   "title": "(c) Compacité, connexité",
+   "sortIndex": 2,
+   "curriculumKey": "agreg2026.8.1.c",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.8.1.d",
+   "parentId": "agreg2026.8.1",
+   "title": "(d) Continuité uniforme",
+   "sortIndex": 3,
+   "curriculumKey": "agreg2026.8.1.d",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.8.1.e",
+   "parentId": "agreg2026.8.1",
+   "title": "(e) Complétude",
+   "sortIndex": 4,
+   "curriculumKey": "agreg2026.8.1.e",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.8.2",
+   "parentId": "agreg2026.8",
+   "title": "8.2 Espaces vectoriels normés",
+   "sortIndex": 1,
+   "curriculumKey": "agreg2026.8.2",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.8.2.a",
+   "parentId": "agreg2026.8.2",
+   "title": "(a) Normes",
+   "sortIndex": 0,
+   "curriculumKey": "agreg2026.8.2.a",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.8.2.b",
+   "parentId": "agreg2026.8.2",
+   "title": "(b) Applications linéaires continues",
+   "sortIndex": 1,
+   "curriculumKey": "agreg2026.8.2.b",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.8.2.c",
+   "parentId": "agreg2026.8.2",
+   "title": "(c) Convergence uniforme",
+   "sortIndex": 2,
+   "curriculumKey": "agreg2026.8.2.c",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.8.2.d",
+   "parentId": "agreg2026.8.2",
+   "title": "(d) Compacité dans les evn",
+   "sortIndex": 3,
+   "curriculumKey": "agreg2026.8.2.d",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.8.3",
+   "parentId": "agreg2026.8",
+   "title": "8.3 Espaces de Hilbert",
+   "sortIndex": 2,
+   "curriculumKey": "agreg2026.8.3",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.8.3.a",
+   "parentId": "agreg2026.8.3",
+   "title": "(a) Espaces préhilbertiens",
+   "sortIndex": 0,
+   "curriculumKey": "agreg2026.8.3.a",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.8.3.b",
+   "parentId": "agreg2026.8.3",
+   "title": "(b) Projections",
+   "sortIndex": 1,
+   "curriculumKey": "agreg2026.8.3.b",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.8.3.c",
+   "parentId": "agreg2026.8.3",
+   "title": "(c) Dualité, bases hilbertiennes",
+   "sortIndex": 2,
+   "curriculumKey": "agreg2026.8.3.c",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.9",
+   "parentId": null,
+   "title": "9. Calcul différentiel",
+   "sortIndex": 8,
+   "curriculumKey": "agreg2026.9",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.9.1",
+   "parentId": "agreg2026.9",
+   "title": "9.1 Fonctions différentiables",
+   "sortIndex": 0,
+   "curriculumKey": "agreg2026.9.1",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.9.1.a",
+   "parentId": "agreg2026.9.1",
+   "title": "(a) Différentielle",
+   "sortIndex": 0,
+   "curriculumKey": "agreg2026.9.1.a",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.9.1.b",
+   "parentId": "agreg2026.9.1",
+   "title": "(b) Dérivées partielles",
+   "sortIndex": 1,
+   "curriculumKey": "agreg2026.9.1.b",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.9.1.c",
+   "parentId": "agreg2026.9.1",
+   "title": "(c) Ordre supérieur",
+   "sortIndex": 2,
+   "curriculumKey": "agreg2026.9.1.c",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.9.1.d",
+   "parentId": "agreg2026.9.1",
+   "title": "(d) Étude locale",
+   "sortIndex": 3,
+   "curriculumKey": "agreg2026.9.1.d",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.9.1.e",
+   "parentId": "agreg2026.9.1",
+   "title": "(e) Convexité",
+   "sortIndex": 4,
+   "curriculumKey": "agreg2026.9.1.e",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.9.1.f",
+   "parentId": "agreg2026.9.1",
+   "title": "(f) Inversion locale",
+   "sortIndex": 5,
+   "curriculumKey": "agreg2026.9.1.f",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.9.2",
+   "parentId": "agreg2026.9",
+   "title": "9.2 Équations différentielles",
+   "sortIndex": 1,
+   "curriculumKey": "agreg2026.9.2",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.9.2.a",
+   "parentId": "agreg2026.9.2",
+   "title": "(a) Théorie générale",
+   "sortIndex": 0,
+   "curriculumKey": "agreg2026.9.2.a",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.9.2.b",
+   "parentId": "agreg2026.9.2",
+   "title": "(b) Équations autonomes",
+   "sortIndex": 1,
+   "curriculumKey": "agreg2026.9.2.b",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.9.2.c",
+   "parentId": "agreg2026.9.2",
+   "title": "(c) Systèmes linéaires",
+   "sortIndex": 2,
+   "curriculumKey": "agreg2026.9.2.c",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.9.3",
+   "parentId": "agreg2026.9",
+   "title": "9.3 Géométrie différentielle",
+   "sortIndex": 2,
+   "curriculumKey": "agreg2026.9.3",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.9.3.a",
+   "parentId": "agreg2026.9.3",
+   "title": "(a) Sous-variétés",
+   "sortIndex": 0,
+   "curriculumKey": "agreg2026.9.3.a",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.9.3.b",
+   "parentId": "agreg2026.9.3",
+   "title": "(b) Courbes",
+   "sortIndex": 1,
+   "curriculumKey": "agreg2026.9.3.b",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.9.3.c",
+   "parentId": "agreg2026.9.3",
+   "title": "(c) Extrema liés",
+   "sortIndex": 2,
+   "curriculumKey": "agreg2026.9.3.c",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.10",
+   "parentId": null,
+   "title": "10. Calcul intégral",
+   "sortIndex": 9,
+   "curriculumKey": "agreg2026.10",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.10.1",
+   "parentId": "agreg2026.10",
+   "title": "10.1 Théorie de la mesure",
+   "sortIndex": 0,
+   "curriculumKey": "agreg2026.10.1",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.10.2",
+   "parentId": "agreg2026.10",
+   "title": "10.2 Intégration",
+   "sortIndex": 1,
+   "curriculumKey": "agreg2026.10.2",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.10.2.a",
+   "parentId": "agreg2026.10.2",
+   "title": "(a) Théorèmes de convergence",
+   "sortIndex": 0,
+   "curriculumKey": "agreg2026.10.2.a",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.10.2.b",
+   "parentId": "agreg2026.10.2",
+   "title": "(b) Intégrales à paramètre",
+   "sortIndex": 1,
+   "curriculumKey": "agreg2026.10.2.b",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.10.2.c",
+   "parentId": "agreg2026.10.2",
+   "title": "(c) Espaces L^p",
+   "sortIndex": 2,
+   "curriculumKey": "agreg2026.10.2.c",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.10.2.d",
+   "parentId": "agreg2026.10.2",
+   "title": "(d) Fubini, changement de variables",
+   "sortIndex": 3,
+   "curriculumKey": "agreg2026.10.2.d",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.10.2.e",
+   "parentId": "agreg2026.10.2",
+   "title": "(e) Convolution",
+   "sortIndex": 4,
+   "curriculumKey": "agreg2026.10.2.e",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.10.3",
+   "parentId": "agreg2026.10",
+   "title": "10.3 Analyse de Fourier",
+   "sortIndex": 2,
+   "curriculumKey": "agreg2026.10.3",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.10.3.a",
+   "parentId": "agreg2026.10.3",
+   "title": "(a) Séries de Fourier",
+   "sortIndex": 0,
+   "curriculumKey": "agreg2026.10.3.a",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.10.3.b",
+   "parentId": "agreg2026.10.3",
+   "title": "(b) Transformée de Fourier",
+   "sortIndex": 1,
+   "curriculumKey": "agreg2026.10.3.b",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.11",
+   "parentId": null,
+   "title": "11. Probabilités et statistiques",
+   "sortIndex": 10,
+   "curriculumKey": "agreg2026.11",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.11.1",
+   "parentId": "agreg2026.11",
+   "title": "11.1 Espace probabilisé",
+   "sortIndex": 0,
+   "curriculumKey": "agreg2026.11.1",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.11.2",
+   "parentId": "agreg2026.11",
+   "title": "11.2 Variables aléatoires",
+   "sortIndex": 1,
+   "curriculumKey": "agreg2026.11.2",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.11.2.a",
+   "parentId": "agreg2026.11.2",
+   "title": "(a) Lois",
+   "sortIndex": 0,
+   "curriculumKey": "agreg2026.11.2.a",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.11.2.b",
+   "parentId": "agreg2026.11.2",
+   "title": "(b) Fonctions caractéristique et génératrice",
+   "sortIndex": 1,
+   "curriculumKey": "agreg2026.11.2.b",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.11.3",
+   "parentId": "agreg2026.11",
+   "title": "11.3 Convergences",
+   "sortIndex": 2,
+   "curriculumKey": "agreg2026.11.3",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.11.3.a",
+   "parentId": "agreg2026.11.3",
+   "title": "(a) Modes de convergence",
+   "sortIndex": 0,
+   "curriculumKey": "agreg2026.11.3.a",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.11.3.b",
+   "parentId": "agreg2026.11.3",
+   "title": "(b) Théorèmes limites",
+   "sortIndex": 1,
+   "curriculumKey": "agreg2026.11.3.b",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.11.4",
+   "parentId": "agreg2026.11",
+   "title": "11.4 Statistiques",
+   "sortIndex": 3,
+   "curriculumKey": "agreg2026.11.4",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.11.4.a",
+   "parentId": "agreg2026.11.4",
+   "title": "(a) Statistique descriptive",
+   "sortIndex": 0,
+   "curriculumKey": "agreg2026.11.4.a",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.11.4.b",
+   "parentId": "agreg2026.11.4",
+   "title": "(b) Deux variables",
+   "sortIndex": 1,
+   "curriculumKey": "agreg2026.11.4.b",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.11.4.c",
+   "parentId": "agreg2026.11.4",
+   "title": "(c) Estimation",
+   "sortIndex": 2,
+   "curriculumKey": "agreg2026.11.4.c",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.12",
+   "parentId": null,
+   "title": "12. Méthodes numériques",
+   "sortIndex": 11,
+   "curriculumKey": "agreg2026.12",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.12.1",
+   "parentId": "agreg2026.12",
+   "title": "12.1 Systèmes linéaires",
+   "sortIndex": 0,
+   "curriculumKey": "agreg2026.12.1",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.12.2",
+   "parentId": "agreg2026.12",
+   "title": "12.2 Résolution approchée d'équations",
+   "sortIndex": 1,
+   "curriculumKey": "agreg2026.12.2",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.12.3",
+   "parentId": "agreg2026.12",
+   "title": "12.3 Intégration numérique",
+   "sortIndex": 2,
+   "curriculumKey": "agreg2026.12.3",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.12.4",
+   "parentId": "agreg2026.12",
+   "title": "12.4 Approximation de fonctions",
+   "sortIndex": 3,
+   "curriculumKey": "agreg2026.12.4",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.12.5",
+   "parentId": "agreg2026.12",
+   "title": "12.5 Équations différentielles (numérique)",
+   "sortIndex": 4,
+   "curriculumKey": "agreg2026.12.5",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.option-a",
+   "parentId": null,
+   "title": "Option A — Probabilités et statistiques",
+   "sortIndex": 12,
+   "curriculumKey": "agreg2026.option-a",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.option-a.a",
+   "parentId": "agreg2026.option-a",
+   "title": "(a) Lois et simulation",
+   "sortIndex": 0,
+   "curriculumKey": "agreg2026.option-a.a",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.option-a.b",
+   "parentId": "agreg2026.option-a",
+   "title": "(b) Chaînes de Markov",
+   "sortIndex": 1,
+   "curriculumKey": "agreg2026.option-a.b",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.option-a.c",
+   "parentId": "agreg2026.option-a",
+   "title": "(c) Processus de Poisson",
+   "sortIndex": 2,
+   "curriculumKey": "agreg2026.option-a.c",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.option-a.d",
+   "parentId": "agreg2026.option-a",
+   "title": "(d) Martingales",
+   "sortIndex": 3,
+   "curriculumKey": "agreg2026.option-a.d",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.option-a.e",
+   "parentId": "agreg2026.option-a",
+   "title": "(e) Estimation",
+   "sortIndex": 4,
+   "curriculumKey": "agreg2026.option-a.e",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.option-a.f",
+   "parentId": "agreg2026.option-a",
+   "title": "(f) Vecteurs gaussiens",
+   "sortIndex": 5,
+   "curriculumKey": "agreg2026.option-a.f",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.option-a.g",
+   "parentId": "agreg2026.option-a",
+   "title": "(g) Modèle linéaire gaussien",
+   "sortIndex": 6,
+   "curriculumKey": "agreg2026.option-a.g",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.option-a.h",
+   "parentId": "agreg2026.option-a",
+   "title": "(h) Tests",
+   "sortIndex": 7,
+   "curriculumKey": "agreg2026.option-a.h",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.option-b",
+   "parentId": null,
+   "title": "Option B — Calcul scientifique",
+   "sortIndex": 13,
+   "curriculumKey": "agreg2026.option-b",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.option-b.a",
+   "parentId": "agreg2026.option-b",
+   "title": "(a) Systèmes linéaires",
+   "sortIndex": 0,
+   "curriculumKey": "agreg2026.option-b.a",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.option-b.b",
+   "parentId": "agreg2026.option-b",
+   "title": "(b) Équations non linéaires",
+   "sortIndex": 1,
+   "curriculumKey": "agreg2026.option-b.b",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.option-b.c",
+   "parentId": "agreg2026.option-b",
+   "title": "(c) Intégration numérique",
+   "sortIndex": 2,
+   "curriculumKey": "agreg2026.option-b.c",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.option-b.d",
+   "parentId": "agreg2026.option-b",
+   "title": "(d) Équations différentielles",
+   "sortIndex": 3,
+   "curriculumKey": "agreg2026.option-b.d",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.option-b.e",
+   "parentId": "agreg2026.option-b",
+   "title": "(e) Équations aux dérivées partielles",
+   "sortIndex": 4,
+   "curriculumKey": "agreg2026.option-b.e",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.option-b.f",
+   "parentId": "agreg2026.option-b",
+   "title": "(f) Optimisation et approximation",
+   "sortIndex": 5,
+   "curriculumKey": "agreg2026.option-b.f",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.option-b.g",
+   "parentId": "agreg2026.option-b",
+   "title": "(g) Traitement du signal",
+   "sortIndex": 6,
+   "curriculumKey": "agreg2026.option-b.g",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.option-c",
+   "parentId": null,
+   "title": "Option C — Algèbre et calcul formel",
+   "sortIndex": 14,
+   "curriculumKey": "agreg2026.option-c",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.option-c.a",
+   "parentId": "agreg2026.option-c",
+   "title": "(a) Représentation des nombres",
+   "sortIndex": 0,
+   "curriculumKey": "agreg2026.option-c.a",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.option-c.b",
+   "parentId": "agreg2026.option-c",
+   "title": "(b) Algorithmes élémentaires",
+   "sortIndex": 1,
+   "curriculumKey": "agreg2026.option-c.b",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.option-c.c",
+   "parentId": "agreg2026.option-c",
+   "title": "(c) Corps finis (effectif)",
+   "sortIndex": 2,
+   "curriculumKey": "agreg2026.option-c.c",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.option-c.d",
+   "parentId": "agreg2026.option-c",
+   "title": "(d) Algèbre linéaire effective",
+   "sortIndex": 3,
+   "curriculumKey": "agreg2026.option-c.d",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.option-c.e",
+   "parentId": "agreg2026.option-c",
+   "title": "(e) Codes correcteurs",
+   "sortIndex": 4,
+   "curriculumKey": "agreg2026.option-c.e",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.option-c.f",
+   "parentId": "agreg2026.option-c",
+   "title": "(f) Polynômes à une indéterminée",
+   "sortIndex": 5,
+   "curriculumKey": "agreg2026.option-c.f",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.option-c.g",
+   "parentId": "agreg2026.option-c",
+   "title": "(g) Transformée de Fourier discrète",
+   "sortIndex": 6,
+   "curriculumKey": "agreg2026.option-c.g",
+   "origin": "official"
+  },
+  {
+   "id": "agreg2026.option-c.h",
+   "parentId": "agreg2026.option-c",
+   "title": "(h) Polynômes à plusieurs indéterminées",
+   "sortIndex": 7,
+   "curriculumKey": "agreg2026.option-c.h",
+   "origin": "official"
+  }
+ ],
+ "items": [
+  {
+   "id": "agreg2026.1.1.a#1",
+   "nodeId": "agreg2026.1.1.a",
+   "kind": "definition",
+   "title": "Espace vectoriel, application linéaire",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.1.1.a#2",
+   "nodeId": "agreg2026.1.1.a",
+   "kind": "definition",
+   "title": "Produit d'espaces vectoriels",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.1.1.a#3",
+   "nodeId": "agreg2026.1.1.a",
+   "kind": "definition",
+   "title": "Sous-espace vectoriel ; image et noyau d'une application linéaire",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.1.1.a#4",
+   "nodeId": "agreg2026.1.1.a",
+   "kind": "definition",
+   "title": "Espace quotient",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.1.1.a#5",
+   "nodeId": "agreg2026.1.1.a",
+   "kind": "definition",
+   "title": "Somme de sous-espaces, somme directe, supplémentaires",
+   "sortIndex": 4
+  },
+  {
+   "id": "agreg2026.1.1.a#6",
+   "nodeId": "agreg2026.1.1.a",
+   "kind": "definition",
+   "title": "Familles libres, familles génératrices, bases",
+   "sortIndex": 5
+  },
+  {
+   "id": "agreg2026.1.1.a#7",
+   "nodeId": "agreg2026.1.1.a",
+   "kind": "definition",
+   "title": "Algèbre des endomorphismes L(E), groupe linéaire GL(E)",
+   "sortIndex": 6
+  },
+  {
+   "id": "agreg2026.1.1.b#1",
+   "nodeId": "agreg2026.1.1.b",
+   "kind": "definition",
+   "title": "Sous-espace stable par un endomorphisme",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.1.1.b#2",
+   "nodeId": "agreg2026.1.1.b",
+   "kind": "definition",
+   "title": "Valeur propre, vecteur propre, sous-espace propre",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.1.1.b#3",
+   "nodeId": "agreg2026.1.1.b",
+   "kind": "definition",
+   "title": "Polynômes d'endomorphismes",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.1.1.b#4",
+   "nodeId": "agreg2026.1.1.b",
+   "kind": "lemma",
+   "title": "Lemme des noyaux",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.1.2.a#1",
+   "nodeId": "agreg2026.1.2.a",
+   "kind": "theorem",
+   "title": "Existence de bases ; isomorphisme avec K^n",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.1.2.a#2",
+   "nodeId": "agreg2026.1.2.a",
+   "kind": "theorem",
+   "title": "Existence de supplémentaires d'un sous-espace",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.1.2.a#3",
+   "nodeId": "agreg2026.1.2.a",
+   "kind": "definition",
+   "title": "Rang d'une application linéaire, d'un système de vecteurs",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.1.2.a#4",
+   "nodeId": "agreg2026.1.2.a",
+   "kind": "theorem",
+   "title": "Théorème du rang",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.1.2.a#5",
+   "nodeId": "agreg2026.1.2.a",
+   "kind": "definition",
+   "title": "Espace dual, base duale",
+   "sortIndex": 4
+  },
+  {
+   "id": "agreg2026.1.2.a#6",
+   "nodeId": "agreg2026.1.2.a",
+   "kind": "definition",
+   "title": "Rang d'un système d'équations linéaires",
+   "sortIndex": 5
+  },
+  {
+   "id": "agreg2026.1.2.a#7",
+   "nodeId": "agreg2026.1.2.a",
+   "kind": "definition",
+   "title": "Transposée d'une application linéaire",
+   "sortIndex": 6
+  },
+  {
+   "id": "agreg2026.1.2.a#8",
+   "nodeId": "agreg2026.1.2.a",
+   "kind": "theorem",
+   "title": "Bidualité : E ≅ E** en dimension finie",
+   "sortIndex": 7
+  },
+  {
+   "id": "agreg2026.1.2.a#9",
+   "nodeId": "agreg2026.1.2.a",
+   "kind": "definition",
+   "title": "Orthogonalité dans la dualité",
+   "sortIndex": 8
+  },
+  {
+   "id": "agreg2026.1.2.b#1",
+   "nodeId": "agreg2026.1.2.b",
+   "kind": "definition",
+   "title": "Applications multilinéaires (alternées)",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.1.2.b#2",
+   "nodeId": "agreg2026.1.2.b",
+   "kind": "definition",
+   "title": "Déterminant d'un système de vecteurs, d'un endomorphisme",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.1.2.b#3",
+   "nodeId": "agreg2026.1.2.b",
+   "kind": "definition",
+   "title": "Groupe spécial linéaire SL(E)",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.1.2.b#4",
+   "nodeId": "agreg2026.1.2.b",
+   "kind": "definition",
+   "title": "Orientation d'un R-espace vectoriel",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.1.2.c#1",
+   "nodeId": "agreg2026.1.2.c",
+   "kind": "definition",
+   "title": "Matrices à coefficients dans un anneau commutatif",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.1.2.c#2",
+   "nodeId": "agreg2026.1.2.c",
+   "kind": "statement",
+   "title": "Opérations élémentaires sur les lignes et les colonnes",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.1.2.c#3",
+   "nodeId": "agreg2026.1.2.c",
+   "kind": "proposition",
+   "title": "Inversibilité d'une matrice sur un anneau commutatif (déterminant inversible)",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.1.2.c#4",
+   "nodeId": "agreg2026.1.2.c",
+   "kind": "definition",
+   "title": "Rang d'une matrice",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.1.2.c#5",
+   "nodeId": "agreg2026.1.2.c",
+   "kind": "statement",
+   "title": "Représentation matricielle d'une application linéaire ; changement de base",
+   "sortIndex": 4
+  },
+  {
+   "id": "agreg2026.1.2.c#6",
+   "nodeId": "agreg2026.1.2.c",
+   "kind": "statement",
+   "title": "Méthode du pivot de Gauss",
+   "sortIndex": 5
+  },
+  {
+   "id": "agreg2026.1.2.c#7",
+   "nodeId": "agreg2026.1.2.c",
+   "kind": "definition",
+   "title": "Matrices échelonnées",
+   "sortIndex": 6
+  },
+  {
+   "id": "agreg2026.1.2.c#8",
+   "nodeId": "agreg2026.1.2.c",
+   "kind": "exercise",
+   "title": "Pivot de Gauss : résolution de systèmes, déterminants, inverses, rang, équations d'un sous-espace",
+   "sortIndex": 7
+  },
+  {
+   "id": "agreg2026.1.2.d#1",
+   "nodeId": "agreg2026.1.2.d",
+   "kind": "definition",
+   "title": "Polynôme caractéristique",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.1.2.d#2",
+   "nodeId": "agreg2026.1.2.d",
+   "kind": "definition",
+   "title": "Polynômes annulateurs, polynôme minimal",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.1.2.d#3",
+   "nodeId": "agreg2026.1.2.d",
+   "kind": "theorem",
+   "title": "Théorème de Cayley-Hamilton",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.1.2.d#4",
+   "nodeId": "agreg2026.1.2.d",
+   "kind": "theorem",
+   "title": "Critères de diagonalisabilité",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.1.2.d#5",
+   "nodeId": "agreg2026.1.2.d",
+   "kind": "theorem",
+   "title": "Critères de trigonalisabilité",
+   "sortIndex": 4
+  },
+  {
+   "id": "agreg2026.1.2.d#6",
+   "nodeId": "agreg2026.1.2.d",
+   "kind": "definition",
+   "title": "Endomorphisme nilpotent",
+   "sortIndex": 5
+  },
+  {
+   "id": "agreg2026.1.2.d#7",
+   "nodeId": "agreg2026.1.2.d",
+   "kind": "definition",
+   "title": "Sous-espaces caractéristiques",
+   "sortIndex": 6
+  },
+  {
+   "id": "agreg2026.1.2.d#8",
+   "nodeId": "agreg2026.1.2.d",
+   "kind": "theorem",
+   "title": "Décomposition de Dunford",
+   "sortIndex": 7
+  },
+  {
+   "id": "agreg2026.1.2.d#9",
+   "nodeId": "agreg2026.1.2.d",
+   "kind": "definition",
+   "title": "Exponentielle d'une matrice réelle ou complexe",
+   "sortIndex": 8
+  },
+  {
+   "id": "agreg2026.2.a#1",
+   "nodeId": "agreg2026.2.a",
+   "kind": "definition",
+   "title": "Groupe, morphisme de groupes",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.2.a#2",
+   "nodeId": "agreg2026.2.a",
+   "kind": "definition",
+   "title": "Produit direct de groupes",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.2.a#3",
+   "nodeId": "agreg2026.2.a",
+   "kind": "definition",
+   "title": "Sous-groupe, sous-groupe engendré par une partie",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.2.a#4",
+   "nodeId": "agreg2026.2.a",
+   "kind": "definition",
+   "title": "Ordre d'un élément",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.2.a#5",
+   "nodeId": "agreg2026.2.a",
+   "kind": "definition",
+   "title": "Sous-groupe distingué, groupe quotient",
+   "sortIndex": 4
+  },
+  {
+   "id": "agreg2026.2.a#6",
+   "nodeId": "agreg2026.2.a",
+   "kind": "definition",
+   "title": "Action d'un groupe sur un ensemble",
+   "sortIndex": 5
+  },
+  {
+   "id": "agreg2026.2.a#7",
+   "nodeId": "agreg2026.2.a",
+   "kind": "definition",
+   "title": "Stabilisateur, orbite, espace quotient",
+   "sortIndex": 6
+  },
+  {
+   "id": "agreg2026.2.a#8",
+   "nodeId": "agreg2026.2.a",
+   "kind": "statement",
+   "title": "Formule des classes",
+   "sortIndex": 7
+  },
+  {
+   "id": "agreg2026.2.a#9",
+   "nodeId": "agreg2026.2.a",
+   "kind": "definition",
+   "title": "Classes de conjugaison",
+   "sortIndex": 8
+  },
+  {
+   "id": "agreg2026.2.a#10",
+   "nodeId": "agreg2026.2.a",
+   "kind": "exercise",
+   "title": "Groupes d'isométries des polytopes réguliers en dimensions 2 et 3",
+   "sortIndex": 9
+  },
+  {
+   "id": "agreg2026.2.b#1",
+   "nodeId": "agreg2026.2.b",
+   "kind": "definition",
+   "title": "Groupe cyclique",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.2.b#2",
+   "nodeId": "agreg2026.2.b",
+   "kind": "theorem",
+   "title": "Structure des groupes abéliens finis",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.2.b#3",
+   "nodeId": "agreg2026.2.b",
+   "kind": "definition",
+   "title": "Groupe des racines n-ièmes de l'unité, racines primitives",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.2.c#1",
+   "nodeId": "agreg2026.2.c",
+   "kind": "definition",
+   "title": "Groupe des permutations d'un ensemble fini",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.2.c#2",
+   "nodeId": "agreg2026.2.c",
+   "kind": "theorem",
+   "title": "Décomposition d'une permutation en produit de transpositions",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.2.c#3",
+   "nodeId": "agreg2026.2.c",
+   "kind": "theorem",
+   "title": "Décomposition en produit de cycles à supports disjoints",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.2.c#4",
+   "nodeId": "agreg2026.2.c",
+   "kind": "definition",
+   "title": "Signature d'une permutation",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.2.c#5",
+   "nodeId": "agreg2026.2.c",
+   "kind": "definition",
+   "title": "Groupe alterné",
+   "sortIndex": 4
+  },
+  {
+   "id": "agreg2026.2.c#6",
+   "nodeId": "agreg2026.2.c",
+   "kind": "exercise",
+   "title": "Application de la signature aux déterminants",
+   "sortIndex": 5
+  },
+  {
+   "id": "agreg2026.2.d#1",
+   "nodeId": "agreg2026.2.d",
+   "kind": "definition",
+   "title": "Groupe général linéaire, groupe spécial linéaire",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.2.d#2",
+   "nodeId": "agreg2026.2.d",
+   "kind": "definition",
+   "title": "Groupe orthogonal, groupe spécial orthogonal",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.2.d#3",
+   "nodeId": "agreg2026.2.d",
+   "kind": "definition",
+   "title": "Groupe unitaire, groupe spécial unitaire",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.3.a#1",
+   "nodeId": "agreg2026.3.a",
+   "kind": "definition",
+   "title": "Anneau unitaire, morphisme d'anneaux, sous-anneau",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.3.a#2",
+   "nodeId": "agreg2026.3.a",
+   "kind": "statement",
+   "title": "L'anneau Z des entiers relatifs",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.3.a#3",
+   "nodeId": "agreg2026.3.a",
+   "kind": "definition",
+   "title": "Produit d'anneaux",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.3.a#4",
+   "nodeId": "agreg2026.3.a",
+   "kind": "definition",
+   "title": "Idéal d'un anneau commutatif, anneau quotient",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.3.a#5",
+   "nodeId": "agreg2026.3.a",
+   "kind": "definition",
+   "title": "Idéal premier, idéal maximal",
+   "sortIndex": 4
+  },
+  {
+   "id": "agreg2026.3.a#6",
+   "nodeId": "agreg2026.3.a",
+   "kind": "theorem",
+   "title": "Théorème chinois",
+   "sortIndex": 5
+  },
+  {
+   "id": "agreg2026.3.a#7",
+   "nodeId": "agreg2026.3.a",
+   "kind": "definition",
+   "title": "Algèbre associative sur un anneau commutatif",
+   "sortIndex": 6
+  },
+  {
+   "id": "agreg2026.3.b#1",
+   "nodeId": "agreg2026.3.b",
+   "kind": "definition",
+   "title": "Algèbre des polynômes à une ou plusieurs indéterminées",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.3.b#2",
+   "nodeId": "agreg2026.3.b",
+   "kind": "definition",
+   "title": "Racine d'un polynôme, multiplicité",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.3.b#3",
+   "nodeId": "agreg2026.3.b",
+   "kind": "statement",
+   "title": "Relations entre coefficients et racines d'un polynôme scindé",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.3.b#4",
+   "nodeId": "agreg2026.3.b",
+   "kind": "statement",
+   "title": "Sommes de Newton",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.3.b#5",
+   "nodeId": "agreg2026.3.b",
+   "kind": "definition",
+   "title": "Polynôme dérivé",
+   "sortIndex": 4
+  },
+  {
+   "id": "agreg2026.3.b#6",
+   "nodeId": "agreg2026.3.b",
+   "kind": "statement",
+   "title": "Formule de Taylor pour les polynômes (caractéristique nulle)",
+   "sortIndex": 5
+  },
+  {
+   "id": "agreg2026.3.b#7",
+   "nodeId": "agreg2026.3.b",
+   "kind": "statement",
+   "title": "Décomposition en somme de polynômes homogènes",
+   "sortIndex": 6
+  },
+  {
+   "id": "agreg2026.3.b#8",
+   "nodeId": "agreg2026.3.b",
+   "kind": "definition",
+   "title": "Polynômes symétriques",
+   "sortIndex": 7
+  },
+  {
+   "id": "agreg2026.3.c#1",
+   "nodeId": "agreg2026.3.c",
+   "kind": "definition",
+   "title": "Corps, sous-corps",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.3.c#2",
+   "nodeId": "agreg2026.3.c",
+   "kind": "definition",
+   "title": "Caractéristique, morphisme de Frobenius",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.3.c#3",
+   "nodeId": "agreg2026.3.c",
+   "kind": "definition",
+   "title": "Extension de corps",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.3.c#4",
+   "nodeId": "agreg2026.3.c",
+   "kind": "definition",
+   "title": "Corps des fractions d'un anneau intègre",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.3.c#5",
+   "nodeId": "agreg2026.3.c",
+   "kind": "statement",
+   "title": "Les corps Q, R et C",
+   "sortIndex": 4
+  },
+  {
+   "id": "agreg2026.3.c#6",
+   "nodeId": "agreg2026.3.c",
+   "kind": "theorem",
+   "title": "Théorème de d'Alembert-Gauss",
+   "sortIndex": 5
+  },
+  {
+   "id": "agreg2026.3.c#7",
+   "nodeId": "agreg2026.3.c",
+   "kind": "definition",
+   "title": "Élément algébrique, élément transcendant",
+   "sortIndex": 6
+  },
+  {
+   "id": "agreg2026.3.c#8",
+   "nodeId": "agreg2026.3.c",
+   "kind": "definition",
+   "title": "Extension algébrique",
+   "sortIndex": 7
+  },
+  {
+   "id": "agreg2026.3.c#9",
+   "nodeId": "agreg2026.3.c",
+   "kind": "definition",
+   "title": "Corps algébriquement clos",
+   "sortIndex": 8
+  },
+  {
+   "id": "agreg2026.3.c#10",
+   "nodeId": "agreg2026.3.c",
+   "kind": "definition",
+   "title": "Corps de rupture, corps de décomposition",
+   "sortIndex": 9
+  },
+  {
+   "id": "agreg2026.3.c#11",
+   "nodeId": "agreg2026.3.c",
+   "kind": "theorem",
+   "title": "Corps finis : existence et unicité",
+   "sortIndex": 10
+  },
+  {
+   "id": "agreg2026.3.d#1",
+   "nodeId": "agreg2026.3.d",
+   "kind": "definition",
+   "title": "Divisibilité dans un anneau intègre ; éléments inversibles, irréductibles",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.3.d#2",
+   "nodeId": "agreg2026.3.d",
+   "kind": "definition",
+   "title": "Éléments premiers entre eux",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.3.d#3",
+   "nodeId": "agreg2026.3.d",
+   "kind": "definition",
+   "title": "Anneau factoriel",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.3.d#4",
+   "nodeId": "agreg2026.3.d",
+   "kind": "definition",
+   "title": "PGCD, PPCM",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.3.d#5",
+   "nodeId": "agreg2026.3.d",
+   "kind": "theorem",
+   "title": "Factorialité de A[X] pour A factoriel",
+   "sortIndex": 4
+  },
+  {
+   "id": "agreg2026.3.d#6",
+   "nodeId": "agreg2026.3.d",
+   "kind": "definition",
+   "title": "Anneau principal",
+   "sortIndex": 5
+  },
+  {
+   "id": "agreg2026.3.d#7",
+   "nodeId": "agreg2026.3.d",
+   "kind": "theorem",
+   "title": "Théorème de Bézout",
+   "sortIndex": 6
+  },
+  {
+   "id": "agreg2026.3.d#8",
+   "nodeId": "agreg2026.3.d",
+   "kind": "definition",
+   "title": "Anneau euclidien",
+   "sortIndex": 7
+  },
+  {
+   "id": "agreg2026.3.d#9",
+   "nodeId": "agreg2026.3.d",
+   "kind": "statement",
+   "title": "Algorithme d'Euclide",
+   "sortIndex": 8
+  },
+  {
+   "id": "agreg2026.3.d#10",
+   "nodeId": "agreg2026.3.d",
+   "kind": "statement",
+   "title": "Arithmétique de Z et de K[X]",
+   "sortIndex": 9
+  },
+  {
+   "id": "agreg2026.3.d#11",
+   "nodeId": "agreg2026.3.d",
+   "kind": "definition",
+   "title": "Polynôme irréductible",
+   "sortIndex": 10
+  },
+  {
+   "id": "agreg2026.3.d#12",
+   "nodeId": "agreg2026.3.d",
+   "kind": "definition",
+   "title": "Polynômes cyclotomiques ; irréductibilité sur Q",
+   "sortIndex": 11
+  },
+  {
+   "id": "agreg2026.3.d#13",
+   "nodeId": "agreg2026.3.d",
+   "kind": "theorem",
+   "title": "Critère d'Eisenstein",
+   "sortIndex": 12
+  },
+  {
+   "id": "agreg2026.3.e#1",
+   "nodeId": "agreg2026.3.e",
+   "kind": "definition",
+   "title": "Congruences dans Z",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.3.e#2",
+   "nodeId": "agreg2026.3.e",
+   "kind": "definition",
+   "title": "Nombres premiers",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.3.e#3",
+   "nodeId": "agreg2026.3.e",
+   "kind": "statement",
+   "title": "Structure de l'anneau Z/nZ ; ses éléments inversibles",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.3.e#4",
+   "nodeId": "agreg2026.3.e",
+   "kind": "definition",
+   "title": "Fonction indicatrice d'Euler",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.3.f#1",
+   "nodeId": "agreg2026.3.f",
+   "kind": "definition",
+   "title": "Corps des fractions rationnelles K(X)",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.3.f#2",
+   "nodeId": "agreg2026.3.f",
+   "kind": "theorem",
+   "title": "Décomposition en éléments simples (cas réel et complexe)",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.4.a#1",
+   "nodeId": "agreg2026.4.a",
+   "kind": "definition",
+   "title": "Forme bilinéaire, forme bilinéaire alternée",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.4.a#2",
+   "nodeId": "agreg2026.4.a",
+   "kind": "definition",
+   "title": "Forme bilinéaire symétrique, forme quadratique, forme polaire",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.4.a#3",
+   "nodeId": "agreg2026.4.a",
+   "kind": "definition",
+   "title": "Orthogonalité ; interprétation géométrique",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.4.a#4",
+   "nodeId": "agreg2026.4.a",
+   "kind": "definition",
+   "title": "Forme non dégénérée",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.4.a#5",
+   "nodeId": "agreg2026.4.a",
+   "kind": "definition",
+   "title": "Adjoint d'un endomorphisme",
+   "sortIndex": 4
+  },
+  {
+   "id": "agreg2026.4.a#6",
+   "nodeId": "agreg2026.4.a",
+   "kind": "statement",
+   "title": "Représentation matricielle, changement de base",
+   "sortIndex": 5
+  },
+  {
+   "id": "agreg2026.4.a#7",
+   "nodeId": "agreg2026.4.a",
+   "kind": "definition",
+   "title": "Rang d'une forme bilinéaire",
+   "sortIndex": 6
+  },
+  {
+   "id": "agreg2026.4.b#1",
+   "nodeId": "agreg2026.4.b",
+   "kind": "definition",
+   "title": "Sous-espace isotrope",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.4.b#2",
+   "nodeId": "agreg2026.4.b",
+   "kind": "theorem",
+   "title": "Décomposition d'une forme quadratique en somme de carrés (Gauss)",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.4.b#3",
+   "nodeId": "agreg2026.4.b",
+   "kind": "theorem",
+   "title": "Théorème d'inertie de Sylvester",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.4.b#4",
+   "nodeId": "agreg2026.4.b",
+   "kind": "theorem",
+   "title": "Classification des formes quadratiques sur R et sur C",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.4.b#5",
+   "nodeId": "agreg2026.4.b",
+   "kind": "statement",
+   "title": "Procédés d'orthogonalisation (Gram-Schmidt)",
+   "sortIndex": 4
+  },
+  {
+   "id": "agreg2026.4.c#1",
+   "nodeId": "agreg2026.4.c",
+   "kind": "definition",
+   "title": "Espace euclidien, espace hermitien",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.4.c#2",
+   "nodeId": "agreg2026.4.c",
+   "kind": "theorem",
+   "title": "Isomorphisme d'un espace euclidien avec son dual",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.4.c#3",
+   "nodeId": "agreg2026.4.c",
+   "kind": "theorem",
+   "title": "Supplémentaire orthogonal",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.4.c#4",
+   "nodeId": "agreg2026.4.c",
+   "kind": "theorem",
+   "title": "Inégalité de Cauchy-Schwarz",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.4.c#5",
+   "nodeId": "agreg2026.4.c",
+   "kind": "definition",
+   "title": "Norme euclidienne",
+   "sortIndex": 4
+  },
+  {
+   "id": "agreg2026.4.c#6",
+   "nodeId": "agreg2026.4.c",
+   "kind": "theorem",
+   "title": "Existence de bases orthonormales",
+   "sortIndex": 5
+  },
+  {
+   "id": "agreg2026.4.d#1",
+   "nodeId": "agreg2026.4.d",
+   "kind": "definition",
+   "title": "Groupe orthogonal, groupe spécial orthogonal",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.4.d#2",
+   "nodeId": "agreg2026.4.d",
+   "kind": "theorem",
+   "title": "Décomposition d'un automorphisme orthogonal en produit de réflexions",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.4.d#3",
+   "nodeId": "agreg2026.4.d",
+   "kind": "definition",
+   "title": "Endomorphisme symétrique, endomorphisme normal",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.4.d#4",
+   "nodeId": "agreg2026.4.d",
+   "kind": "theorem",
+   "title": "Théorème spectral : diagonalisation des endomorphismes symétriques",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.4.d#5",
+   "nodeId": "agreg2026.4.d",
+   "kind": "theorem",
+   "title": "Décomposition en valeurs singulières (matrices réelles)",
+   "sortIndex": 4
+  },
+  {
+   "id": "agreg2026.4.d#6",
+   "nodeId": "agreg2026.4.d",
+   "kind": "theorem",
+   "title": "Réduction simultanée de deux formes quadratiques réelles (l'une définie positive)",
+   "sortIndex": 5
+  },
+  {
+   "id": "agreg2026.4.d#7",
+   "nodeId": "agreg2026.4.d",
+   "kind": "theorem",
+   "title": "Décomposition polaire dans GL(n, R)",
+   "sortIndex": 6
+  },
+  {
+   "id": "agreg2026.4.d#8",
+   "nodeId": "agreg2026.4.d",
+   "kind": "theorem",
+   "title": "Classification des éléments de O(2, R)",
+   "sortIndex": 7
+  },
+  {
+   "id": "agreg2026.4.d#9",
+   "nodeId": "agreg2026.4.d",
+   "kind": "theorem",
+   "title": "Classification des éléments de O(3, R)",
+   "sortIndex": 8
+  },
+  {
+   "id": "agreg2026.4.d#10",
+   "nodeId": "agreg2026.4.d",
+   "kind": "definition",
+   "title": "Produit mixte, produit vectoriel",
+   "sortIndex": 9
+  },
+  {
+   "id": "agreg2026.4.e#1",
+   "nodeId": "agreg2026.4.e",
+   "kind": "definition",
+   "title": "Groupe unitaire, groupe spécial unitaire",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.4.e#2",
+   "nodeId": "agreg2026.4.e",
+   "kind": "theorem",
+   "title": "Diagonalisation des endomorphismes normaux",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.4.e#3",
+   "nodeId": "agreg2026.4.e",
+   "kind": "theorem",
+   "title": "Décomposition polaire dans GL(n, C)",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.5.a#1",
+   "nodeId": "agreg2026.5.a",
+   "kind": "definition",
+   "title": "Espace affine, espace vectoriel associé",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.5.a#2",
+   "nodeId": "agreg2026.5.a",
+   "kind": "definition",
+   "title": "Application affine, application linéaire associée",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.5.a#3",
+   "nodeId": "agreg2026.5.a",
+   "kind": "definition",
+   "title": "Sous-espace affine",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.5.a#4",
+   "nodeId": "agreg2026.5.a",
+   "kind": "definition",
+   "title": "Barycentre",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.5.a#5",
+   "nodeId": "agreg2026.5.a",
+   "kind": "definition",
+   "title": "Repère affine ; équations d'un sous-espace affine",
+   "sortIndex": 4
+  },
+  {
+   "id": "agreg2026.5.a#6",
+   "nodeId": "agreg2026.5.a",
+   "kind": "definition",
+   "title": "Groupe affine ; propriété affine",
+   "sortIndex": 5
+  },
+  {
+   "id": "agreg2026.5.a#7",
+   "nodeId": "agreg2026.5.a",
+   "kind": "definition",
+   "title": "Groupe des homothéties-translations ; affinités",
+   "sortIndex": 6
+  },
+  {
+   "id": "agreg2026.5.a#8",
+   "nodeId": "agreg2026.5.a",
+   "kind": "definition",
+   "title": "Partie convexe, enveloppe convexe",
+   "sortIndex": 7
+  },
+  {
+   "id": "agreg2026.5.a#9",
+   "nodeId": "agreg2026.5.a",
+   "kind": "definition",
+   "title": "Point extrémal",
+   "sortIndex": 8
+  },
+  {
+   "id": "agreg2026.5.b#1",
+   "nodeId": "agreg2026.5.b",
+   "kind": "definition",
+   "title": "Isométrie d'un espace affine euclidien ; groupe des isométries",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.5.b#2",
+   "nodeId": "agreg2026.5.b",
+   "kind": "definition",
+   "title": "Déplacement, antidéplacement",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.5.b#3",
+   "nodeId": "agreg2026.5.b",
+   "kind": "definition",
+   "title": "Similitudes directes et indirectes du plan",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.5.b#4",
+   "nodeId": "agreg2026.5.b",
+   "kind": "theorem",
+   "title": "Classification des isométries en dimension 2",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.5.b#5",
+   "nodeId": "agreg2026.5.b",
+   "kind": "theorem",
+   "title": "Classification des isométries en dimension 3",
+   "sortIndex": 4
+  },
+  {
+   "id": "agreg2026.5.c#1",
+   "nodeId": "agreg2026.5.c",
+   "kind": "definition",
+   "title": "Angles de vecteurs, angles de droites",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.5.c#2",
+   "nodeId": "agreg2026.5.c",
+   "kind": "theorem",
+   "title": "Théorème de l'angle inscrit",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.5.c#3",
+   "nodeId": "agreg2026.5.c",
+   "kind": "statement",
+   "title": "Cocyclicité",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.5.d#1",
+   "nodeId": "agreg2026.5.d",
+   "kind": "statement",
+   "title": "Groupe des isométries laissant stable une partie",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.5.d#2",
+   "nodeId": "agreg2026.5.d",
+   "kind": "definition",
+   "title": "Polygones réguliers",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.5.d#3",
+   "nodeId": "agreg2026.5.d",
+   "kind": "statement",
+   "title": "Relations métriques dans le triangle",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.5.d#4",
+   "nodeId": "agreg2026.5.d",
+   "kind": "statement",
+   "title": "Nombres complexes et géométrie plane",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.5.e#1",
+   "nodeId": "agreg2026.5.e",
+   "kind": "statement",
+   "title": "Coniques propres du plan euclidien : foyer, excentricité",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.5.e#2",
+   "nodeId": "agreg2026.5.e",
+   "kind": "statement",
+   "title": "Quadriques de l'espace euclidien de dimension 3",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.6.1#1",
+   "nodeId": "agreg2026.6.1",
+   "kind": "definition",
+   "title": "Le corps R ; topologie de R",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.6.1#2",
+   "nodeId": "agreg2026.6.1",
+   "kind": "theorem",
+   "title": "Sous-groupes additifs de R",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.6.1#3",
+   "nodeId": "agreg2026.6.1",
+   "kind": "definition",
+   "title": "Suite réelle convergente, valeur d'adhérence",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.6.1#4",
+   "nodeId": "agreg2026.6.1",
+   "kind": "exercise",
+   "title": "Suites récurrentes",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.6.1#5",
+   "nodeId": "agreg2026.6.1",
+   "kind": "definition",
+   "title": "Limites inférieure et supérieure",
+   "sortIndex": 4
+  },
+  {
+   "id": "agreg2026.6.1#6",
+   "nodeId": "agreg2026.6.1",
+   "kind": "definition",
+   "title": "Suite de Cauchy",
+   "sortIndex": 5
+  },
+  {
+   "id": "agreg2026.6.1#7",
+   "nodeId": "agreg2026.6.1",
+   "kind": "theorem",
+   "title": "Complétude de R",
+   "sortIndex": 6
+  },
+  {
+   "id": "agreg2026.6.1#8",
+   "nodeId": "agreg2026.6.1",
+   "kind": "theorem",
+   "title": "Théorème de Bolzano-Weierstrass",
+   "sortIndex": 7
+  },
+  {
+   "id": "agreg2026.6.1#9",
+   "nodeId": "agreg2026.6.1",
+   "kind": "theorem",
+   "title": "Parties compactes de R",
+   "sortIndex": 8
+  },
+  {
+   "id": "agreg2026.6.1#10",
+   "nodeId": "agreg2026.6.1",
+   "kind": "theorem",
+   "title": "Parties connexes de R (intervalles)",
+   "sortIndex": 9
+  },
+  {
+   "id": "agreg2026.6.2#1",
+   "nodeId": "agreg2026.6.2",
+   "kind": "definition",
+   "title": "Série convergente",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.6.2#2",
+   "nodeId": "agreg2026.6.2",
+   "kind": "statement",
+   "title": "Séries géométriques, séries de Riemann",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.6.2#3",
+   "nodeId": "agreg2026.6.2",
+   "kind": "statement",
+   "title": "Séries à termes positifs : critères de comparaison",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.6.2#4",
+   "nodeId": "agreg2026.6.2",
+   "kind": "theorem",
+   "title": "Sommation des relations de comparaison",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.6.2#5",
+   "nodeId": "agreg2026.6.2",
+   "kind": "theorem",
+   "title": "Comparaison série-intégrale",
+   "sortIndex": 4
+  },
+  {
+   "id": "agreg2026.6.2#6",
+   "nodeId": "agreg2026.6.2",
+   "kind": "statement",
+   "title": "Estimation des restes",
+   "sortIndex": 5
+  },
+  {
+   "id": "agreg2026.6.2#7",
+   "nodeId": "agreg2026.6.2",
+   "kind": "definition",
+   "title": "Convergence absolue",
+   "sortIndex": 6
+  },
+  {
+   "id": "agreg2026.6.2#8",
+   "nodeId": "agreg2026.6.2",
+   "kind": "theorem",
+   "title": "Produit de Cauchy de séries",
+   "sortIndex": 7
+  },
+  {
+   "id": "agreg2026.6.2#9",
+   "nodeId": "agreg2026.6.2",
+   "kind": "theorem",
+   "title": "Critère des séries alternées",
+   "sortIndex": 8
+  },
+  {
+   "id": "agreg2026.6.3.a#1",
+   "nodeId": "agreg2026.6.3.a",
+   "kind": "definition",
+   "title": "Limite, continuité",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.6.3.a#2",
+   "nodeId": "agreg2026.6.3.a",
+   "kind": "theorem",
+   "title": "Théorème des valeurs intermédiaires",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.6.3.a#3",
+   "nodeId": "agreg2026.6.3.a",
+   "kind": "theorem",
+   "title": "Image continue d'un segment",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.6.3.a#4",
+   "nodeId": "agreg2026.6.3.a",
+   "kind": "theorem",
+   "title": "Continuité des fonctions monotones",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.6.3.a#5",
+   "nodeId": "agreg2026.6.3.a",
+   "kind": "theorem",
+   "title": "Continuité d'une fonction réciproque",
+   "sortIndex": 4
+  },
+  {
+   "id": "agreg2026.6.3.b#1",
+   "nodeId": "agreg2026.6.3.b",
+   "kind": "definition",
+   "title": "Dérivée en un point, fonction dérivable",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.6.3.b#2",
+   "nodeId": "agreg2026.6.3.b",
+   "kind": "statement",
+   "title": "Dérivée d'une composée, d'une réciproque",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.6.3.b#3",
+   "nodeId": "agreg2026.6.3.b",
+   "kind": "theorem",
+   "title": "Théorème de Rolle",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.6.3.b#4",
+   "nodeId": "agreg2026.6.3.b",
+   "kind": "theorem",
+   "title": "Théorème des accroissements finis",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.6.3.b#5",
+   "nodeId": "agreg2026.6.3.b",
+   "kind": "statement",
+   "title": "Étude des variations d'une fonction",
+   "sortIndex": 4
+  },
+  {
+   "id": "agreg2026.6.3.b#6",
+   "nodeId": "agreg2026.6.3.b",
+   "kind": "definition",
+   "title": "Fonctions de classe C^k, de classe C^k par morceaux",
+   "sortIndex": 5
+  },
+  {
+   "id": "agreg2026.6.3.b#7",
+   "nodeId": "agreg2026.6.3.b",
+   "kind": "statement",
+   "title": "Formule de Leibniz",
+   "sortIndex": 6
+  },
+  {
+   "id": "agreg2026.6.3.b#8",
+   "nodeId": "agreg2026.6.3.b",
+   "kind": "theorem",
+   "title": "Formule de Taylor-Young",
+   "sortIndex": 7
+  },
+  {
+   "id": "agreg2026.6.3.b#9",
+   "nodeId": "agreg2026.6.3.b",
+   "kind": "theorem",
+   "title": "Formule de Taylor avec reste intégral",
+   "sortIndex": 8
+  },
+  {
+   "id": "agreg2026.6.3.b#10",
+   "nodeId": "agreg2026.6.3.b",
+   "kind": "theorem",
+   "title": "Formule de Taylor-Lagrange",
+   "sortIndex": 9
+  },
+  {
+   "id": "agreg2026.6.3.b#11",
+   "nodeId": "agreg2026.6.3.b",
+   "kind": "exercise",
+   "title": "Calcul de développements limités et asymptotiques",
+   "sortIndex": 10
+  },
+  {
+   "id": "agreg2026.6.4#1",
+   "nodeId": "agreg2026.6.4",
+   "kind": "statement",
+   "title": "Fonctions polynômes et rationnelles",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.6.4#2",
+   "nodeId": "agreg2026.6.4",
+   "kind": "statement",
+   "title": "Logarithmes, exponentielles, fonctions puissances",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.6.4#3",
+   "nodeId": "agreg2026.6.4",
+   "kind": "statement",
+   "title": "Fonctions circulaires et hyperboliques",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.6.4#4",
+   "nodeId": "agreg2026.6.4",
+   "kind": "statement",
+   "title": "Fonctions circulaires et hyperboliques réciproques",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.6.5.a#1",
+   "nodeId": "agreg2026.6.5.a",
+   "kind": "definition",
+   "title": "Intégrale des fonctions continues par morceaux sur un segment",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.6.5.a#2",
+   "nodeId": "agreg2026.6.5.a",
+   "kind": "theorem",
+   "title": "Sommes de Riemann",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.6.5.a#3",
+   "nodeId": "agreg2026.6.5.a",
+   "kind": "theorem",
+   "title": "Primitives d'une fonction continue",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.6.5.a#4",
+   "nodeId": "agreg2026.6.5.a",
+   "kind": "theorem",
+   "title": "Changement de variable",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.6.5.a#5",
+   "nodeId": "agreg2026.6.5.a",
+   "kind": "theorem",
+   "title": "Intégration par parties",
+   "sortIndex": 4
+  },
+  {
+   "id": "agreg2026.6.5.a#6",
+   "nodeId": "agreg2026.6.5.a",
+   "kind": "exercise",
+   "title": "Calcul de primitives et d'intégrales",
+   "sortIndex": 5
+  },
+  {
+   "id": "agreg2026.6.5.b#1",
+   "nodeId": "agreg2026.6.5.b",
+   "kind": "definition",
+   "title": "Intégrale généralisée, absolument convergente",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.6.5.b#2",
+   "nodeId": "agreg2026.6.5.b",
+   "kind": "theorem",
+   "title": "Intégration des relations de comparaison",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.6.5.b#3",
+   "nodeId": "agreg2026.6.5.b",
+   "kind": "definition",
+   "title": "Intégrale semi-convergente",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.6.6#1",
+   "nodeId": "agreg2026.6.6",
+   "kind": "definition",
+   "title": "Convergence simple, convergence uniforme",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.6.6#2",
+   "nodeId": "agreg2026.6.6",
+   "kind": "theorem",
+   "title": "Continuité de la limite uniforme",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.6.6#3",
+   "nodeId": "agreg2026.6.6",
+   "kind": "theorem",
+   "title": "Dérivabilité de la limite",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.6.6#4",
+   "nodeId": "agreg2026.6.6",
+   "kind": "definition",
+   "title": "Convergence normale d'une série de fonctions",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.6.6#5",
+   "nodeId": "agreg2026.6.6",
+   "kind": "theorem",
+   "title": "Théorème d'approximation de Weierstrass (polynomial)",
+   "sortIndex": 4
+  },
+  {
+   "id": "agreg2026.6.6#6",
+   "nodeId": "agreg2026.6.6",
+   "kind": "theorem",
+   "title": "Théorème de Weierstrass trigonométrique",
+   "sortIndex": 5
+  },
+  {
+   "id": "agreg2026.6.7#1",
+   "nodeId": "agreg2026.6.7",
+   "kind": "definition",
+   "title": "Fonction convexe d'une variable réelle",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.6.7#2",
+   "nodeId": "agreg2026.6.7",
+   "kind": "theorem",
+   "title": "Continuité et dérivabilité des fonctions convexes",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.6.7#3",
+   "nodeId": "agreg2026.6.7",
+   "kind": "theorem",
+   "title": "Caractérisations de la convexité",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.6.7#4",
+   "nodeId": "agreg2026.6.7",
+   "kind": "statement",
+   "title": "Inégalités de convexité",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.7.1.a#1",
+   "nodeId": "agreg2026.7.1.a",
+   "kind": "definition",
+   "title": "Rayon de convergence",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.7.1.a#2",
+   "nodeId": "agreg2026.7.1.a",
+   "kind": "theorem",
+   "title": "Continuité de la somme sur le disque de convergence",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.7.1.a#3",
+   "nodeId": "agreg2026.7.1.a",
+   "kind": "theorem",
+   "title": "Dérivabilité complexe de la somme ; primitives",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.7.1.b#1",
+   "nodeId": "agreg2026.7.1.b",
+   "kind": "definition",
+   "title": "Exponentielle complexe ; propriétés",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.7.1.b#2",
+   "nodeId": "agreg2026.7.1.b",
+   "kind": "definition",
+   "title": "Fonctions circulaires sur C",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.7.1.b#3",
+   "nodeId": "agreg2026.7.1.b",
+   "kind": "statement",
+   "title": "Développements en série entière des fonctions usuelles",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.7.2.a#1",
+   "nodeId": "agreg2026.7.2.a",
+   "kind": "definition",
+   "title": "Fonction holomorphe",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.7.2.a#2",
+   "nodeId": "agreg2026.7.2.a",
+   "kind": "theorem",
+   "title": "Conditions de Cauchy-Riemann",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.7.2.a#3",
+   "nodeId": "agreg2026.7.2.a",
+   "kind": "definition",
+   "title": "Intégrale le long d'un chemin C^1 par morceaux",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.7.2.a#4",
+   "nodeId": "agreg2026.7.2.a",
+   "kind": "statement",
+   "title": "Primitives d'une fonction holomorphe",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.7.2.a#5",
+   "nodeId": "agreg2026.7.2.a",
+   "kind": "definition",
+   "title": "Déterminations du logarithme",
+   "sortIndex": 4
+  },
+  {
+   "id": "agreg2026.7.2.a#6",
+   "nodeId": "agreg2026.7.2.a",
+   "kind": "theorem",
+   "title": "Holomorphie sous le signe intégrale",
+   "sortIndex": 5
+  },
+  {
+   "id": "agreg2026.7.2.b#1",
+   "nodeId": "agreg2026.7.2.b",
+   "kind": "definition",
+   "title": "Indice d'un chemin fermé par rapport à un point",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.7.2.c#1",
+   "nodeId": "agreg2026.7.2.c",
+   "kind": "theorem",
+   "title": "Formules de Cauchy",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.7.2.c#2",
+   "nodeId": "agreg2026.7.2.c",
+   "kind": "theorem",
+   "title": "Analyticité des fonctions holomorphes",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.7.2.c#3",
+   "nodeId": "agreg2026.7.2.c",
+   "kind": "theorem",
+   "title": "Principe des zéros isolés",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.7.2.c#4",
+   "nodeId": "agreg2026.7.2.c",
+   "kind": "theorem",
+   "title": "Principe du prolongement analytique",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.7.2.c#5",
+   "nodeId": "agreg2026.7.2.c",
+   "kind": "theorem",
+   "title": "Principe du maximum",
+   "sortIndex": 4
+  },
+  {
+   "id": "agreg2026.7.2.d#1",
+   "nodeId": "agreg2026.7.2.d",
+   "kind": "definition",
+   "title": "Singularité isolée",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.7.2.d#2",
+   "nodeId": "agreg2026.7.2.d",
+   "kind": "theorem",
+   "title": "Développement en série de Laurent",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.7.2.d#3",
+   "nodeId": "agreg2026.7.2.d",
+   "kind": "definition",
+   "title": "Fonction méromorphe",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.7.2.d#4",
+   "nodeId": "agreg2026.7.2.d",
+   "kind": "theorem",
+   "title": "Théorème des résidus",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.7.2.e#1",
+   "nodeId": "agreg2026.7.2.e",
+   "kind": "theorem",
+   "title": "Stabilité de l'holomorphie par convergence uniforme (Weierstrass)",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.8.1.a#1",
+   "nodeId": "agreg2026.8.1.a",
+   "kind": "definition",
+   "title": "Espace métrique, ouverts, fermés",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.8.1.a#2",
+   "nodeId": "agreg2026.8.1.a",
+   "kind": "definition",
+   "title": "Topologie induite",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.8.1.a#3",
+   "nodeId": "agreg2026.8.1.a",
+   "kind": "definition",
+   "title": "Produit fini d'espaces métriques",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.8.1.b#1",
+   "nodeId": "agreg2026.8.1.b",
+   "kind": "definition",
+   "title": "Suite convergente, valeur d'adhérence",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.8.1.b#2",
+   "nodeId": "agreg2026.8.1.b",
+   "kind": "definition",
+   "title": "Application continue, homéomorphisme",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.8.1.c#1",
+   "nodeId": "agreg2026.8.1.c",
+   "kind": "definition",
+   "title": "Compacité : Bolzano-Weierstrass et Borel-Lebesgue",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.8.1.c#2",
+   "nodeId": "agreg2026.8.1.c",
+   "kind": "theorem",
+   "title": "Équivalence des deux définitions de la compacité (espaces métriques)",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.8.1.c#3",
+   "nodeId": "agreg2026.8.1.c",
+   "kind": "definition",
+   "title": "Connexité, composantes connexes",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.8.1.c#4",
+   "nodeId": "agreg2026.8.1.c",
+   "kind": "definition",
+   "title": "Connexité par arcs",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.8.1.d#1",
+   "nodeId": "agreg2026.8.1.d",
+   "kind": "definition",
+   "title": "Application lipschitzienne, uniformément continue",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.8.1.d#2",
+   "nodeId": "agreg2026.8.1.d",
+   "kind": "theorem",
+   "title": "Théorème de Heine",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.8.1.e#1",
+   "nodeId": "agreg2026.8.1.e",
+   "kind": "definition",
+   "title": "Espace métrique complet",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.8.1.e#2",
+   "nodeId": "agreg2026.8.1.e",
+   "kind": "theorem",
+   "title": "Théorème du point fixe de Banach-Picard",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.8.2.a#1",
+   "nodeId": "agreg2026.8.2.a",
+   "kind": "definition",
+   "title": "Norme, topologie d'un espace vectoriel normé",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.8.2.a#2",
+   "nodeId": "agreg2026.8.2.a",
+   "kind": "definition",
+   "title": "Normes équivalentes",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.8.2.a#3",
+   "nodeId": "agreg2026.8.2.a",
+   "kind": "theorem",
+   "title": "Équivalence des normes en dimension finie",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.8.2.a#4",
+   "nodeId": "agreg2026.8.2.a",
+   "kind": "statement",
+   "title": "Normes p sur R^n et C^n",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.8.2.a#5",
+   "nodeId": "agreg2026.8.2.a",
+   "kind": "definition",
+   "title": "Espace de Banach",
+   "sortIndex": 4
+  },
+  {
+   "id": "agreg2026.8.2.a#6",
+   "nodeId": "agreg2026.8.2.a",
+   "kind": "theorem",
+   "title": "Séries absolument convergentes dans un espace de Banach",
+   "sortIndex": 5
+  },
+  {
+   "id": "agreg2026.8.2.b#1",
+   "nodeId": "agreg2026.8.2.b",
+   "kind": "theorem",
+   "title": "Caractérisation des applications linéaires continues",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.8.2.b#2",
+   "nodeId": "agreg2026.8.2.b",
+   "kind": "definition",
+   "title": "Norme subordonnée d'une application linéaire continue",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.8.2.c#1",
+   "nodeId": "agreg2026.8.2.c",
+   "kind": "definition",
+   "title": "Norme de la convergence uniforme",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.8.2.c#2",
+   "nodeId": "agreg2026.8.2.c",
+   "kind": "theorem",
+   "title": "Complétude de l'espace des fonctions continues bornées à valeurs dans un Banach",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.8.2.d#1",
+   "nodeId": "agreg2026.8.2.d",
+   "kind": "theorem",
+   "title": "Théorème de Riesz",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.8.2.d#2",
+   "nodeId": "agreg2026.8.2.d",
+   "kind": "theorem",
+   "title": "Théorème d'Ascoli",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.8.3.a#1",
+   "nodeId": "agreg2026.8.3.a",
+   "kind": "definition",
+   "title": "Espace préhilbertien, espace de Hilbert",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.8.3.b#1",
+   "nodeId": "agreg2026.8.3.b",
+   "kind": "theorem",
+   "title": "Projection sur un convexe fermé",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.8.3.b#2",
+   "nodeId": "agreg2026.8.3.b",
+   "kind": "theorem",
+   "title": "Projection orthogonale sur un sous-espace fermé",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.8.3.c#1",
+   "nodeId": "agreg2026.8.3.c",
+   "kind": "theorem",
+   "title": "Théorème de représentation de Riesz",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.8.3.c#2",
+   "nodeId": "agreg2026.8.3.c",
+   "kind": "statement",
+   "title": "Les espaces l² et L²",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.8.3.c#3",
+   "nodeId": "agreg2026.8.3.c",
+   "kind": "definition",
+   "title": "Base hilbertienne (cas séparable)",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.8.3.c#4",
+   "nodeId": "agreg2026.8.3.c",
+   "kind": "exercise",
+   "title": "Bases de polynômes trigonométriques et de polynômes orthogonaux",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.9.1.a#1",
+   "nodeId": "agreg2026.9.1.a",
+   "kind": "definition",
+   "title": "Application différentiable, différentielle",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.9.1.a#2",
+   "nodeId": "agreg2026.9.1.a",
+   "kind": "definition",
+   "title": "Dérivée selon un vecteur",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.9.1.b#1",
+   "nodeId": "agreg2026.9.1.b",
+   "kind": "definition",
+   "title": "Dérivées partielles, matrice jacobienne, gradient",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.9.1.b#2",
+   "nodeId": "agreg2026.9.1.b",
+   "kind": "theorem",
+   "title": "Différentielle d'une composée",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.9.1.b#3",
+   "nodeId": "agreg2026.9.1.b",
+   "kind": "theorem",
+   "title": "Inégalité des accroissements finis",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.9.1.b#4",
+   "nodeId": "agreg2026.9.1.b",
+   "kind": "definition",
+   "title": "Application de classe C^1",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.9.1.c#1",
+   "nodeId": "agreg2026.9.1.c",
+   "kind": "definition",
+   "title": "Applications de classe C^k ; dérivées partielles d'ordre k",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.9.1.c#2",
+   "nodeId": "agreg2026.9.1.c",
+   "kind": "theorem",
+   "title": "Théorème de Schwarz",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.9.1.c#3",
+   "nodeId": "agreg2026.9.1.c",
+   "kind": "definition",
+   "title": "Matrice hessienne",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.9.1.c#4",
+   "nodeId": "agreg2026.9.1.c",
+   "kind": "theorem",
+   "title": "Formules de Taylor (Young, reste intégral) en plusieurs variables",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.9.1.d#1",
+   "nodeId": "agreg2026.9.1.d",
+   "kind": "statement",
+   "title": "Développements limités en plusieurs variables",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.9.1.d#2",
+   "nodeId": "agreg2026.9.1.d",
+   "kind": "theorem",
+   "title": "Conditions nécessaires et suffisantes d'extremum local",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.9.1.e#1",
+   "nodeId": "agreg2026.9.1.e",
+   "kind": "definition",
+   "title": "Fonction convexe de plusieurs variables",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.9.1.e#2",
+   "nodeId": "agreg2026.9.1.e",
+   "kind": "theorem",
+   "title": "Caractérisations de la convexité des fonctions C^1 et C^2",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.9.1.f#1",
+   "nodeId": "agreg2026.9.1.f",
+   "kind": "definition",
+   "title": "Difféomorphisme",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.9.1.f#2",
+   "nodeId": "agreg2026.9.1.f",
+   "kind": "theorem",
+   "title": "Théorème d'inversion locale",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.9.1.f#3",
+   "nodeId": "agreg2026.9.1.f",
+   "kind": "theorem",
+   "title": "Théorème des fonctions implicites",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.9.2.a#1",
+   "nodeId": "agreg2026.9.2.a",
+   "kind": "definition",
+   "title": "Équation différentielle X' = f(t, X), solution maximale",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.9.2.a#2",
+   "nodeId": "agreg2026.9.2.a",
+   "kind": "theorem",
+   "title": "Théorème de Cauchy-Lipschitz",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.9.2.a#3",
+   "nodeId": "agreg2026.9.2.a",
+   "kind": "lemma",
+   "title": "Lemme de Grönwall",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.9.2.a#4",
+   "nodeId": "agreg2026.9.2.a",
+   "kind": "theorem",
+   "title": "Théorème de sortie de tout compact",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.9.2.b#1",
+   "nodeId": "agreg2026.9.2.b",
+   "kind": "definition",
+   "title": "Équation autonome, portrait de phase",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.9.2.b#2",
+   "nodeId": "agreg2026.9.2.b",
+   "kind": "theorem",
+   "title": "Stabilité des points d'équilibre (théorème de linéarisation)",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.9.2.c#1",
+   "nodeId": "agreg2026.9.2.c",
+   "kind": "definition",
+   "title": "Système différentiel linéaire",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.9.2.c#2",
+   "nodeId": "agreg2026.9.2.c",
+   "kind": "statement",
+   "title": "Variation des constantes (formule de Duhamel)",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.9.2.c#3",
+   "nodeId": "agreg2026.9.2.c",
+   "kind": "statement",
+   "title": "Cas des coefficients constants",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.9.2.c#4",
+   "nodeId": "agreg2026.9.2.c",
+   "kind": "exercise",
+   "title": "Équations différentielles linéaires d'ordre supérieur",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.9.3.a#1",
+   "nodeId": "agreg2026.9.3.a",
+   "kind": "definition",
+   "title": "Sous-variété de R^n (graphe, paramétrisation, équation locales)",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.9.3.a#2",
+   "nodeId": "agreg2026.9.3.a",
+   "kind": "theorem",
+   "title": "Équivalence des définitions d'une sous-variété",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.9.3.a#3",
+   "nodeId": "agreg2026.9.3.a",
+   "kind": "definition",
+   "title": "Espace tangent",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.9.3.a#4",
+   "nodeId": "agreg2026.9.3.a",
+   "kind": "statement",
+   "title": "Gradient et espace tangent",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.9.3.a#5",
+   "nodeId": "agreg2026.9.3.a",
+   "kind": "statement",
+   "title": "Surfaces de R³ : position par rapport au plan tangent",
+   "sortIndex": 4
+  },
+  {
+   "id": "agreg2026.9.3.b#1",
+   "nodeId": "agreg2026.9.3.b",
+   "kind": "exercise",
+   "title": "Construction de courbes planes paramétrées",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.9.3.b#2",
+   "nodeId": "agreg2026.9.3.b",
+   "kind": "definition",
+   "title": "Abscisse curviligne, longueur d'un arc C^1",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.9.3.c#1",
+   "nodeId": "agreg2026.9.3.c",
+   "kind": "theorem",
+   "title": "Théorème des extrema liés (multiplicateurs de Lagrange)",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.10.1#1",
+   "nodeId": "agreg2026.10.1",
+   "kind": "definition",
+   "title": "Espace mesurable, tribu",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.10.1#2",
+   "nodeId": "agreg2026.10.1",
+   "kind": "definition",
+   "title": "Tribu produit, tribu borélienne",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.10.1#3",
+   "nodeId": "agreg2026.10.1",
+   "kind": "definition",
+   "title": "Mesure positive",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.10.1#4",
+   "nodeId": "agreg2026.10.1",
+   "kind": "statement",
+   "title": "Mesure de comptage, mesure de Lebesgue, mesures de probabilité",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.10.1#5",
+   "nodeId": "agreg2026.10.1",
+   "kind": "definition",
+   "title": "Mesure produit",
+   "sortIndex": 4
+  },
+  {
+   "id": "agreg2026.10.1#6",
+   "nodeId": "agreg2026.10.1",
+   "kind": "definition",
+   "title": "Fonction mesurable",
+   "sortIndex": 5
+  },
+  {
+   "id": "agreg2026.10.1#7",
+   "nodeId": "agreg2026.10.1",
+   "kind": "theorem",
+   "title": "Approximation par des fonctions étagées",
+   "sortIndex": 6
+  },
+  {
+   "id": "agreg2026.10.2.a#1",
+   "nodeId": "agreg2026.10.2.a",
+   "kind": "definition",
+   "title": "Intégrale des fonctions mesurables positives",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.10.2.a#2",
+   "nodeId": "agreg2026.10.2.a",
+   "kind": "theorem",
+   "title": "Théorème de convergence monotone",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.10.2.a#3",
+   "nodeId": "agreg2026.10.2.a",
+   "kind": "lemma",
+   "title": "Lemme de Fatou",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.10.2.a#4",
+   "nodeId": "agreg2026.10.2.a",
+   "kind": "definition",
+   "title": "Fonction intégrable",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.10.2.a#5",
+   "nodeId": "agreg2026.10.2.a",
+   "kind": "theorem",
+   "title": "Théorème de convergence dominée",
+   "sortIndex": 4
+  },
+  {
+   "id": "agreg2026.10.2.b#1",
+   "nodeId": "agreg2026.10.2.b",
+   "kind": "definition",
+   "title": "Fonctions intégrables à valeurs vectorielles",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.10.2.b#2",
+   "nodeId": "agreg2026.10.2.b",
+   "kind": "theorem",
+   "title": "Continuité des intégrales à paramètre",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.10.2.b#3",
+   "nodeId": "agreg2026.10.2.b",
+   "kind": "theorem",
+   "title": "Dérivabilité des intégrales à paramètre",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.10.2.c#1",
+   "nodeId": "agreg2026.10.2.c",
+   "kind": "definition",
+   "title": "Espaces L^p (1 ≤ p ≤ ∞)",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.10.2.c#2",
+   "nodeId": "agreg2026.10.2.c",
+   "kind": "theorem",
+   "title": "Inégalité de Hölder",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.10.2.c#3",
+   "nodeId": "agreg2026.10.2.c",
+   "kind": "theorem",
+   "title": "Complétude des espaces L^p",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.10.2.d#1",
+   "nodeId": "agreg2026.10.2.d",
+   "kind": "theorem",
+   "title": "Théorème de Fubini",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.10.2.d#2",
+   "nodeId": "agreg2026.10.2.d",
+   "kind": "theorem",
+   "title": "Changement de variables dans une intégrale multiple",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.10.2.d#3",
+   "nodeId": "agreg2026.10.2.d",
+   "kind": "exercise",
+   "title": "Coordonnées polaires et sphériques",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.10.2.e#1",
+   "nodeId": "agreg2026.10.2.e",
+   "kind": "definition",
+   "title": "Produit de convolution",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.10.2.e#2",
+   "nodeId": "agreg2026.10.2.e",
+   "kind": "theorem",
+   "title": "Régularisation et approximation par convolution",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.10.3.a#1",
+   "nodeId": "agreg2026.10.3.a",
+   "kind": "definition",
+   "title": "Coefficients et série de Fourier d'une fonction périodique",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.10.3.a#2",
+   "nodeId": "agreg2026.10.3.a",
+   "kind": "lemma",
+   "title": "Lemme de Riemann-Lebesgue",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.10.3.a#3",
+   "nodeId": "agreg2026.10.3.a",
+   "kind": "definition",
+   "title": "Convolution des fonctions périodiques",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.10.3.a#4",
+   "nodeId": "agreg2026.10.3.a",
+   "kind": "theorem",
+   "title": "Théorème de Dirichlet",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.10.3.a#5",
+   "nodeId": "agreg2026.10.3.a",
+   "kind": "theorem",
+   "title": "Théorème de Fejér",
+   "sortIndex": 4
+  },
+  {
+   "id": "agreg2026.10.3.a#6",
+   "nodeId": "agreg2026.10.3.a",
+   "kind": "theorem",
+   "title": "Théorème de Parseval",
+   "sortIndex": 5
+  },
+  {
+   "id": "agreg2026.10.3.b#1",
+   "nodeId": "agreg2026.10.3.b",
+   "kind": "definition",
+   "title": "Transformée de Fourier sur L¹(R^d)",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.10.3.b#2",
+   "nodeId": "agreg2026.10.3.b",
+   "kind": "definition",
+   "title": "Espace de Schwartz",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.10.3.b#3",
+   "nodeId": "agreg2026.10.3.b",
+   "kind": "theorem",
+   "title": "Théorème de Plancherel ; transformée de Fourier sur L²",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.10.3.b#4",
+   "nodeId": "agreg2026.10.3.b",
+   "kind": "statement",
+   "title": "Transformée de Fourier et convolution ; règles de calcul",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.10.3.b#5",
+   "nodeId": "agreg2026.10.3.b",
+   "kind": "theorem",
+   "title": "Formule d'inversion de Fourier",
+   "sortIndex": 4
+  },
+  {
+   "id": "agreg2026.10.3.b#6",
+   "nodeId": "agreg2026.10.3.b",
+   "kind": "exercise",
+   "title": "Transformée de Fourier de la gaussienne",
+   "sortIndex": 5
+  },
+  {
+   "id": "agreg2026.11.1#1",
+   "nodeId": "agreg2026.11.1",
+   "kind": "definition",
+   "title": "Événement, tribu, mesure de probabilité",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.11.1#2",
+   "nodeId": "agreg2026.11.1",
+   "kind": "definition",
+   "title": "Indépendance d'événements et de tribus",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.11.1#3",
+   "nodeId": "agreg2026.11.1",
+   "kind": "theorem",
+   "title": "Loi du 0-1 de Kolmogorov",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.11.1#4",
+   "nodeId": "agreg2026.11.1",
+   "kind": "lemma",
+   "title": "Lemmes de Borel-Cantelli",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.11.1#5",
+   "nodeId": "agreg2026.11.1",
+   "kind": "definition",
+   "title": "Probabilité conditionnelle",
+   "sortIndex": 4
+  },
+  {
+   "id": "agreg2026.11.1#6",
+   "nodeId": "agreg2026.11.1",
+   "kind": "statement",
+   "title": "Formule des probabilités totales",
+   "sortIndex": 5
+  },
+  {
+   "id": "agreg2026.11.2.a#1",
+   "nodeId": "agreg2026.11.2.a",
+   "kind": "definition",
+   "title": "Loi discrète, loi absolument continue",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.11.2.a#2",
+   "nodeId": "agreg2026.11.2.a",
+   "kind": "definition",
+   "title": "Fonction de répartition, densité",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.11.2.a#3",
+   "nodeId": "agreg2026.11.2.a",
+   "kind": "definition",
+   "title": "Loi conjointe, indépendance de variables aléatoires",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.11.2.a#4",
+   "nodeId": "agreg2026.11.2.a",
+   "kind": "definition",
+   "title": "Espérance (variables positives ou complexes)",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.11.2.a#5",
+   "nodeId": "agreg2026.11.2.a",
+   "kind": "theorem",
+   "title": "Théorème de transfert",
+   "sortIndex": 4
+  },
+  {
+   "id": "agreg2026.11.2.a#6",
+   "nodeId": "agreg2026.11.2.a",
+   "kind": "definition",
+   "title": "Moments, variance",
+   "sortIndex": 5
+  },
+  {
+   "id": "agreg2026.11.2.a#7",
+   "nodeId": "agreg2026.11.2.a",
+   "kind": "statement",
+   "title": "Lois usuelles : Bernoulli, binomiale, géométrique, Poisson",
+   "sortIndex": 6
+  },
+  {
+   "id": "agreg2026.11.2.a#8",
+   "nodeId": "agreg2026.11.2.a",
+   "kind": "statement",
+   "title": "Lois usuelles : uniforme, exponentielle, gaussienne",
+   "sortIndex": 7
+  },
+  {
+   "id": "agreg2026.11.2.b#1",
+   "nodeId": "agreg2026.11.2.b",
+   "kind": "definition",
+   "title": "Fonction caractéristique",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.11.2.b#2",
+   "nodeId": "agreg2026.11.2.b",
+   "kind": "definition",
+   "title": "Fonction génératrice d'une variable à valeurs dans N",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.11.2.b#3",
+   "nodeId": "agreg2026.11.2.b",
+   "kind": "exercise",
+   "title": "Lois de sommes de variables indépendantes",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.11.3.a#1",
+   "nodeId": "agreg2026.11.3.a",
+   "kind": "definition",
+   "title": "Convergence en probabilité, dans L^p, presque sûre, en loi",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.11.3.a#2",
+   "nodeId": "agreg2026.11.3.a",
+   "kind": "statement",
+   "title": "Inégalité de Markov",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.11.3.a#3",
+   "nodeId": "agreg2026.11.3.a",
+   "kind": "statement",
+   "title": "Inégalité de Bienaymé-Tchebychev",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.11.3.a#4",
+   "nodeId": "agreg2026.11.3.a",
+   "kind": "theorem",
+   "title": "Théorème de Lévy",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.11.3.b#1",
+   "nodeId": "agreg2026.11.3.b",
+   "kind": "theorem",
+   "title": "Loi faible des grands nombres",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.11.3.b#2",
+   "nodeId": "agreg2026.11.3.b",
+   "kind": "theorem",
+   "title": "Loi forte des grands nombres",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.11.3.b#3",
+   "nodeId": "agreg2026.11.3.b",
+   "kind": "theorem",
+   "title": "Théorème central limite",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.11.4.a#1",
+   "nodeId": "agreg2026.11.4.a",
+   "kind": "definition",
+   "title": "Indicateurs de position et de dispersion",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.11.4.a#2",
+   "nodeId": "agreg2026.11.4.a",
+   "kind": "statement",
+   "title": "Représentations graphiques de données",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.11.4.b#1",
+   "nodeId": "agreg2026.11.4.b",
+   "kind": "definition",
+   "title": "Nuage de points, coefficient de corrélation",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.11.4.b#2",
+   "nodeId": "agreg2026.11.4.b",
+   "kind": "statement",
+   "title": "Droite de régression des moindres carrés",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.11.4.c#1",
+   "nodeId": "agreg2026.11.4.c",
+   "kind": "definition",
+   "title": "Estimation ponctuelle",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.11.4.c#2",
+   "nodeId": "agreg2026.11.4.c",
+   "kind": "definition",
+   "title": "Intervalle de confiance",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.12.1#1",
+   "nodeId": "agreg2026.12.1",
+   "kind": "definition",
+   "title": "Conditionnement",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.12.1#2",
+   "nodeId": "agreg2026.12.1",
+   "kind": "theorem",
+   "title": "Théorème de Gershgorin-Hadamard",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.12.1#3",
+   "nodeId": "agreg2026.12.1",
+   "kind": "statement",
+   "title": "Décomposition LU",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.12.1#4",
+   "nodeId": "agreg2026.12.1",
+   "kind": "statement",
+   "title": "Méthodes itératives de Jacobi et de Gauss-Seidel",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.12.1#5",
+   "nodeId": "agreg2026.12.1",
+   "kind": "theorem",
+   "title": "Convergence des méthodes itératives : rayon spectral, normes subordonnées",
+   "sortIndex": 4
+  },
+  {
+   "id": "agreg2026.12.1#6",
+   "nodeId": "agreg2026.12.1",
+   "kind": "statement",
+   "title": "Décomposition en valeurs singulières (aspects numériques)",
+   "sortIndex": 5
+  },
+  {
+   "id": "agreg2026.12.1#7",
+   "nodeId": "agreg2026.12.1",
+   "kind": "exercise",
+   "title": "Matrice du laplacien discrétisé en dimension 1",
+   "sortIndex": 6
+  },
+  {
+   "id": "agreg2026.12.2#1",
+   "nodeId": "agreg2026.12.2",
+   "kind": "statement",
+   "title": "Méthode de la puissance",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.12.2#2",
+   "nodeId": "agreg2026.12.2",
+   "kind": "statement",
+   "title": "Méthode du gradient à pas constant (fonctions convexes)",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.12.2#3",
+   "nodeId": "agreg2026.12.2",
+   "kind": "statement",
+   "title": "Moindres carrés",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.12.2#4",
+   "nodeId": "agreg2026.12.2",
+   "kind": "statement",
+   "title": "Méthode de dichotomie",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.12.2#5",
+   "nodeId": "agreg2026.12.2",
+   "kind": "statement",
+   "title": "Méthode de Picard (point fixe)",
+   "sortIndex": 4
+  },
+  {
+   "id": "agreg2026.12.2#6",
+   "nodeId": "agreg2026.12.2",
+   "kind": "theorem",
+   "title": "Méthode de Newton : convergence quadratique",
+   "sortIndex": 5
+  },
+  {
+   "id": "agreg2026.12.2#7",
+   "nodeId": "agreg2026.12.2",
+   "kind": "statement",
+   "title": "Vitesse de convergence, estimation de l'erreur",
+   "sortIndex": 6
+  },
+  {
+   "id": "agreg2026.12.3#1",
+   "nodeId": "agreg2026.12.3",
+   "kind": "statement",
+   "title": "Méthode des rectangles ; estimation de l'erreur",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.12.3#2",
+   "nodeId": "agreg2026.12.3",
+   "kind": "statement",
+   "title": "Méthode de Monte-Carlo ; vitesse de convergence",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.12.4#1",
+   "nodeId": "agreg2026.12.4",
+   "kind": "definition",
+   "title": "Polynôme d'interpolation de Lagrange",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.12.4#2",
+   "nodeId": "agreg2026.12.4",
+   "kind": "theorem",
+   "title": "Erreur d'interpolation de Lagrange",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.12.5#1",
+   "nodeId": "agreg2026.12.5",
+   "kind": "statement",
+   "title": "Méthode d'Euler explicite",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.12.5#2",
+   "nodeId": "agreg2026.12.5",
+   "kind": "definition",
+   "title": "Consistance, stabilité, convergence, ordre d'un schéma",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.option-a.a#1",
+   "nodeId": "agreg2026.option-a.a",
+   "kind": "statement",
+   "title": "Lois multinomiale, hypergéométrique, Gamma, du χ²",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.option-a.a#2",
+   "nodeId": "agreg2026.option-a.a",
+   "kind": "exercise",
+   "title": "Modélisation : temps d'attente, durée de vie, erreurs de mesure, sondages",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.option-a.a#3",
+   "nodeId": "agreg2026.option-a.a",
+   "kind": "statement",
+   "title": "Méthodes de simulation de variables aléatoires",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.option-a.b#1",
+   "nodeId": "agreg2026.option-a.b",
+   "kind": "definition",
+   "title": "Chaîne de Markov (espace d'états fini ou dénombrable)",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.option-a.b#2",
+   "nodeId": "agreg2026.option-a.b",
+   "kind": "theorem",
+   "title": "Propriétés de Markov faible et forte",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.option-a.b#3",
+   "nodeId": "agreg2026.option-a.b",
+   "kind": "definition",
+   "title": "Classification des états : transience, récurrence positive ou nulle",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.option-a.b#4",
+   "nodeId": "agreg2026.option-a.b",
+   "kind": "definition",
+   "title": "Communication entre états, irréductibilité",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.option-a.b#5",
+   "nodeId": "agreg2026.option-a.b",
+   "kind": "theorem",
+   "title": "Mesure stationnaire : existence et unicité",
+   "sortIndex": 4
+  },
+  {
+   "id": "agreg2026.option-a.b#6",
+   "nodeId": "agreg2026.option-a.b",
+   "kind": "theorem",
+   "title": "Loi des grands nombres pour les chaînes de Markov",
+   "sortIndex": 5
+  },
+  {
+   "id": "agreg2026.option-a.b#7",
+   "nodeId": "agreg2026.option-a.b",
+   "kind": "theorem",
+   "title": "Apériodicité et convergence en loi",
+   "sortIndex": 6
+  },
+  {
+   "id": "agreg2026.option-a.b#8",
+   "nodeId": "agreg2026.option-a.b",
+   "kind": "exercise",
+   "title": "Marche aléatoire simple",
+   "sortIndex": 7
+  },
+  {
+   "id": "agreg2026.option-a.c#1",
+   "nodeId": "agreg2026.option-a.c",
+   "kind": "definition",
+   "title": "Processus de Poisson sur R+ (construction par des exponentielles)",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.option-a.c#2",
+   "nodeId": "agreg2026.option-a.c",
+   "kind": "theorem",
+   "title": "Accroissements indépendants, stationnaires ; leur loi",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.option-a.d#1",
+   "nodeId": "agreg2026.option-a.d",
+   "kind": "definition",
+   "title": "Espérance conditionnelle",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.option-a.d#2",
+   "nodeId": "agreg2026.option-a.d",
+   "kind": "definition",
+   "title": "Martingale, sur- et sous-martingale à temps discret",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.option-a.d#3",
+   "nodeId": "agreg2026.option-a.d",
+   "kind": "definition",
+   "title": "Temps d'arrêt",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.option-a.d#4",
+   "nodeId": "agreg2026.option-a.d",
+   "kind": "theorem",
+   "title": "Théorème d'arrêt",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.option-a.d#5",
+   "nodeId": "agreg2026.option-a.d",
+   "kind": "theorem",
+   "title": "Convergence presque sûre et L² des martingales",
+   "sortIndex": 4
+  },
+  {
+   "id": "agreg2026.option-a.e#1",
+   "nodeId": "agreg2026.option-a.e",
+   "kind": "definition",
+   "title": "Échantillon, moments empiriques",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.option-a.e#2",
+   "nodeId": "agreg2026.option-a.e",
+   "kind": "definition",
+   "title": "Loi et fonction de répartition empiriques",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.option-a.e#3",
+   "nodeId": "agreg2026.option-a.e",
+   "kind": "lemma",
+   "title": "Lemme de Slutsky",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.option-a.e#4",
+   "nodeId": "agreg2026.option-a.e",
+   "kind": "statement",
+   "title": "Construction d'intervalles de confiance",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.option-a.e#5",
+   "nodeId": "agreg2026.option-a.e",
+   "kind": "definition",
+   "title": "Estimateur du maximum de vraisemblance",
+   "sortIndex": 4
+  },
+  {
+   "id": "agreg2026.option-a.f#1",
+   "nodeId": "agreg2026.option-a.f",
+   "kind": "definition",
+   "title": "Vecteur gaussien",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.option-a.f#2",
+   "nodeId": "agreg2026.option-a.f",
+   "kind": "theorem",
+   "title": "Théorème de Cochran",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.option-a.f#3",
+   "nodeId": "agreg2026.option-a.f",
+   "kind": "theorem",
+   "title": "Théorème central limite dans R^n",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.option-a.g#1",
+   "nodeId": "agreg2026.option-a.g",
+   "kind": "statement",
+   "title": "Modèle linéaire gaussien, régression linéaire",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.option-a.h#1",
+   "nodeId": "agreg2026.option-a.h",
+   "kind": "definition",
+   "title": "Test paramétrique",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.option-a.h#2",
+   "nodeId": "agreg2026.option-a.h",
+   "kind": "statement",
+   "title": "Test du χ² d'ajustement",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.option-a.h#3",
+   "nodeId": "agreg2026.option-a.h",
+   "kind": "statement",
+   "title": "Test de Kolmogorov-Smirnov",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.option-b.a#1",
+   "nodeId": "agreg2026.option-b.a",
+   "kind": "statement",
+   "title": "Méthodes directes : Gauss, LU, Cholesky ; coût",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.option-b.a#2",
+   "nodeId": "agreg2026.option-b.a",
+   "kind": "statement",
+   "title": "Méthodes itératives : Jacobi, Gauss-Seidel ; vitesse de convergence",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.option-b.b#1",
+   "nodeId": "agreg2026.option-b.b",
+   "kind": "statement",
+   "title": "Méthodes de Picard et de Newton : mise en œuvre et vitesse",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.option-b.c#1",
+   "nodeId": "agreg2026.option-b.c",
+   "kind": "statement",
+   "title": "Méthode des trapèzes ; méthodes d'ordre élevé",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.option-b.d#1",
+   "nodeId": "agreg2026.option-b.d",
+   "kind": "statement",
+   "title": "Méthodes d'Euler explicite et implicite",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.option-b.d#2",
+   "nodeId": "agreg2026.option-b.d",
+   "kind": "definition",
+   "title": "Précision, consistance, stabilité, convergence, ordre",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.option-b.e#1",
+   "nodeId": "agreg2026.option-b.e",
+   "kind": "statement",
+   "title": "Équation de transport : méthode des caractéristiques",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.option-b.e#2",
+   "nodeId": "agreg2026.option-b.e",
+   "kind": "statement",
+   "title": "Équations des ondes et de la chaleur : Fourier, séparation des variables",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.option-b.e#3",
+   "nodeId": "agreg2026.option-b.e",
+   "kind": "theorem",
+   "title": "Théorème de Lax-Milgram",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.option-b.e#4",
+   "nodeId": "agreg2026.option-b.e",
+   "kind": "statement",
+   "title": "Différences finies : consistance, stabilité, convergence, ordre",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.option-b.f#1",
+   "nodeId": "agreg2026.option-b.f",
+   "kind": "statement",
+   "title": "Interpolation linéaire par morceaux, interpolation de Lagrange",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.option-b.f#2",
+   "nodeId": "agreg2026.option-b.f",
+   "kind": "statement",
+   "title": "Gradient à pas constant ; gradient à pas optimal (cas quadratique)",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.option-b.f#3",
+   "nodeId": "agreg2026.option-b.f",
+   "kind": "statement",
+   "title": "Extrema sous contraintes : Lagrange et méthode de Newton",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.option-b.f#4",
+   "nodeId": "agreg2026.option-b.f",
+   "kind": "statement",
+   "title": "Moindres carrés",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.option-b.g#1",
+   "nodeId": "agreg2026.option-b.g",
+   "kind": "statement",
+   "title": "Approximation par séries de Fourier ; transformée de Fourier rapide",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.option-c.a#1",
+   "nodeId": "agreg2026.option-c.a",
+   "kind": "statement",
+   "title": "Entiers, flottants, polynômes, éléments de Z/nZ : opérations et coût",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.option-c.b#1",
+   "nodeId": "agreg2026.option-c.b",
+   "kind": "statement",
+   "title": "Exponentiation rapide",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.option-c.b#2",
+   "nodeId": "agreg2026.option-c.b",
+   "kind": "statement",
+   "title": "Algorithme d'Euclide étendu ; coût",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.option-c.b#3",
+   "nodeId": "agreg2026.option-c.b",
+   "kind": "statement",
+   "title": "Test de primalité de Fermat",
+   "sortIndex": 2
+  },
+  {
+   "id": "agreg2026.option-c.b#4",
+   "nodeId": "agreg2026.option-c.b",
+   "kind": "exercise",
+   "title": "Chiffrement RSA",
+   "sortIndex": 3
+  },
+  {
+   "id": "agreg2026.option-c.c#1",
+   "nodeId": "agreg2026.option-c.c",
+   "kind": "statement",
+   "title": "Représentation des éléments d'un corps fini ; opérations et coût",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.option-c.d#1",
+   "nodeId": "agreg2026.option-c.d",
+   "kind": "statement",
+   "title": "Pivot de Gauss : rang, déterminant, systèmes ; coût",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.option-c.e#1",
+   "nodeId": "agreg2026.option-c.e",
+   "kind": "definition",
+   "title": "Distance de Hamming, distance minimale d'un code linéaire",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.option-c.e#2",
+   "nodeId": "agreg2026.option-c.e",
+   "kind": "exercise",
+   "title": "Codes de répétition, codes de Hamming binaires",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.option-c.f#1",
+   "nodeId": "agreg2026.option-c.f",
+   "kind": "statement",
+   "title": "Schéma de Horner, interpolation ; coût",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.option-c.f#2",
+   "nodeId": "agreg2026.option-c.f",
+   "kind": "statement",
+   "title": "Localisation des racines : majorations en fonction des coefficients",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.option-c.g#1",
+   "nodeId": "agreg2026.option-c.g",
+   "kind": "statement",
+   "title": "Transformée de Fourier discrète sur Z/nZ ; FFT et coût",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.option-c.h#1",
+   "nodeId": "agreg2026.option-c.h",
+   "kind": "theorem",
+   "title": "Théorème des polynômes symétriques",
+   "sortIndex": 0
+  },
+  {
+   "id": "agreg2026.option-c.h#2",
+   "nodeId": "agreg2026.option-c.h",
+   "kind": "definition",
+   "title": "Résultant ; élimination",
+   "sortIndex": 1
+  },
+  {
+   "id": "agreg2026.option-c.h#3",
+   "nodeId": "agreg2026.option-c.h",
+   "kind": "exercise",
+   "title": "Systèmes polynomiaux, intersection de courbes, implicitation",
+   "sortIndex": 2
+  }
+ ]
+}

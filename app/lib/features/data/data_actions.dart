@@ -106,11 +106,17 @@ Future<void> importTemplateFile(BuildContext context) async {
 }
 
 /// Ajoute l'arbre d'exemple « Algèbre ».
-Future<void> loadSample(BuildContext context) async {
+Future<void> loadSample(BuildContext context) =>
+    _loadBundled(context, 'assets/samples/algebre_exemple.json');
+
+/// Ajoute les arbres du programme de l'agrégation externe 2026 (un par
+/// titre, plus les trois options de modélisation).
+Future<void> loadProgramme(BuildContext context) =>
+    _loadBundled(context, 'assets/samples/programme_agreg_2026.json');
+
+Future<void> _loadBundled(BuildContext context, String asset) async {
   final store = AppScope.of(context).store;
-  final text = await rootBundle.loadString(
-    'assets/samples/algebre_exemple.json',
-  );
+  final text = await rootBundle.loadString(asset);
   final archive = VergerArchive.fromJson(
     (jsonDecode(text) as Map).cast<String, Object?>(),
   );
@@ -123,11 +129,11 @@ void _importedMessage(
   List<KnowledgeNode> trees,
   VergerArchive archive,
 ) {
-  _notify(
-    context,
-    '${trees.map((t) => '« ${t.title} »').join(', ')} ajouté '
-    '(${archive.items.length} connaissances).',
-  );
+  final names = trees.length > 3
+      ? '${trees.length} arbres'
+      : trees.map((t) => '« ${t.title} »').join(', ');
+  final added = trees.length > 1 ? 'ajoutés' : 'ajouté';
+  _notify(context, '$names $added (${archive.items.length} connaissances).');
 }
 
 /// Menu « Données » (sauvegarde, restauration, modèles).
@@ -144,6 +150,7 @@ class DataMenuButton extends StatelessWidget {
         'restore' => restoreBackup(context),
         'template' => importTemplateFile(context),
         'pack' => importPackFile(context),
+        'programme' => loadProgramme(context),
         _ => loadSample(context),
       },
       itemBuilder: (context) => const [
@@ -174,6 +181,13 @@ class DataMenuButton extends StatelessWidget {
           child: ListTile(
             leading: Icon(Icons.file_open_outlined),
             title: Text('Importer un arbre (modèle)'),
+          ),
+        ),
+        PopupMenuItem(
+          value: 'programme',
+          child: ListTile(
+            leading: Icon(Icons.school_outlined),
+            title: Text('Ajouter le programme de l\'agrégation 2026'),
           ),
         ),
         PopupMenuItem(

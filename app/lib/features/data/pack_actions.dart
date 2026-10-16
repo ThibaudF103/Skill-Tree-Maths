@@ -152,6 +152,7 @@ Future<void> importPackFile(BuildContext context) async {
         d,
   ];
   if (!context.mounted) return;
+  final treeCount = archive.nodes.where((n) => n.parentId == null).length;
   final ok = await showDialog<bool>(
     context: context,
     builder: (context) => AlertDialog(
@@ -166,7 +167,10 @@ Future<void> importPackFile(BuildContext context) async {
           if (toFetch.isNotEmpty)
             '${toFetch.length} PDF à télécharger : '
                 '${toFetch.map((d) => d.title).join(', ')}.',
-          'L\'arbre s\'ajoute à côté des vôtres, sans progression.',
+          treeCount > 1
+              ? 'Les $treeCount arbres s\'ajoutent à côté des vôtres, sans '
+                    'progression.'
+              : 'L\'arbre s\'ajoute à côté des vôtres, sans progression.',
         ].join('\n'),
       ),
       actions: [
@@ -247,10 +251,13 @@ Future<void> importPackFile(BuildContext context) async {
   _notify(
     context,
     [
-      '${trees.map((t) => '« ${t.title} »').join(', ')} ajouté.',
+      trees.length > 3
+          ? '${trees.length} arbres ajoutés.'
+          : '${trees.map((t) => '« ${t.title} »').join(', ')} '
+                '${trees.length > 1 ? 'ajoutés' : 'ajouté'}.',
       if (failed.isNotEmpty)
-        'PDF non récupéré(s) : ${failed.join(', ')} (miniatures conservées ; '
-            'importez-les depuis la Bibliothèque).',
+        'PDF non récupéré(s) : ${failed.join(', ')}. Importez le fichier '
+            'depuis la Bibliothèque : il sera rattaché aux recto et verso.',
     ].join(' '),
   );
 }

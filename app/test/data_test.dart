@@ -25,6 +25,26 @@ void main() {
     );
   });
 
+  test("le programme de l'agrégation 2026 est une archive valide", () {
+    final archive = VergerArchive.fromJson(
+      (jsonDecode(
+                File(
+                  'assets/samples/programme_agreg_2026.json',
+                ).readAsStringSync(),
+              )
+              as Map)
+          .cast(),
+    );
+    final trees = archive.nodes.where((n) => n.parentId == null).toList();
+    expect(trees, hasLength(15));
+    expect(trees.first.title, '1. Algèbre linéaire');
+    expect(archive.items.length, greaterThan(400));
+    expect(
+      archive.items.map((i) => i.title),
+      contains('Théorème de Cayley-Hamilton'),
+    );
+  });
+
   testWidgets("charger l'exemple depuis le verger vide", (tester) async {
     final store = await pumpTestApp(tester);
     await tester.tap(find.text('Arbres'));
