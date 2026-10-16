@@ -54,6 +54,45 @@ def tidy(text):
     text = re.sub(r"([(\[])\s+", r"\1", text)
     return ' '.join(text.split())
 
+REF = re.compile(
+    r"\b(?:th[ée]or[èe]mes?|propositions?|lemmes?|corollaires?|d[ée]finitions?"
+    r"|exercices?|d[ée]finition-propositions?)\s+(\d+\.\d+(?:\s*(?:,|et)\s*\d+\.\d+)*)"
+    r"(\s*(?:du|au) [Cc]hapitre\s+([IVX]+)\b)?", re.IGNORECASE)
+CHAPTERS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X']
+
+
+def references(statements):
+    """Prérequis tirés des renvois explicites de chaque énoncé et de sa
+    démonstration (« d'après le théorème 2.8 », « la proposition 4.17 du
+    Chapitre I ») : seulement vers un énoncé antérieur dans le poly (les
+    renvois en avant sont des « voir plus loin »), ce qui exclut les cycles."""
+    rank = {s['number']: n for n, s in enumerate(statements)}
+    edges = []
+    for n, s in enumerate(statements):
+        chapter = s['number'].split('.')[0]
+        text = re.sub(r"^\S+ \d+\.\d+\.?", '', s['fullText']) + ' ' + s['versoText']
+        for m in REF.finditer(text):
+            target_chapter = m.group(3) or chapter
+            for number in re.findall(r"\d+\.\d+", m.group(1)):
+                target = f"{target_chapter}.{number}"
+                if target in rank and rank[target] < n:
+                    edges.append((s['number'], target))
+    # Définitions nommées (« [Convergence uniforme] ») : un énoncé ultérieur
+    # du même chapitre qui emploie le terme s'appuie sur elles.
+    for n, d in enumerate(statements):
+        key = plain(d['name'] or '')
+        if d['kind'] != 'definition' or len(key) < 6:
+            continue
+        chapter = d['number'].split('.')[0]
+        for s in statements[n + 1:]:
+            if s['number'].split('.')[0] != chapter:
+                break
+            body = re.sub(r"^\S+ \d+\.\d+\.?", '', s['fullText'])
+            if f" {key} " in f" {plain(body)} ":
+                edges.append((s['number'], d['number']))
+    return edges
+
+
 def title_of(s):
     if s['name']:
         name = s['name'][0].upper() + s['name'][1:]
@@ -78,6 +117,7 @@ def main():
     cores = {i['id']: core(i['title']) for i in items
              if i['kind'] != 'exercise' and len(core(i['title'])) >= 5}
     anchors, new_items, used, matches = [], [], set(), []
+    statement_items = []  # connaissance de chaque énoncé, dans l'ordre
     counts = {}
     for n, s in enumerate(statements):
         node = node_for(s['section'])
@@ -93,9 +133,11 @@ def main():
                     target = iid; break
         if target:
             used.add(target)
+            statement_items.append(target)
             matches.append((s['label'], s['name'], next(i['title'] for i in items if i['id'] == target)))
         else:
             target = f"lamboley.{s['number']}"
+            statement_items.append(target)
             counts[node] = counts.get(node, 0) + 1
             new_items.append({
                 'id': target, 'nodeId': node, 'kind': s['kind'],
@@ -110,12 +152,17 @@ def main():
                     'textSnippet': tidy(s['text'])[:500] if role == 'source' and k == 0 else None,
                     'createdAt': f"2026-10-16T12:{(n // 60) % 60:02d}:{n % 60:02d}.{k:03d}Z",
                 })
+    item_of = {s['number']: i for s, i in zip(statements, statement_items)}
+    prerequisites = sorted({
+        (item_of[a], item_of[b]) for a, b in references(statements)
+        if item_of[a] != item_of[b]
+    })
     data = open(args.pdf, 'rb').read()
     import pymupdf
     pages = pymupdf.open(args.pdf).page_count
     trees = sorted({node_for(s['section']).split('.')[1] for s in statements})
     archive = {
-        'format': 'verger', 'version': 2,
+        'format': 'verger', 'version': 3,
         'title': "Programme de l'agrégation 2026 — poly de J. Lamboley",
         'nodes': prog['nodes'],
         'items': items + new_items,
@@ -129,12 +176,16 @@ def main():
         'resourceLinks': [{'documentId': DOC, 'nodeId': f'agreg2026.{t}'} for t in trees],
         'anchors': [{k: v for k, v in a.items() if v is not None} for a in anchors],
         'notes': [],
+        'prerequisites': [
+            {'itemId': a, 'requiresId': b} for a, b in prerequisites
+        ],
     }
     with zipfile.ZipFile(args.output, 'w', zipfile.ZIP_DEFLATED) as z:
         z.writestr('pack.json', json.dumps(archive, ensure_ascii=False, indent=1))
     print(f"{len(items)} connaissances du programme, {len(new_items)} ajoutées depuis le poly,",
           f"{len(matches)} énoncés rattachés à une connaissance du programme,",
-          f"{len(anchors)} cadres ({sum(a['role'] == 'work' for a in anchors)} démonstrations)")
+          f"{len(anchors)} cadres ({sum(a['role'] == 'work' for a in anchors)} démonstrations),",
+          f"{len(prerequisites)} prérequis")
     print('contenu rattaché aux arbres', trees)
     if args.verbose:
         for m in matches: print('  ', m)
