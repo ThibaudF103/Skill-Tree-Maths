@@ -4,20 +4,27 @@ import 'package:verger_core/verger_core.dart';
 import '../../app/app_scope.dart';
 import '../../ui/dialogs.dart';
 import '../../ui/labels.dart';
+import '../trees/node_picker.dart';
 import 'document_actions.dart';
-import 'document_viewer_page.dart';
 
-/// Vue « Documents » : PDF de cours et notes manuscrites exportées.
-class DocumentsPage extends StatefulWidget {
-  const DocumentsPage({super.key});
+/// Vue « Bibliothèque » : tous les contenus (PDF, vidéos), filtrables par
+/// arbre. On y gère les fichiers ; on travaille surtout depuis les arbres.
+class LibraryPage extends StatefulWidget {
+  const LibraryPage({super.key});
 
   @override
-  State<DocumentsPage> createState() => _DocumentsPageState();
+  State<LibraryPage> createState() => _LibraryPageState();
 }
 
-class _DocumentsPageState extends State<DocumentsPage> {
+/// Filtre : un arbre, ou les contenus rattachés à aucun nœud.
+const _unlinked = '';
+
+class _LibraryPageState extends State<LibraryPage> {
   Stream<List<SourceDocument>>? _documents;
   Stream<List<Anchor>>? _anchors;
+  Stream<List<ResourceLink>>? _links;
+  Stream<List<KnowledgeNode>>? _nodes;
+  String? _filter;
 
   @override
   void didChangeDependencies() {
@@ -25,138 +32,223 @@ class _DocumentsPageState extends State<DocumentsPage> {
     final store = AppScope.of(context).store;
     _documents ??= store.watchDocuments();
     _anchors ??= store.watchAnchors();
+    _links ??= store.watchResourceLinks();
+    _nodes ??= store.watchNodes();
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return SafeArea(
       child: StreamBuilder<List<SourceDocument>>(
         stream: _documents,
         builder: (context, docs) => StreamBuilder<List<Anchor>>(
           stream: _anchors,
-          builder: (context, anchors) {
-            final documents = docs.data;
-            if (documents == null) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            final counts = <String, ({int recto, int verso, int review})>{};
-            for (final a in anchors.data ?? const <Anchor>[]) {
-              final c = counts[a.documentId] ?? (recto: 0, verso: 0, review: 0);
-              counts[a.documentId] = (
-                recto: c.recto + (a.role == AnchorRole.source ? 1 : 0),
-                verso: c.verso + (a.role == AnchorRole.work ? 1 : 0),
-                review: c.review + (a.needsReview ? 1 : 0),
-              );
-            }
-            return ListView(
-              padding: const EdgeInsets.fromLTRB(24, 16, 24, 48),
-              children: [
-                Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 820),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                'Documents',
-                                style: theme.textTheme.headlineMedium,
-                              ),
-                            ),
-                            FilledButton.icon(
-                              onPressed: () => importPdf(context),
-                              icon: const Icon(Icons.upload_file),
-                              label: const Text('Importer un PDF'),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Encadrez un énoncé dans un cours (recto) ou votre '
-                          'rédaction dans vos notes (verso) : en révision, '
-                          'le verso apparaît quand vous révélez.',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.outline,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        for (final role in DocumentRole.values) ...[
-                          Text(role.label, style: theme.textTheme.titleMedium),
-                          const Divider(),
-                          if (!documents.any((d) => d.role == role))
-                            Padding(
-                              padding: const EdgeInsets.all(8),
-                              child: Text(
-                                role.hint,
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: theme.colorScheme.outline,
-                                ),
-                              ),
-                            ),
-                          for (final d in documents.where(
-                            (d) => d.role == role,
-                          ))
-                            _DocumentTile(document: d, counts: counts[d.id]),
-                          const SizedBox(height: 24),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
+          builder: (context, anchors) => StreamBuilder<List<ResourceLink>>(
+            stream: _links,
+            builder: (context, links) => StreamBuilder<List<KnowledgeNode>>(
+              stream: _nodes,
+              builder: (context, nodes) {
+                if (!docs.hasData || !links.hasData || !nodes.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                return _build(
+                  context,
+                  docs.data!,
+                  anchors.data ?? const [],
+                  links.data!,
+                  nodes.data!,
+                );
+              },
+            ),
+          ),
         ),
       ),
     );
   }
+
+  Widget _build(
+    BuildContext context,
+    List<SourceDocument> documents,
+    List<Anchor> anchors,
+    List<ResourceLink> links,
+    List<KnowledgeNode> nodes,
+  ) {
+    final theme = Theme.of(context);
+    final byId = {for (final n in nodes) n.id: n};
+    String? rootOf(String id) {
+      var node = byId[id];
+      for (var i = 0; node?.parentId != null && i < nodes.length; i++) {
+        node = byId[node!.parentId];
+      }
+      return node?.id;
+    }
+
+    final linksOf = <String, List<String>>{};
+    for (final l in links) {
+      if (byId.containsKey(l.nodeId)) {
+        (linksOf[l.documentId] ??= []).add(l.nodeId);
+      }
+    }
+    final treesOf = {
+      for (final d in documents)
+        d.id: {for (final n in linksOf[d.id] ?? const <String>[]) ?rootOf(n)},
+    };
+    final trees = [
+      for (final n in nodes)
+        if (n.isTree && treesOf.values.any((t) => t.contains(n.id))) n,
+    ];
+    final filter = _filter;
+    final shown = [
+      for (final d in documents)
+        if (filter == null ||
+            (filter == _unlinked
+                ? treesOf[d.id]!.isEmpty
+                : treesOf[d.id]!.contains(filter)))
+          d,
+    ];
+    final counts = <String, ({int recto, int verso, int review})>{};
+    for (final a in anchors) {
+      final c = counts[a.documentId] ?? (recto: 0, verso: 0, review: 0);
+      counts[a.documentId] = (
+        recto: c.recto + (a.role == AnchorRole.source ? 1 : 0),
+        verso: c.verso + (a.role == AnchorRole.work ? 1 : 0),
+        review: c.review + (a.needsReview ? 1 : 0),
+      );
+    }
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 48),
+      children: [
+        Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 820),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Bibliothèque',
+                        style: theme.textTheme.headlineMedium,
+                      ),
+                    ),
+                    FilledButton.icon(
+                      onPressed: () => importPdf(context),
+                      icon: const Icon(Icons.upload_file),
+                      label: const Text('Importer un PDF'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Les contenus (PDF, vidéos) se rattachent aux branches de '
+                  'vos arbres. Encadrez un énoncé ou une rédaction pour en '
+                  'faire le recto ou le verso d\'une connaissance.',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.outline,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                if (documents.isNotEmpty)
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      ChoiceChip(
+                        label: const Text('Tout'),
+                        selected: filter == null,
+                        onSelected: (_) => setState(() => _filter = null),
+                      ),
+                      for (final tree in trees)
+                        ChoiceChip(
+                          label: Text(tree.title),
+                          selected: filter == tree.id,
+                          onSelected: (_) => setState(() => _filter = tree.id),
+                        ),
+                      if (treesOf.values.any((t) => t.isEmpty))
+                        ChoiceChip(
+                          label: const Text('Non rattachés'),
+                          selected: filter == _unlinked,
+                          onSelected: (_) =>
+                              setState(() => _filter = _unlinked),
+                        ),
+                    ],
+                  ),
+                const Divider(height: 24),
+                if (documents.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Text(
+                      'Aucun contenu pour l\'instant : importez un PDF, ici '
+                      'ou depuis une branche de l\'onglet Arbres.',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.outline,
+                      ),
+                    ),
+                  ),
+                for (final d in shown)
+                  _ResourceTile(
+                    document: d,
+                    counts: counts[d.id],
+                    paths: [
+                      for (final n in linksOf[d.id] ?? const <String>[])
+                        nodePath(byId, n),
+                    ]..sort(),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
-class _DocumentTile extends StatelessWidget {
-  const _DocumentTile({required this.document, required this.counts});
+class _ResourceTile extends StatelessWidget {
+  const _ResourceTile({
+    required this.document,
+    required this.counts,
+    required this.paths,
+  });
 
   final SourceDocument document;
   final ({int recto, int verso, int review})? counts;
 
+  /// Branches auxquelles le contenu est rattaché.
+  final List<String> paths;
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final c = counts;
     final parts = [
-      '${document.pageCount} pages',
+      if (document.isPdf) '${document.pageCount} pages' else 'Vidéo',
       if (document.version > 1) 'version ${document.version}',
-      'importé le ${formatDate(document.importedAt)}',
+      'ajouté le ${formatDate(document.importedAt)}',
       if (c != null && c.recto > 0) '${c.recto} recto',
       if (c != null && c.verso > 0) '${c.verso} verso',
     ];
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-      leading: Icon(
-        document.role == DocumentRole.course
-            ? Icons.menu_book_outlined
-            : Icons.draw_outlined,
-        color: document.role == DocumentRole.course ? rectoColor : versoColor,
-      ),
+      leading: Icon(resourceIcon(document), color: theme.colorScheme.primary),
       title: Text(document.title),
       subtitle: Text(
         [
           parts.join(' · '),
+          if (paths.isEmpty) 'Rattaché à aucune branche' else paths.join(' ; '),
           if (c != null && c.review > 0) '${c.review} lien(s) à vérifier',
         ].join('\n'),
       ),
-      isThreeLine: c != null && c.review > 0,
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => DocumentViewerPage(documentId: document.id),
-        ),
-      ),
+      isThreeLine: true,
+      onTap: () => openResource(context, document),
       trailing: PopupMenuButton<String>(
         tooltip: 'Actions',
         onSelected: (action) async {
           final store = AppScope.of(context).store;
           switch (action) {
+            case 'link':
+              await linkResourceToNode(context, document);
             case 'update':
               await updatePdf(context, document);
             case 'rename':
@@ -172,29 +264,37 @@ class _DocumentTile extends StatelessWidget {
                 context,
                 title: 'Supprimer « ${document.title} » ?',
                 message: links == 0
-                    ? 'Le PDF sera retiré de la bibliothèque.'
-                    : 'Le PDF et ses $links lien(s) recto/verso seront '
+                    ? 'Le contenu sera retiré de la bibliothèque.'
+                    : 'Le contenu et ses $links lien(s) recto/verso seront '
                           'supprimés. Les connaissances restent.',
               );
               if (ok) await store.deleteDocument(document.id);
           }
         },
-        itemBuilder: (context) => const [
-          PopupMenuItem(
-            value: 'update',
+        itemBuilder: (context) => [
+          const PopupMenuItem(
+            value: 'link',
             child: ListTile(
-              leading: Icon(Icons.sync),
-              title: Text('Mettre à jour (nouvelle version)'),
+              leading: Icon(Icons.account_tree_outlined),
+              title: Text('Rattacher à une branche…'),
             ),
           ),
-          PopupMenuItem(
+          if (document.isPdf)
+            const PopupMenuItem(
+              value: 'update',
+              child: ListTile(
+                leading: Icon(Icons.sync),
+                title: Text('Mettre à jour (nouvelle version)'),
+              ),
+            ),
+          const PopupMenuItem(
             value: 'rename',
             child: ListTile(
               leading: Icon(Icons.edit_outlined),
               title: Text('Renommer'),
             ),
           ),
-          PopupMenuItem(
+          const PopupMenuItem(
             value: 'delete',
             child: ListTile(
               leading: Icon(Icons.delete_outline),

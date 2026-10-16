@@ -138,7 +138,6 @@ void main() {
       final item = (await store.allItems()).first;
       final notes = await store.importDocument(
         title: 'Carnet',
-        role: DocumentRole.notes,
         bytes: Uint8List.fromList([1, 2, 3]),
         contentHash: 'h',
         fingerprints: [Uint8List(4), Uint8List(4)],
@@ -185,7 +184,6 @@ void main() {
       final store = await populated();
       final notes = await store.importDocument(
         title: 'Carnet',
-        role: DocumentRole.notes,
         bytes: Uint8List.fromList([1]),
         contentHash: 'v1',
         fingerprints: [Uint8List(4)],

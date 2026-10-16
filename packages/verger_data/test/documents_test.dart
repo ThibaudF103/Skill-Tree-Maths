@@ -38,7 +38,6 @@ void main() {
   Future<SourceDocument> importNotes(List<Uint8List> pages) =>
       store.importDocument(
         title: 'Carnet',
-        role: DocumentRole.notes,
         bytes: Uint8List.fromList([1, 2, 3]),
         contentHash: 'h${pages.length}',
         fingerprints: pages,
@@ -48,7 +47,7 @@ void main() {
     final doc = await importNotes([page(0), page(1), page(2)]);
     final stored = (await store.document(doc.id))!;
     expect(stored.title, 'Carnet');
-    expect(stored.role, DocumentRole.notes);
+    expect(stored.kind, ResourceKind.pdf);
     expect(stored.pageCount, 3);
     expect(stored.version, 1);
     expect(stored.fingerprints[2], page(2));
@@ -61,7 +60,6 @@ void main() {
     () async {
       final course = await store.importDocument(
         title: 'Algèbre.pdf',
-        role: DocumentRole.course,
         bytes: Uint8List(1),
         contentHash: 'c',
         fingerprints: [page(10), page(11)],
@@ -206,5 +204,48 @@ void main() {
       (await store.schedulerSettings()).desiredRetention,
       const SchedulerSettings().desiredRetention,
     );
+  });
+
+  test('vidéos et rattachements aux nœuds', () async {
+    final tree = await store.createNode(title: 'Analyse');
+    final branch = await store.createNode(title: 'Suites', parentId: tree.id);
+    final video = await store.addVideo(
+      title: 'Cours filmé',
+      url: 'https://youtu.be/abc',
+      videoId: 'abc',
+      nodeIds: [branch.id],
+    );
+    expect((video.isVideo, video.pageCount), (true, 0));
+    expect(await store.resourceLinks(), [
+      (documentId: video.id, nodeId: branch.id),
+    ]);
+    await store.linkResource(video.id, tree.id);
+    await store.linkResource(video.id, tree.id); // sans doublon
+    expect(await store.resourceLinks(), hasLength(2));
+    await store.unlinkResource(video.id, tree.id);
+    expect(await store.resourceLinks(), hasLength(1));
+
+    final item = await store.createItem(
+      nodeId: branch.id,
+      kind: ItemKind.theorem,
+      title: 'Cesàro',
+    );
+    final anchor = await store.addAnchor(
+      itemId: item.id,
+      documentId: video.id,
+      role: AnchorRole.work,
+      startMs: 1000,
+      endMs: 5000,
+    );
+    expect((await store.anchorsOf(item.id)).single.startMs, anchor.startMs);
+
+    // Supprimer la branche retire le rattachement, pas le contenu.
+    await store.deleteNode(branch.id, recursive: true);
+    expect(await store.resourceLinks(), isEmpty);
+    expect(await store.document(video.id), isNotNull);
+    // Supprimer le contenu retire ses rattachements.
+    await store.linkResource(video.id, tree.id);
+    await store.deleteDocument(video.id);
+    expect(await store.resourceLinks(), isEmpty);
   });
 }

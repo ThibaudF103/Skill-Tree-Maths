@@ -287,7 +287,7 @@ class _NoteEditorState extends State<NoteEditor> {
     await _store.updateNote(note.id, itemId: () => item.id);
     final document = widget.document;
     if (document != null &&
-        document.role == DocumentRole.course &&
+        document.isPdf &&
         note.page != null &&
         note.region != null) {
       final existing = await _store.anchorsOf(item.id);

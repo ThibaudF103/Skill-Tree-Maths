@@ -2242,14 +2242,24 @@ class $DocumentsTable extends Documents
     requiredDuringInsert: true,
   );
   @override
-  late final GeneratedColumnWithTypeConverter<DocumentRole, String> role =
+  late final GeneratedColumnWithTypeConverter<ResourceKind, String> kind =
       GeneratedColumn<String>(
-        'role',
+        'kind',
         aliasedName,
         false,
         type: DriftSqlType.string,
-        requiredDuringInsert: true,
-      ).withConverter<DocumentRole>($DocumentsTable.$converterrole);
+        requiredDuringInsert: false,
+        defaultValue: const Constant('pdf'),
+      ).withConverter<ResourceKind>($DocumentsTable.$converterkind);
+  static const VerificationMeta _urlMeta = const VerificationMeta('url');
+  @override
+  late final GeneratedColumn<String> url = GeneratedColumn<String>(
+    'url',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _pageCountMeta = const VerificationMeta(
     'pageCount',
   );
@@ -2335,7 +2345,8 @@ class $DocumentsTable extends Documents
   List<GeneratedColumn> get $columns => [
     id,
     title,
-    role,
+    kind,
+    url,
     pageCount,
     contentHash,
     importedAt,
@@ -2368,6 +2379,12 @@ class $DocumentsTable extends Documents
       );
     } else if (isInserting) {
       context.missing(_titleMeta);
+    }
+    if (data.containsKey('url')) {
+      context.handle(
+        _urlMeta,
+        url.isAcceptableOrUnknown(data['url']!, _urlMeta),
+      );
     }
     if (data.containsKey('page_count')) {
       context.handle(
@@ -2442,11 +2459,15 @@ class $DocumentsTable extends Documents
         DriftSqlType.string,
         data['${effectivePrefix}title'],
       )!,
-      role: $DocumentsTable.$converterrole.fromSql(
+      kind: $DocumentsTable.$converterkind.fromSql(
         attachedDatabase.typeMapping.read(
           DriftSqlType.string,
-          data['${effectivePrefix}role'],
+          data['${effectivePrefix}kind'],
         )!,
+      ),
+      url: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}url'],
       ),
       pageCount: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
@@ -2484,14 +2505,19 @@ class $DocumentsTable extends Documents
     return $DocumentsTable(attachedDatabase, alias);
   }
 
-  static JsonTypeConverter2<DocumentRole, String, String> $converterrole =
-      const EnumNameConverter<DocumentRole>(DocumentRole.values);
+  static JsonTypeConverter2<ResourceKind, String, String> $converterkind =
+      const EnumNameConverter<ResourceKind>(ResourceKind.values);
 }
 
 class DocumentRow extends DataClass implements Insertable<DocumentRow> {
   final String id;
   final String title;
-  final DocumentRole role;
+
+  /// Nature du contenu (v5, remplace le rôle cours / notes).
+  final ResourceKind kind;
+
+  /// Adresse d'origine : vidéo, ou PDF téléchargeable (v5).
+  final String? url;
   final int pageCount;
   final String contentHash;
   final DateTime importedAt;
@@ -2508,7 +2534,8 @@ class DocumentRow extends DataClass implements Insertable<DocumentRow> {
   const DocumentRow({
     required this.id,
     required this.title,
-    required this.role,
+    required this.kind,
+    this.url,
     required this.pageCount,
     required this.contentHash,
     required this.importedAt,
@@ -2523,9 +2550,12 @@ class DocumentRow extends DataClass implements Insertable<DocumentRow> {
     map['id'] = Variable<String>(id);
     map['title'] = Variable<String>(title);
     {
-      map['role'] = Variable<String>(
-        $DocumentsTable.$converterrole.toSql(role),
+      map['kind'] = Variable<String>(
+        $DocumentsTable.$converterkind.toSql(kind),
       );
+    }
+    if (!nullToAbsent || url != null) {
+      map['url'] = Variable<String>(url);
     }
     map['page_count'] = Variable<int>(pageCount);
     map['content_hash'] = Variable<String>(contentHash);
@@ -2541,7 +2571,8 @@ class DocumentRow extends DataClass implements Insertable<DocumentRow> {
     return DocumentsCompanion(
       id: Value(id),
       title: Value(title),
-      role: Value(role),
+      kind: Value(kind),
+      url: url == null && nullToAbsent ? const Value.absent() : Value(url),
       pageCount: Value(pageCount),
       contentHash: Value(contentHash),
       importedAt: Value(importedAt),
@@ -2560,9 +2591,10 @@ class DocumentRow extends DataClass implements Insertable<DocumentRow> {
     return DocumentRow(
       id: serializer.fromJson<String>(json['id']),
       title: serializer.fromJson<String>(json['title']),
-      role: $DocumentsTable.$converterrole.fromJson(
-        serializer.fromJson<String>(json['role']),
+      kind: $DocumentsTable.$converterkind.fromJson(
+        serializer.fromJson<String>(json['kind']),
       ),
+      url: serializer.fromJson<String?>(json['url']),
       pageCount: serializer.fromJson<int>(json['pageCount']),
       contentHash: serializer.fromJson<String>(json['contentHash']),
       importedAt: serializer.fromJson<DateTime>(json['importedAt']),
@@ -2578,9 +2610,10 @@ class DocumentRow extends DataClass implements Insertable<DocumentRow> {
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
       'title': serializer.toJson<String>(title),
-      'role': serializer.toJson<String>(
-        $DocumentsTable.$converterrole.toJson(role),
+      'kind': serializer.toJson<String>(
+        $DocumentsTable.$converterkind.toJson(kind),
       ),
+      'url': serializer.toJson<String?>(url),
       'pageCount': serializer.toJson<int>(pageCount),
       'contentHash': serializer.toJson<String>(contentHash),
       'importedAt': serializer.toJson<DateTime>(importedAt),
@@ -2594,7 +2627,8 @@ class DocumentRow extends DataClass implements Insertable<DocumentRow> {
   DocumentRow copyWith({
     String? id,
     String? title,
-    DocumentRole? role,
+    ResourceKind? kind,
+    Value<String?> url = const Value.absent(),
     int? pageCount,
     String? contentHash,
     DateTime? importedAt,
@@ -2605,7 +2639,8 @@ class DocumentRow extends DataClass implements Insertable<DocumentRow> {
   }) => DocumentRow(
     id: id ?? this.id,
     title: title ?? this.title,
-    role: role ?? this.role,
+    kind: kind ?? this.kind,
+    url: url.present ? url.value : this.url,
     pageCount: pageCount ?? this.pageCount,
     contentHash: contentHash ?? this.contentHash,
     importedAt: importedAt ?? this.importedAt,
@@ -2618,7 +2653,8 @@ class DocumentRow extends DataClass implements Insertable<DocumentRow> {
     return DocumentRow(
       id: data.id.present ? data.id.value : this.id,
       title: data.title.present ? data.title.value : this.title,
-      role: data.role.present ? data.role.value : this.role,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      url: data.url.present ? data.url.value : this.url,
       pageCount: data.pageCount.present ? data.pageCount.value : this.pageCount,
       contentHash: data.contentHash.present
           ? data.contentHash.value
@@ -2640,7 +2676,8 @@ class DocumentRow extends DataClass implements Insertable<DocumentRow> {
     return (StringBuffer('DocumentRow(')
           ..write('id: $id, ')
           ..write('title: $title, ')
-          ..write('role: $role, ')
+          ..write('kind: $kind, ')
+          ..write('url: $url, ')
           ..write('pageCount: $pageCount, ')
           ..write('contentHash: $contentHash, ')
           ..write('importedAt: $importedAt, ')
@@ -2656,7 +2693,8 @@ class DocumentRow extends DataClass implements Insertable<DocumentRow> {
   int get hashCode => Object.hash(
     id,
     title,
-    role,
+    kind,
+    url,
     pageCount,
     contentHash,
     importedAt,
@@ -2671,7 +2709,8 @@ class DocumentRow extends DataClass implements Insertable<DocumentRow> {
       (other is DocumentRow &&
           other.id == this.id &&
           other.title == this.title &&
-          other.role == this.role &&
+          other.kind == this.kind &&
+          other.url == this.url &&
           other.pageCount == this.pageCount &&
           other.contentHash == this.contentHash &&
           other.importedAt == this.importedAt &&
@@ -2684,7 +2723,8 @@ class DocumentRow extends DataClass implements Insertable<DocumentRow> {
 class DocumentsCompanion extends UpdateCompanion<DocumentRow> {
   final Value<String> id;
   final Value<String> title;
-  final Value<DocumentRole> role;
+  final Value<ResourceKind> kind;
+  final Value<String?> url;
   final Value<int> pageCount;
   final Value<String> contentHash;
   final Value<DateTime> importedAt;
@@ -2696,7 +2736,8 @@ class DocumentsCompanion extends UpdateCompanion<DocumentRow> {
   const DocumentsCompanion({
     this.id = const Value.absent(),
     this.title = const Value.absent(),
-    this.role = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.url = const Value.absent(),
     this.pageCount = const Value.absent(),
     this.contentHash = const Value.absent(),
     this.importedAt = const Value.absent(),
@@ -2709,7 +2750,8 @@ class DocumentsCompanion extends UpdateCompanion<DocumentRow> {
   DocumentsCompanion.insert({
     required String id,
     required String title,
-    required DocumentRole role,
+    this.kind = const Value.absent(),
+    this.url = const Value.absent(),
     required int pageCount,
     required String contentHash,
     required DateTime importedAt,
@@ -2720,7 +2762,6 @@ class DocumentsCompanion extends UpdateCompanion<DocumentRow> {
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        title = Value(title),
-       role = Value(role),
        pageCount = Value(pageCount),
        contentHash = Value(contentHash),
        importedAt = Value(importedAt),
@@ -2728,7 +2769,8 @@ class DocumentsCompanion extends UpdateCompanion<DocumentRow> {
   static Insertable<DocumentRow> custom({
     Expression<String>? id,
     Expression<String>? title,
-    Expression<String>? role,
+    Expression<String>? kind,
+    Expression<String>? url,
     Expression<int>? pageCount,
     Expression<String>? contentHash,
     Expression<DateTime>? importedAt,
@@ -2741,7 +2783,8 @@ class DocumentsCompanion extends UpdateCompanion<DocumentRow> {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (title != null) 'title': title,
-      if (role != null) 'role': role,
+      if (kind != null) 'kind': kind,
+      if (url != null) 'url': url,
       if (pageCount != null) 'page_count': pageCount,
       if (contentHash != null) 'content_hash': contentHash,
       if (importedAt != null) 'imported_at': importedAt,
@@ -2756,7 +2799,8 @@ class DocumentsCompanion extends UpdateCompanion<DocumentRow> {
   DocumentsCompanion copyWith({
     Value<String>? id,
     Value<String>? title,
-    Value<DocumentRole>? role,
+    Value<ResourceKind>? kind,
+    Value<String?>? url,
     Value<int>? pageCount,
     Value<String>? contentHash,
     Value<DateTime>? importedAt,
@@ -2769,7 +2813,8 @@ class DocumentsCompanion extends UpdateCompanion<DocumentRow> {
     return DocumentsCompanion(
       id: id ?? this.id,
       title: title ?? this.title,
-      role: role ?? this.role,
+      kind: kind ?? this.kind,
+      url: url ?? this.url,
       pageCount: pageCount ?? this.pageCount,
       contentHash: contentHash ?? this.contentHash,
       importedAt: importedAt ?? this.importedAt,
@@ -2790,10 +2835,13 @@ class DocumentsCompanion extends UpdateCompanion<DocumentRow> {
     if (title.present) {
       map['title'] = Variable<String>(title.value);
     }
-    if (role.present) {
-      map['role'] = Variable<String>(
-        $DocumentsTable.$converterrole.toSql(role.value),
+    if (kind.present) {
+      map['kind'] = Variable<String>(
+        $DocumentsTable.$converterkind.toSql(kind.value),
       );
+    }
+    if (url.present) {
+      map['url'] = Variable<String>(url.value);
     }
     if (pageCount.present) {
       map['page_count'] = Variable<int>(pageCount.value);
@@ -2827,7 +2875,8 @@ class DocumentsCompanion extends UpdateCompanion<DocumentRow> {
     return (StringBuffer('DocumentsCompanion(')
           ..write('id: $id, ')
           ..write('title: $title, ')
-          ..write('role: $role, ')
+          ..write('kind: $kind, ')
+          ..write('url: $url, ')
           ..write('pageCount: $pageCount, ')
           ..write('contentHash: $contentHash, ')
           ..write('importedAt: $importedAt, ')
@@ -3116,9 +3165,29 @@ class $AnchorsTable extends Anchors with TableInfo<$AnchorsTable, AnchorRow> {
   late final GeneratedColumn<int> page = GeneratedColumn<int>(
     'page',
     aliasedName,
-    false,
+    true,
     type: DriftSqlType.int,
-    requiredDuringInsert: true,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _startMsMeta = const VerificationMeta(
+    'startMs',
+  );
+  @override
+  late final GeneratedColumn<int> startMs = GeneratedColumn<int>(
+    'start_ms',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _endMsMeta = const VerificationMeta('endMs');
+  @override
+  late final GeneratedColumn<int> endMs = GeneratedColumn<int>(
+    'end_ms',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
   );
   static const VerificationMeta _leftMeta = const VerificationMeta('left');
   @override
@@ -3211,6 +3280,8 @@ class $AnchorsTable extends Anchors with TableInfo<$AnchorsTable, AnchorRow> {
     documentId,
     role,
     page,
+    startMs,
+    endMs,
     left,
     top,
     right,
@@ -3258,8 +3329,18 @@ class $AnchorsTable extends Anchors with TableInfo<$AnchorsTable, AnchorRow> {
         _pageMeta,
         page.isAcceptableOrUnknown(data['page']!, _pageMeta),
       );
-    } else if (isInserting) {
-      context.missing(_pageMeta);
+    }
+    if (data.containsKey('start_ms')) {
+      context.handle(
+        _startMsMeta,
+        startMs.isAcceptableOrUnknown(data['start_ms']!, _startMsMeta),
+      );
+    }
+    if (data.containsKey('end_ms')) {
+      context.handle(
+        _endMsMeta,
+        endMs.isAcceptableOrUnknown(data['end_ms']!, _endMsMeta),
+      );
     }
     if (data.containsKey('left')) {
       context.handle(
@@ -3347,7 +3428,15 @@ class $AnchorsTable extends Anchors with TableInfo<$AnchorsTable, AnchorRow> {
       page: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}page'],
-      )!,
+      ),
+      startMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}start_ms'],
+      ),
+      endMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}end_ms'],
+      ),
       left: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
         data['${effectivePrefix}left'],
@@ -3397,7 +3486,13 @@ class AnchorRow extends DataClass implements Insertable<AnchorRow> {
   final String itemId;
   final String documentId;
   final AnchorRole role;
-  final int page;
+
+  /// Page d'un PDF (nulle pour une vidéo depuis v5).
+  final int? page;
+
+  /// Extrait d'une vidéo, en millisecondes (v5).
+  final int? startMs;
+  final int? endMs;
   final double? left;
   final double? top;
   final double? right;
@@ -3411,7 +3506,9 @@ class AnchorRow extends DataClass implements Insertable<AnchorRow> {
     required this.itemId,
     required this.documentId,
     required this.role,
-    required this.page,
+    this.page,
+    this.startMs,
+    this.endMs,
     this.left,
     this.top,
     this.right,
@@ -3430,7 +3527,15 @@ class AnchorRow extends DataClass implements Insertable<AnchorRow> {
     {
       map['role'] = Variable<String>($AnchorsTable.$converterrole.toSql(role));
     }
-    map['page'] = Variable<int>(page);
+    if (!nullToAbsent || page != null) {
+      map['page'] = Variable<int>(page);
+    }
+    if (!nullToAbsent || startMs != null) {
+      map['start_ms'] = Variable<int>(startMs);
+    }
+    if (!nullToAbsent || endMs != null) {
+      map['end_ms'] = Variable<int>(endMs);
+    }
     if (!nullToAbsent || left != null) {
       map['left'] = Variable<double>(left);
     }
@@ -3460,7 +3565,13 @@ class AnchorRow extends DataClass implements Insertable<AnchorRow> {
       itemId: Value(itemId),
       documentId: Value(documentId),
       role: Value(role),
-      page: Value(page),
+      page: page == null && nullToAbsent ? const Value.absent() : Value(page),
+      startMs: startMs == null && nullToAbsent
+          ? const Value.absent()
+          : Value(startMs),
+      endMs: endMs == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endMs),
       left: left == null && nullToAbsent ? const Value.absent() : Value(left),
       top: top == null && nullToAbsent ? const Value.absent() : Value(top),
       right: right == null && nullToAbsent
@@ -3492,7 +3603,9 @@ class AnchorRow extends DataClass implements Insertable<AnchorRow> {
       role: $AnchorsTable.$converterrole.fromJson(
         serializer.fromJson<String>(json['role']),
       ),
-      page: serializer.fromJson<int>(json['page']),
+      page: serializer.fromJson<int?>(json['page']),
+      startMs: serializer.fromJson<int?>(json['startMs']),
+      endMs: serializer.fromJson<int?>(json['endMs']),
       left: serializer.fromJson<double?>(json['left']),
       top: serializer.fromJson<double?>(json['top']),
       right: serializer.fromJson<double?>(json['right']),
@@ -3513,7 +3626,9 @@ class AnchorRow extends DataClass implements Insertable<AnchorRow> {
       'role': serializer.toJson<String>(
         $AnchorsTable.$converterrole.toJson(role),
       ),
-      'page': serializer.toJson<int>(page),
+      'page': serializer.toJson<int?>(page),
+      'startMs': serializer.toJson<int?>(startMs),
+      'endMs': serializer.toJson<int?>(endMs),
       'left': serializer.toJson<double?>(left),
       'top': serializer.toJson<double?>(top),
       'right': serializer.toJson<double?>(right),
@@ -3530,7 +3645,9 @@ class AnchorRow extends DataClass implements Insertable<AnchorRow> {
     String? itemId,
     String? documentId,
     AnchorRole? role,
-    int? page,
+    Value<int?> page = const Value.absent(),
+    Value<int?> startMs = const Value.absent(),
+    Value<int?> endMs = const Value.absent(),
     Value<double?> left = const Value.absent(),
     Value<double?> top = const Value.absent(),
     Value<double?> right = const Value.absent(),
@@ -3544,7 +3661,9 @@ class AnchorRow extends DataClass implements Insertable<AnchorRow> {
     itemId: itemId ?? this.itemId,
     documentId: documentId ?? this.documentId,
     role: role ?? this.role,
-    page: page ?? this.page,
+    page: page.present ? page.value : this.page,
+    startMs: startMs.present ? startMs.value : this.startMs,
+    endMs: endMs.present ? endMs.value : this.endMs,
     left: left.present ? left.value : this.left,
     top: top.present ? top.value : this.top,
     right: right.present ? right.value : this.right,
@@ -3563,6 +3682,8 @@ class AnchorRow extends DataClass implements Insertable<AnchorRow> {
           : this.documentId,
       role: data.role.present ? data.role.value : this.role,
       page: data.page.present ? data.page.value : this.page,
+      startMs: data.startMs.present ? data.startMs.value : this.startMs,
+      endMs: data.endMs.present ? data.endMs.value : this.endMs,
       left: data.left.present ? data.left.value : this.left,
       top: data.top.present ? data.top.value : this.top,
       right: data.right.present ? data.right.value : this.right,
@@ -3586,6 +3707,8 @@ class AnchorRow extends DataClass implements Insertable<AnchorRow> {
           ..write('documentId: $documentId, ')
           ..write('role: $role, ')
           ..write('page: $page, ')
+          ..write('startMs: $startMs, ')
+          ..write('endMs: $endMs, ')
           ..write('left: $left, ')
           ..write('top: $top, ')
           ..write('right: $right, ')
@@ -3605,6 +3728,8 @@ class AnchorRow extends DataClass implements Insertable<AnchorRow> {
     documentId,
     role,
     page,
+    startMs,
+    endMs,
     left,
     top,
     right,
@@ -3623,6 +3748,8 @@ class AnchorRow extends DataClass implements Insertable<AnchorRow> {
           other.documentId == this.documentId &&
           other.role == this.role &&
           other.page == this.page &&
+          other.startMs == this.startMs &&
+          other.endMs == this.endMs &&
           other.left == this.left &&
           other.top == this.top &&
           other.right == this.right &&
@@ -3638,7 +3765,9 @@ class AnchorsCompanion extends UpdateCompanion<AnchorRow> {
   final Value<String> itemId;
   final Value<String> documentId;
   final Value<AnchorRole> role;
-  final Value<int> page;
+  final Value<int?> page;
+  final Value<int?> startMs;
+  final Value<int?> endMs;
   final Value<double?> left;
   final Value<double?> top;
   final Value<double?> right;
@@ -3654,6 +3783,8 @@ class AnchorsCompanion extends UpdateCompanion<AnchorRow> {
     this.documentId = const Value.absent(),
     this.role = const Value.absent(),
     this.page = const Value.absent(),
+    this.startMs = const Value.absent(),
+    this.endMs = const Value.absent(),
     this.left = const Value.absent(),
     this.top = const Value.absent(),
     this.right = const Value.absent(),
@@ -3669,7 +3800,9 @@ class AnchorsCompanion extends UpdateCompanion<AnchorRow> {
     required String itemId,
     required String documentId,
     required AnchorRole role,
-    required int page,
+    this.page = const Value.absent(),
+    this.startMs = const Value.absent(),
+    this.endMs = const Value.absent(),
     this.left = const Value.absent(),
     this.top = const Value.absent(),
     this.right = const Value.absent(),
@@ -3683,7 +3816,6 @@ class AnchorsCompanion extends UpdateCompanion<AnchorRow> {
        itemId = Value(itemId),
        documentId = Value(documentId),
        role = Value(role),
-       page = Value(page),
        createdAt = Value(createdAt);
   static Insertable<AnchorRow> custom({
     Expression<String>? id,
@@ -3691,6 +3823,8 @@ class AnchorsCompanion extends UpdateCompanion<AnchorRow> {
     Expression<String>? documentId,
     Expression<String>? role,
     Expression<int>? page,
+    Expression<int>? startMs,
+    Expression<int>? endMs,
     Expression<double>? left,
     Expression<double>? top,
     Expression<double>? right,
@@ -3707,6 +3841,8 @@ class AnchorsCompanion extends UpdateCompanion<AnchorRow> {
       if (documentId != null) 'document_id': documentId,
       if (role != null) 'role': role,
       if (page != null) 'page': page,
+      if (startMs != null) 'start_ms': startMs,
+      if (endMs != null) 'end_ms': endMs,
       if (left != null) 'left': left,
       if (top != null) 'top': top,
       if (right != null) 'right': right,
@@ -3724,7 +3860,9 @@ class AnchorsCompanion extends UpdateCompanion<AnchorRow> {
     Value<String>? itemId,
     Value<String>? documentId,
     Value<AnchorRole>? role,
-    Value<int>? page,
+    Value<int?>? page,
+    Value<int?>? startMs,
+    Value<int?>? endMs,
     Value<double?>? left,
     Value<double?>? top,
     Value<double?>? right,
@@ -3741,6 +3879,8 @@ class AnchorsCompanion extends UpdateCompanion<AnchorRow> {
       documentId: documentId ?? this.documentId,
       role: role ?? this.role,
       page: page ?? this.page,
+      startMs: startMs ?? this.startMs,
+      endMs: endMs ?? this.endMs,
       left: left ?? this.left,
       top: top ?? this.top,
       right: right ?? this.right,
@@ -3772,6 +3912,12 @@ class AnchorsCompanion extends UpdateCompanion<AnchorRow> {
     }
     if (page.present) {
       map['page'] = Variable<int>(page.value);
+    }
+    if (startMs.present) {
+      map['start_ms'] = Variable<int>(startMs.value);
+    }
+    if (endMs.present) {
+      map['end_ms'] = Variable<int>(endMs.value);
     }
     if (left.present) {
       map['left'] = Variable<double>(left.value);
@@ -3811,6 +3957,8 @@ class AnchorsCompanion extends UpdateCompanion<AnchorRow> {
           ..write('documentId: $documentId, ')
           ..write('role: $role, ')
           ..write('page: $page, ')
+          ..write('startMs: $startMs, ')
+          ..write('endMs: $endMs, ')
           ..write('left: $left, ')
           ..write('top: $top, ')
           ..write('right: $right, ')
@@ -3866,6 +4014,26 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, NoteRow> {
   @override
   late final GeneratedColumn<int> page = GeneratedColumn<int>(
     'page',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _startMsMeta = const VerificationMeta(
+    'startMs',
+  );
+  @override
+  late final GeneratedColumn<int> startMs = GeneratedColumn<int>(
+    'start_ms',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _endMsMeta = const VerificationMeta('endMs');
+  @override
+  late final GeneratedColumn<int> endMs = GeneratedColumn<int>(
+    'end_ms',
     aliasedName,
     true,
     type: DriftSqlType.int,
@@ -3958,6 +4126,8 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, NoteRow> {
     body,
     documentId,
     page,
+    startMs,
+    endMs,
     left,
     top,
     right,
@@ -4002,6 +4172,18 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, NoteRow> {
       context.handle(
         _pageMeta,
         page.isAcceptableOrUnknown(data['page']!, _pageMeta),
+      );
+    }
+    if (data.containsKey('start_ms')) {
+      context.handle(
+        _startMsMeta,
+        startMs.isAcceptableOrUnknown(data['start_ms']!, _startMsMeta),
+      );
+    }
+    if (data.containsKey('end_ms')) {
+      context.handle(
+        _endMsMeta,
+        endMs.isAcceptableOrUnknown(data['end_ms']!, _endMsMeta),
       );
     }
     if (data.containsKey('left')) {
@@ -4081,6 +4263,14 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, NoteRow> {
         DriftSqlType.int,
         data['${effectivePrefix}page'],
       ),
+      startMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}start_ms'],
+      ),
+      endMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}end_ms'],
+      ),
       left: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
         data['${effectivePrefix}left'],
@@ -4127,6 +4317,10 @@ class NoteRow extends DataClass implements Insertable<NoteRow> {
   final String body;
   final String? documentId;
   final int? page;
+
+  /// Moment ou extrait d'une vidéo, en millisecondes (v5).
+  final int? startMs;
+  final int? endMs;
   final double? left;
   final double? top;
   final double? right;
@@ -4140,6 +4334,8 @@ class NoteRow extends DataClass implements Insertable<NoteRow> {
     required this.body,
     this.documentId,
     this.page,
+    this.startMs,
+    this.endMs,
     this.left,
     this.top,
     this.right,
@@ -4159,6 +4355,12 @@ class NoteRow extends DataClass implements Insertable<NoteRow> {
     }
     if (!nullToAbsent || page != null) {
       map['page'] = Variable<int>(page);
+    }
+    if (!nullToAbsent || startMs != null) {
+      map['start_ms'] = Variable<int>(startMs);
+    }
+    if (!nullToAbsent || endMs != null) {
+      map['end_ms'] = Variable<int>(endMs);
     }
     if (!nullToAbsent || left != null) {
       map['left'] = Variable<double>(left);
@@ -4191,6 +4393,12 @@ class NoteRow extends DataClass implements Insertable<NoteRow> {
           ? const Value.absent()
           : Value(documentId),
       page: page == null && nullToAbsent ? const Value.absent() : Value(page),
+      startMs: startMs == null && nullToAbsent
+          ? const Value.absent()
+          : Value(startMs),
+      endMs: endMs == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endMs),
       left: left == null && nullToAbsent ? const Value.absent() : Value(left),
       top: top == null && nullToAbsent ? const Value.absent() : Value(top),
       right: right == null && nullToAbsent
@@ -4220,6 +4428,8 @@ class NoteRow extends DataClass implements Insertable<NoteRow> {
       body: serializer.fromJson<String>(json['body']),
       documentId: serializer.fromJson<String?>(json['documentId']),
       page: serializer.fromJson<int?>(json['page']),
+      startMs: serializer.fromJson<int?>(json['startMs']),
+      endMs: serializer.fromJson<int?>(json['endMs']),
       left: serializer.fromJson<double?>(json['left']),
       top: serializer.fromJson<double?>(json['top']),
       right: serializer.fromJson<double?>(json['right']),
@@ -4238,6 +4448,8 @@ class NoteRow extends DataClass implements Insertable<NoteRow> {
       'body': serializer.toJson<String>(body),
       'documentId': serializer.toJson<String?>(documentId),
       'page': serializer.toJson<int?>(page),
+      'startMs': serializer.toJson<int?>(startMs),
+      'endMs': serializer.toJson<int?>(endMs),
       'left': serializer.toJson<double?>(left),
       'top': serializer.toJson<double?>(top),
       'right': serializer.toJson<double?>(right),
@@ -4254,6 +4466,8 @@ class NoteRow extends DataClass implements Insertable<NoteRow> {
     String? body,
     Value<String?> documentId = const Value.absent(),
     Value<int?> page = const Value.absent(),
+    Value<int?> startMs = const Value.absent(),
+    Value<int?> endMs = const Value.absent(),
     Value<double?> left = const Value.absent(),
     Value<double?> top = const Value.absent(),
     Value<double?> right = const Value.absent(),
@@ -4267,6 +4481,8 @@ class NoteRow extends DataClass implements Insertable<NoteRow> {
     body: body ?? this.body,
     documentId: documentId.present ? documentId.value : this.documentId,
     page: page.present ? page.value : this.page,
+    startMs: startMs.present ? startMs.value : this.startMs,
+    endMs: endMs.present ? endMs.value : this.endMs,
     left: left.present ? left.value : this.left,
     top: top.present ? top.value : this.top,
     right: right.present ? right.value : this.right,
@@ -4284,6 +4500,8 @@ class NoteRow extends DataClass implements Insertable<NoteRow> {
           ? data.documentId.value
           : this.documentId,
       page: data.page.present ? data.page.value : this.page,
+      startMs: data.startMs.present ? data.startMs.value : this.startMs,
+      endMs: data.endMs.present ? data.endMs.value : this.endMs,
       left: data.left.present ? data.left.value : this.left,
       top: data.top.present ? data.top.value : this.top,
       right: data.right.present ? data.right.value : this.right,
@@ -4302,6 +4520,8 @@ class NoteRow extends DataClass implements Insertable<NoteRow> {
           ..write('body: $body, ')
           ..write('documentId: $documentId, ')
           ..write('page: $page, ')
+          ..write('startMs: $startMs, ')
+          ..write('endMs: $endMs, ')
           ..write('left: $left, ')
           ..write('top: $top, ')
           ..write('right: $right, ')
@@ -4320,6 +4540,8 @@ class NoteRow extends DataClass implements Insertable<NoteRow> {
     body,
     documentId,
     page,
+    startMs,
+    endMs,
     left,
     top,
     right,
@@ -4337,6 +4559,8 @@ class NoteRow extends DataClass implements Insertable<NoteRow> {
           other.body == this.body &&
           other.documentId == this.documentId &&
           other.page == this.page &&
+          other.startMs == this.startMs &&
+          other.endMs == this.endMs &&
           other.left == this.left &&
           other.top == this.top &&
           other.right == this.right &&
@@ -4352,6 +4576,8 @@ class NotesCompanion extends UpdateCompanion<NoteRow> {
   final Value<String> body;
   final Value<String?> documentId;
   final Value<int?> page;
+  final Value<int?> startMs;
+  final Value<int?> endMs;
   final Value<double?> left;
   final Value<double?> top;
   final Value<double?> right;
@@ -4366,6 +4592,8 @@ class NotesCompanion extends UpdateCompanion<NoteRow> {
     this.body = const Value.absent(),
     this.documentId = const Value.absent(),
     this.page = const Value.absent(),
+    this.startMs = const Value.absent(),
+    this.endMs = const Value.absent(),
     this.left = const Value.absent(),
     this.top = const Value.absent(),
     this.right = const Value.absent(),
@@ -4381,6 +4609,8 @@ class NotesCompanion extends UpdateCompanion<NoteRow> {
     required String body,
     this.documentId = const Value.absent(),
     this.page = const Value.absent(),
+    this.startMs = const Value.absent(),
+    this.endMs = const Value.absent(),
     this.left = const Value.absent(),
     this.top = const Value.absent(),
     this.right = const Value.absent(),
@@ -4399,6 +4629,8 @@ class NotesCompanion extends UpdateCompanion<NoteRow> {
     Expression<String>? body,
     Expression<String>? documentId,
     Expression<int>? page,
+    Expression<int>? startMs,
+    Expression<int>? endMs,
     Expression<double>? left,
     Expression<double>? top,
     Expression<double>? right,
@@ -4414,6 +4646,8 @@ class NotesCompanion extends UpdateCompanion<NoteRow> {
       if (body != null) 'body': body,
       if (documentId != null) 'document_id': documentId,
       if (page != null) 'page': page,
+      if (startMs != null) 'start_ms': startMs,
+      if (endMs != null) 'end_ms': endMs,
       if (left != null) 'left': left,
       if (top != null) 'top': top,
       if (right != null) 'right': right,
@@ -4431,6 +4665,8 @@ class NotesCompanion extends UpdateCompanion<NoteRow> {
     Value<String>? body,
     Value<String?>? documentId,
     Value<int?>? page,
+    Value<int?>? startMs,
+    Value<int?>? endMs,
     Value<double?>? left,
     Value<double?>? top,
     Value<double?>? right,
@@ -4446,6 +4682,8 @@ class NotesCompanion extends UpdateCompanion<NoteRow> {
       body: body ?? this.body,
       documentId: documentId ?? this.documentId,
       page: page ?? this.page,
+      startMs: startMs ?? this.startMs,
+      endMs: endMs ?? this.endMs,
       left: left ?? this.left,
       top: top ?? this.top,
       right: right ?? this.right,
@@ -4472,6 +4710,12 @@ class NotesCompanion extends UpdateCompanion<NoteRow> {
     }
     if (page.present) {
       map['page'] = Variable<int>(page.value);
+    }
+    if (startMs.present) {
+      map['start_ms'] = Variable<int>(startMs.value);
+    }
+    if (endMs.present) {
+      map['end_ms'] = Variable<int>(endMs.value);
     }
     if (left.present) {
       map['left'] = Variable<double>(left.value);
@@ -4510,6 +4754,8 @@ class NotesCompanion extends UpdateCompanion<NoteRow> {
           ..write('body: $body, ')
           ..write('documentId: $documentId, ')
           ..write('page: $page, ')
+          ..write('startMs: $startMs, ')
+          ..write('endMs: $endMs, ')
           ..write('left: $left, ')
           ..write('top: $top, ')
           ..write('right: $right, ')
@@ -4518,6 +4764,230 @@ class NotesCompanion extends UpdateCompanion<NoteRow> {
           ..write('itemId: $itemId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ResourceLinksTable extends ResourceLinks
+    with TableInfo<$ResourceLinksTable, ResourceLinkRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ResourceLinksTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _documentIdMeta = const VerificationMeta(
+    'documentId',
+  );
+  @override
+  late final GeneratedColumn<String> documentId = GeneratedColumn<String>(
+    'document_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES documents (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _nodeIdMeta = const VerificationMeta('nodeId');
+  @override
+  late final GeneratedColumn<String> nodeId = GeneratedColumn<String>(
+    'node_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES nodes (id) ON DELETE CASCADE',
+    ),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [documentId, nodeId];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'resource_links';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ResourceLinkRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('document_id')) {
+      context.handle(
+        _documentIdMeta,
+        documentId.isAcceptableOrUnknown(data['document_id']!, _documentIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_documentIdMeta);
+    }
+    if (data.containsKey('node_id')) {
+      context.handle(
+        _nodeIdMeta,
+        nodeId.isAcceptableOrUnknown(data['node_id']!, _nodeIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nodeIdMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {documentId, nodeId};
+  @override
+  ResourceLinkRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ResourceLinkRow(
+      documentId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}document_id'],
+      )!,
+      nodeId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}node_id'],
+      )!,
+    );
+  }
+
+  @override
+  $ResourceLinksTable createAlias(String alias) {
+    return $ResourceLinksTable(attachedDatabase, alias);
+  }
+}
+
+class ResourceLinkRow extends DataClass implements Insertable<ResourceLinkRow> {
+  final String documentId;
+  final String nodeId;
+  const ResourceLinkRow({required this.documentId, required this.nodeId});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['document_id'] = Variable<String>(documentId);
+    map['node_id'] = Variable<String>(nodeId);
+    return map;
+  }
+
+  ResourceLinksCompanion toCompanion(bool nullToAbsent) {
+    return ResourceLinksCompanion(
+      documentId: Value(documentId),
+      nodeId: Value(nodeId),
+    );
+  }
+
+  factory ResourceLinkRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ResourceLinkRow(
+      documentId: serializer.fromJson<String>(json['documentId']),
+      nodeId: serializer.fromJson<String>(json['nodeId']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'documentId': serializer.toJson<String>(documentId),
+      'nodeId': serializer.toJson<String>(nodeId),
+    };
+  }
+
+  ResourceLinkRow copyWith({String? documentId, String? nodeId}) =>
+      ResourceLinkRow(
+        documentId: documentId ?? this.documentId,
+        nodeId: nodeId ?? this.nodeId,
+      );
+  ResourceLinkRow copyWithCompanion(ResourceLinksCompanion data) {
+    return ResourceLinkRow(
+      documentId: data.documentId.present
+          ? data.documentId.value
+          : this.documentId,
+      nodeId: data.nodeId.present ? data.nodeId.value : this.nodeId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ResourceLinkRow(')
+          ..write('documentId: $documentId, ')
+          ..write('nodeId: $nodeId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(documentId, nodeId);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ResourceLinkRow &&
+          other.documentId == this.documentId &&
+          other.nodeId == this.nodeId);
+}
+
+class ResourceLinksCompanion extends UpdateCompanion<ResourceLinkRow> {
+  final Value<String> documentId;
+  final Value<String> nodeId;
+  final Value<int> rowid;
+  const ResourceLinksCompanion({
+    this.documentId = const Value.absent(),
+    this.nodeId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ResourceLinksCompanion.insert({
+    required String documentId,
+    required String nodeId,
+    this.rowid = const Value.absent(),
+  }) : documentId = Value(documentId),
+       nodeId = Value(nodeId);
+  static Insertable<ResourceLinkRow> custom({
+    Expression<String>? documentId,
+    Expression<String>? nodeId,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (documentId != null) 'document_id': documentId,
+      if (nodeId != null) 'node_id': nodeId,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ResourceLinksCompanion copyWith({
+    Value<String>? documentId,
+    Value<String>? nodeId,
+    Value<int>? rowid,
+  }) {
+    return ResourceLinksCompanion(
+      documentId: documentId ?? this.documentId,
+      nodeId: nodeId ?? this.nodeId,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (documentId.present) {
+      map['document_id'] = Variable<String>(documentId.value);
+    }
+    if (nodeId.present) {
+      map['node_id'] = Variable<String>(nodeId.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ResourceLinksCompanion(')
+          ..write('documentId: $documentId, ')
+          ..write('nodeId: $nodeId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -4535,6 +5005,7 @@ abstract class _$VergerDatabase extends GeneratedDatabase {
   late final $DocumentFilesTable documentFiles = $DocumentFilesTable(this);
   late final $AnchorsTable anchors = $AnchorsTable(this);
   late final $NotesTable notes = $NotesTable(this);
+  late final $ResourceLinksTable resourceLinks = $ResourceLinksTable(this);
   late final Index nodesParent = Index(
     'nodes_parent',
     'CREATE INDEX nodes_parent ON nodes (parent_id)',
@@ -4567,6 +5038,10 @@ abstract class _$VergerDatabase extends GeneratedDatabase {
     'notes_item',
     'CREATE INDEX notes_item ON notes (item_id)',
   );
+  late final Index resourceLinksNode = Index(
+    'resource_links_node',
+    'CREATE INDEX resource_links_node ON resource_links (node_id)',
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -4580,6 +5055,7 @@ abstract class _$VergerDatabase extends GeneratedDatabase {
     documentFiles,
     anchors,
     notes,
+    resourceLinks,
     nodesParent,
     itemsNode,
     itemsDue,
@@ -4588,6 +5064,7 @@ abstract class _$VergerDatabase extends GeneratedDatabase {
     anchorsDocument,
     notesDocument,
     notesItem,
+    resourceLinksNode,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -4632,6 +5109,20 @@ abstract class _$VergerDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('notes', kind: UpdateKind.update)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'documents',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('resource_links', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'nodes',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('resource_links', kind: UpdateKind.delete)],
     ),
   ]);
   @override
@@ -4697,6 +5188,24 @@ final class $$NodesTableReferences
     ).filter((f) => f.nodeId.id.sqlEquals($_itemColumn<String>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_itemsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$ResourceLinksTable, List<ResourceLinkRow>>
+  _resourceLinksRefsTable(_$VergerDatabase db) => MultiTypedResultKey.fromTable(
+    db.resourceLinks,
+    aliasName: 'nodes__id__resource_links__node_id',
+  );
+
+  $$ResourceLinksTableProcessedTableManager get resourceLinksRefs {
+    final manager = $$ResourceLinksTableTableManager(
+      $_db,
+      $_db.resourceLinks,
+    ).filter((f) => f.nodeId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_resourceLinksRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -4782,6 +5291,31 @@ class $$NodesTableFilterComposer
           }) => $$ItemsTableFilterComposer(
             $db: $db,
             $table: $db.items,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> resourceLinksRefs(
+    Expression<bool> Function($$ResourceLinksTableFilterComposer f) f,
+  ) {
+    final $$ResourceLinksTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.resourceLinks,
+      getReferencedColumn: (t) => t.nodeId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ResourceLinksTableFilterComposer(
+            $db: $db,
+            $table: $db.resourceLinks,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -4931,6 +5465,31 @@ class $$NodesTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> resourceLinksRefs<T extends Object>(
+    Expression<T> Function($$ResourceLinksTableAnnotationComposer a) f,
+  ) {
+    final $$ResourceLinksTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.resourceLinks,
+      getReferencedColumn: (t) => t.nodeId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ResourceLinksTableAnnotationComposer(
+            $db: $db,
+            $table: $db.resourceLinks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$NodesTableTableManager
@@ -4946,7 +5505,11 @@ class $$NodesTableTableManager
           $$NodesTableUpdateCompanionBuilder,
           (NodeRow, $$NodesTableReferences),
           NodeRow,
-          PrefetchHooks Function({bool parentId, bool itemsRefs})
+          PrefetchHooks Function({
+            bool parentId,
+            bool itemsRefs,
+            bool resourceLinksRefs,
+          })
         > {
   $$NodesTableTableManager(_$VergerDatabase db, $NodesTable table)
     : super(
@@ -5007,60 +5570,94 @@ class $$NodesTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({parentId = false, itemsRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [if (itemsRefs) db.items],
-              addJoins:
-                  <
-                    T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic
-                    >
-                  >(state) {
-                    if (parentId) {
-                      state =
-                          state.withJoin(
-                                currentTable: table,
-                                currentColumn: table.parentId,
-                                referencedTable: $$NodesTableReferences
-                                    ._parentIdTable(db),
-                                referencedColumn: $$NodesTableReferences
-                                    ._parentIdTable(db)
-                                    .id,
-                              )
-                              as T;
-                    }
+          prefetchHooksCallback:
+              ({
+                parentId = false,
+                itemsRefs = false,
+                resourceLinksRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (itemsRefs) db.items,
+                    if (resourceLinksRefs) db.resourceLinks,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (parentId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.parentId,
+                                    referencedTable: $$NodesTableReferences
+                                        ._parentIdTable(db),
+                                    referencedColumn: $$NodesTableReferences
+                                        ._parentIdTable(db)
+                                        .id,
+                                  )
+                                  as T;
+                        }
 
-                    return state;
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (itemsRefs)
+                        await $_getPrefetchedData<
+                          NodeRow,
+                          $NodesTable,
+                          ItemRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$NodesTableReferences
+                              ._itemsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$NodesTableReferences(db, table, p0).itemsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.nodeId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (resourceLinksRefs)
+                        await $_getPrefetchedData<
+                          NodeRow,
+                          $NodesTable,
+                          ResourceLinkRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$NodesTableReferences
+                              ._resourceLinksRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$NodesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).resourceLinksRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.nodeId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
                   },
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (itemsRefs)
-                    await $_getPrefetchedData<NodeRow, $NodesTable, ItemRow>(
-                      currentTable: table,
-                      referencedTable: $$NodesTableReferences._itemsRefsTable(
-                        db,
-                      ),
-                      managerFromTypedResult: (p0) =>
-                          $$NodesTableReferences(db, table, p0).itemsRefs,
-                      referencedItemsForCurrentItem: (item, referencedItems) =>
-                          referencedItems.where((e) => e.nodeId == item.id),
-                      typedResults: items,
-                    ),
-                ];
+                );
               },
-            );
-          },
         ),
       );
 }
@@ -5077,7 +5674,11 @@ typedef $$NodesTableProcessedTableManager =
       $$NodesTableUpdateCompanionBuilder,
       (NodeRow, $$NodesTableReferences),
       NodeRow,
-      PrefetchHooks Function({bool parentId, bool itemsRefs})
+      PrefetchHooks Function({
+        bool parentId,
+        bool itemsRefs,
+        bool resourceLinksRefs,
+      })
     >;
 typedef $$ItemsTableCreateCompanionBuilder =
     ItemsCompanion Function({
@@ -6469,7 +7070,8 @@ typedef $$DocumentsTableCreateCompanionBuilder =
     DocumentsCompanion Function({
       required String id,
       required String title,
-      required DocumentRole role,
+      Value<ResourceKind> kind,
+      Value<String?> url,
       required int pageCount,
       required String contentHash,
       required DateTime importedAt,
@@ -6483,7 +7085,8 @@ typedef $$DocumentsTableUpdateCompanionBuilder =
     DocumentsCompanion Function({
       Value<String> id,
       Value<String> title,
-      Value<DocumentRole> role,
+      Value<ResourceKind> kind,
+      Value<String?> url,
       Value<int> pageCount,
       Value<String> contentHash,
       Value<DateTime> importedAt,
@@ -6553,6 +7156,24 @@ final class $$DocumentsTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$ResourceLinksTable, List<ResourceLinkRow>>
+  _resourceLinksRefsTable(_$VergerDatabase db) => MultiTypedResultKey.fromTable(
+    db.resourceLinks,
+    aliasName: 'documents__id__resource_links__document_id',
+  );
+
+  $$ResourceLinksTableProcessedTableManager get resourceLinksRefs {
+    final manager = $$ResourceLinksTableTableManager(
+      $_db,
+      $_db.resourceLinks,
+    ).filter((f) => f.documentId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_resourceLinksRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$DocumentsTableFilterComposer
@@ -6574,11 +7195,16 @@ class $$DocumentsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnWithTypeConverterFilters<DocumentRole, DocumentRole, String> get role =>
+  ColumnWithTypeConverterFilters<ResourceKind, ResourceKind, String> get kind =>
       $composableBuilder(
-        column: $table.role,
+        column: $table.kind,
         builder: (column) => ColumnWithTypeConverterFilters(column),
       );
+
+  ColumnFilters<String> get url => $composableBuilder(
+    column: $table.url,
+    builder: (column) => ColumnFilters(column),
+  );
 
   ColumnFilters<int> get pageCount => $composableBuilder(
     column: $table.pageCount,
@@ -6689,6 +7315,31 @@ class $$DocumentsTableFilterComposer
     );
     return f(composer);
   }
+
+  Expression<bool> resourceLinksRefs(
+    Expression<bool> Function($$ResourceLinksTableFilterComposer f) f,
+  ) {
+    final $$ResourceLinksTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.resourceLinks,
+      getReferencedColumn: (t) => t.documentId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ResourceLinksTableFilterComposer(
+            $db: $db,
+            $table: $db.resourceLinks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$DocumentsTableOrderingComposer
@@ -6710,8 +7361,13 @@ class $$DocumentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get role => $composableBuilder(
-    column: $table.role,
+  ColumnOrderings<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get url => $composableBuilder(
+    column: $table.url,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -6766,8 +7422,11 @@ class $$DocumentsTableAnnotationComposer
   GeneratedColumn<String> get title =>
       $composableBuilder(column: $table.title, builder: (column) => column);
 
-  GeneratedColumnWithTypeConverter<DocumentRole, String> get role =>
-      $composableBuilder(column: $table.role, builder: (column) => column);
+  GeneratedColumnWithTypeConverter<ResourceKind, String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get url =>
+      $composableBuilder(column: $table.url, builder: (column) => column);
 
   GeneratedColumn<int> get pageCount =>
       $composableBuilder(column: $table.pageCount, builder: (column) => column);
@@ -6870,6 +7529,31 @@ class $$DocumentsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> resourceLinksRefs<T extends Object>(
+    Expression<T> Function($$ResourceLinksTableAnnotationComposer a) f,
+  ) {
+    final $$ResourceLinksTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.resourceLinks,
+      getReferencedColumn: (t) => t.documentId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ResourceLinksTableAnnotationComposer(
+            $db: $db,
+            $table: $db.resourceLinks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$DocumentsTableTableManager
@@ -6889,6 +7573,7 @@ class $$DocumentsTableTableManager
             bool documentFilesRefs,
             bool anchorsRefs,
             bool notesRefs,
+            bool resourceLinksRefs,
           })
         > {
   $$DocumentsTableTableManager(_$VergerDatabase db, $DocumentsTable table)
@@ -6906,7 +7591,8 @@ class $$DocumentsTableTableManager
               ({
                 Value<String> id = const Value.absent(),
                 Value<String> title = const Value.absent(),
-                Value<DocumentRole> role = const Value.absent(),
+                Value<ResourceKind> kind = const Value.absent(),
+                Value<String?> url = const Value.absent(),
                 Value<int> pageCount = const Value.absent(),
                 Value<String> contentHash = const Value.absent(),
                 Value<DateTime> importedAt = const Value.absent(),
@@ -6918,7 +7604,8 @@ class $$DocumentsTableTableManager
               }) => DocumentsCompanion(
                 id: id,
                 title: title,
-                role: role,
+                kind: kind,
+                url: url,
                 pageCount: pageCount,
                 contentHash: contentHash,
                 importedAt: importedAt,
@@ -6932,7 +7619,8 @@ class $$DocumentsTableTableManager
               ({
                 required String id,
                 required String title,
-                required DocumentRole role,
+                Value<ResourceKind> kind = const Value.absent(),
+                Value<String?> url = const Value.absent(),
                 required int pageCount,
                 required String contentHash,
                 required DateTime importedAt,
@@ -6944,7 +7632,8 @@ class $$DocumentsTableTableManager
               }) => DocumentsCompanion.insert(
                 id: id,
                 title: title,
-                role: role,
+                kind: kind,
+                url: url,
                 pageCount: pageCount,
                 contentHash: contentHash,
                 importedAt: importedAt,
@@ -6967,6 +7656,7 @@ class $$DocumentsTableTableManager
                 documentFilesRefs = false,
                 anchorsRefs = false,
                 notesRefs = false,
+                resourceLinksRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -6974,6 +7664,7 @@ class $$DocumentsTableTableManager
                     if (documentFilesRefs) db.documentFiles,
                     if (anchorsRefs) db.anchors,
                     if (notesRefs) db.notes,
+                    if (resourceLinksRefs) db.resourceLinks,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -7041,6 +7732,27 @@ class $$DocumentsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (resourceLinksRefs)
+                        await $_getPrefetchedData<
+                          DocumentRow,
+                          $DocumentsTable,
+                          ResourceLinkRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$DocumentsTableReferences
+                              ._resourceLinksRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$DocumentsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).resourceLinksRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.documentId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -7065,6 +7777,7 @@ typedef $$DocumentsTableProcessedTableManager =
         bool documentFilesRefs,
         bool anchorsRefs,
         bool notesRefs,
+        bool resourceLinksRefs,
       })
     >;
 typedef $$DocumentFilesTableCreateCompanionBuilder =
@@ -7340,7 +8053,9 @@ typedef $$AnchorsTableCreateCompanionBuilder =
       required String itemId,
       required String documentId,
       required AnchorRole role,
-      required int page,
+      Value<int?> page,
+      Value<int?> startMs,
+      Value<int?> endMs,
       Value<double?> left,
       Value<double?> top,
       Value<double?> right,
@@ -7357,7 +8072,9 @@ typedef $$AnchorsTableUpdateCompanionBuilder =
       Value<String> itemId,
       Value<String> documentId,
       Value<AnchorRole> role,
-      Value<int> page,
+      Value<int?> page,
+      Value<int?> startMs,
+      Value<int?> endMs,
       Value<double?> left,
       Value<double?> top,
       Value<double?> right,
@@ -7430,6 +8147,16 @@ class $$AnchorsTableFilterComposer
 
   ColumnFilters<int> get page => $composableBuilder(
     column: $table.page,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get startMs => $composableBuilder(
+    column: $table.startMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get endMs => $composableBuilder(
+    column: $table.endMs,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7544,6 +8271,16 @@ class $$AnchorsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get startMs => $composableBuilder(
+    column: $table.startMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get endMs => $composableBuilder(
+    column: $table.endMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<double> get left => $composableBuilder(
     column: $table.left,
     builder: (column) => ColumnOrderings(column),
@@ -7648,6 +8385,12 @@ class $$AnchorsTableAnnotationComposer
 
   GeneratedColumn<int> get page =>
       $composableBuilder(column: $table.page, builder: (column) => column);
+
+  GeneratedColumn<int> get startMs =>
+      $composableBuilder(column: $table.startMs, builder: (column) => column);
+
+  GeneratedColumn<int> get endMs =>
+      $composableBuilder(column: $table.endMs, builder: (column) => column);
 
   GeneratedColumn<double> get left =>
       $composableBuilder(column: $table.left, builder: (column) => column);
@@ -7756,7 +8499,9 @@ class $$AnchorsTableTableManager
                 Value<String> itemId = const Value.absent(),
                 Value<String> documentId = const Value.absent(),
                 Value<AnchorRole> role = const Value.absent(),
-                Value<int> page = const Value.absent(),
+                Value<int?> page = const Value.absent(),
+                Value<int?> startMs = const Value.absent(),
+                Value<int?> endMs = const Value.absent(),
                 Value<double?> left = const Value.absent(),
                 Value<double?> top = const Value.absent(),
                 Value<double?> right = const Value.absent(),
@@ -7772,6 +8517,8 @@ class $$AnchorsTableTableManager
                 documentId: documentId,
                 role: role,
                 page: page,
+                startMs: startMs,
+                endMs: endMs,
                 left: left,
                 top: top,
                 right: right,
@@ -7788,7 +8535,9 @@ class $$AnchorsTableTableManager
                 required String itemId,
                 required String documentId,
                 required AnchorRole role,
-                required int page,
+                Value<int?> page = const Value.absent(),
+                Value<int?> startMs = const Value.absent(),
+                Value<int?> endMs = const Value.absent(),
                 Value<double?> left = const Value.absent(),
                 Value<double?> top = const Value.absent(),
                 Value<double?> right = const Value.absent(),
@@ -7804,6 +8553,8 @@ class $$AnchorsTableTableManager
                 documentId: documentId,
                 role: role,
                 page: page,
+                startMs: startMs,
+                endMs: endMs,
                 left: left,
                 top: top,
                 right: right,
@@ -7900,6 +8651,8 @@ typedef $$NotesTableCreateCompanionBuilder =
       required String body,
       Value<String?> documentId,
       Value<int?> page,
+      Value<int?> startMs,
+      Value<int?> endMs,
       Value<double?> left,
       Value<double?> top,
       Value<double?> right,
@@ -7916,6 +8669,8 @@ typedef $$NotesTableUpdateCompanionBuilder =
       Value<String> body,
       Value<String?> documentId,
       Value<int?> page,
+      Value<int?> startMs,
+      Value<int?> endMs,
       Value<double?> left,
       Value<double?> top,
       Value<double?> right,
@@ -7987,6 +8742,16 @@ class $$NotesTableFilterComposer
 
   ColumnFilters<int> get page => $composableBuilder(
     column: $table.page,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get startMs => $composableBuilder(
+    column: $table.startMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get endMs => $composableBuilder(
+    column: $table.endMs,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -8096,6 +8861,16 @@ class $$NotesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get startMs => $composableBuilder(
+    column: $table.startMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get endMs => $composableBuilder(
+    column: $table.endMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<double> get left => $composableBuilder(
     column: $table.left,
     builder: (column) => ColumnOrderings(column),
@@ -8195,6 +8970,12 @@ class $$NotesTableAnnotationComposer
 
   GeneratedColumn<int> get page =>
       $composableBuilder(column: $table.page, builder: (column) => column);
+
+  GeneratedColumn<int> get startMs =>
+      $composableBuilder(column: $table.startMs, builder: (column) => column);
+
+  GeneratedColumn<int> get endMs =>
+      $composableBuilder(column: $table.endMs, builder: (column) => column);
 
   GeneratedColumn<double> get left =>
       $composableBuilder(column: $table.left, builder: (column) => column);
@@ -8296,6 +9077,8 @@ class $$NotesTableTableManager
                 Value<String> body = const Value.absent(),
                 Value<String?> documentId = const Value.absent(),
                 Value<int?> page = const Value.absent(),
+                Value<int?> startMs = const Value.absent(),
+                Value<int?> endMs = const Value.absent(),
                 Value<double?> left = const Value.absent(),
                 Value<double?> top = const Value.absent(),
                 Value<double?> right = const Value.absent(),
@@ -8310,6 +9093,8 @@ class $$NotesTableTableManager
                 body: body,
                 documentId: documentId,
                 page: page,
+                startMs: startMs,
+                endMs: endMs,
                 left: left,
                 top: top,
                 right: right,
@@ -8326,6 +9111,8 @@ class $$NotesTableTableManager
                 required String body,
                 Value<String?> documentId = const Value.absent(),
                 Value<int?> page = const Value.absent(),
+                Value<int?> startMs = const Value.absent(),
+                Value<int?> endMs = const Value.absent(),
                 Value<double?> left = const Value.absent(),
                 Value<double?> top = const Value.absent(),
                 Value<double?> right = const Value.absent(),
@@ -8340,6 +9127,8 @@ class $$NotesTableTableManager
                 body: body,
                 documentId: documentId,
                 page: page,
+                startMs: startMs,
+                endMs: endMs,
                 left: left,
                 top: top,
                 right: right,
@@ -8430,6 +9219,359 @@ typedef $$NotesTableProcessedTableManager =
       NoteRow,
       PrefetchHooks Function({bool documentId, bool itemId})
     >;
+typedef $$ResourceLinksTableCreateCompanionBuilder =
+    ResourceLinksCompanion Function({
+      required String documentId,
+      required String nodeId,
+      Value<int> rowid,
+    });
+typedef $$ResourceLinksTableUpdateCompanionBuilder =
+    ResourceLinksCompanion Function({
+      Value<String> documentId,
+      Value<String> nodeId,
+      Value<int> rowid,
+    });
+
+final class $$ResourceLinksTableReferences
+    extends
+        BaseReferences<_$VergerDatabase, $ResourceLinksTable, ResourceLinkRow> {
+  $$ResourceLinksTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $DocumentsTable _documentIdTable(_$VergerDatabase db) =>
+      db.documents.createAlias('resource_links__document_id__documents__id');
+
+  $$DocumentsTableProcessedTableManager get documentId {
+    final $_column = $_itemColumn<String>('document_id')!;
+
+    final manager = $$DocumentsTableTableManager(
+      $_db,
+      $_db.documents,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_documentIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $NodesTable _nodeIdTable(_$VergerDatabase db) =>
+      db.nodes.createAlias('resource_links__node_id__nodes__id');
+
+  $$NodesTableProcessedTableManager get nodeId {
+    final $_column = $_itemColumn<String>('node_id')!;
+
+    final manager = $$NodesTableTableManager(
+      $_db,
+      $_db.nodes,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_nodeIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$ResourceLinksTableFilterComposer
+    extends Composer<_$VergerDatabase, $ResourceLinksTable> {
+  $$ResourceLinksTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  $$DocumentsTableFilterComposer get documentId {
+    final $$DocumentsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.documentId,
+      referencedTable: $db.documents,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DocumentsTableFilterComposer(
+            $db: $db,
+            $table: $db.documents,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$NodesTableFilterComposer get nodeId {
+    final $$NodesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.nodeId,
+      referencedTable: $db.nodes,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$NodesTableFilterComposer(
+            $db: $db,
+            $table: $db.nodes,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ResourceLinksTableOrderingComposer
+    extends Composer<_$VergerDatabase, $ResourceLinksTable> {
+  $$ResourceLinksTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  $$DocumentsTableOrderingComposer get documentId {
+    final $$DocumentsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.documentId,
+      referencedTable: $db.documents,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DocumentsTableOrderingComposer(
+            $db: $db,
+            $table: $db.documents,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$NodesTableOrderingComposer get nodeId {
+    final $$NodesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.nodeId,
+      referencedTable: $db.nodes,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$NodesTableOrderingComposer(
+            $db: $db,
+            $table: $db.nodes,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ResourceLinksTableAnnotationComposer
+    extends Composer<_$VergerDatabase, $ResourceLinksTable> {
+  $$ResourceLinksTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  $$DocumentsTableAnnotationComposer get documentId {
+    final $$DocumentsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.documentId,
+      referencedTable: $db.documents,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$DocumentsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.documents,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$NodesTableAnnotationComposer get nodeId {
+    final $$NodesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.nodeId,
+      referencedTable: $db.nodes,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$NodesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.nodes,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ResourceLinksTableTableManager
+    extends
+        RootTableManager<
+          _$VergerDatabase,
+          $ResourceLinksTable,
+          ResourceLinkRow,
+          $$ResourceLinksTableFilterComposer,
+          $$ResourceLinksTableOrderingComposer,
+          $$ResourceLinksTableAnnotationComposer,
+          $$ResourceLinksTableCreateCompanionBuilder,
+          $$ResourceLinksTableUpdateCompanionBuilder,
+          (ResourceLinkRow, $$ResourceLinksTableReferences),
+          ResourceLinkRow,
+          PrefetchHooks Function({bool documentId, bool nodeId})
+        > {
+  $$ResourceLinksTableTableManager(
+    _$VergerDatabase db,
+    $ResourceLinksTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ResourceLinksTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ResourceLinksTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ResourceLinksTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> documentId = const Value.absent(),
+                Value<String> nodeId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ResourceLinksCompanion(
+                documentId: documentId,
+                nodeId: nodeId,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String documentId,
+                required String nodeId,
+                Value<int> rowid = const Value.absent(),
+              }) => ResourceLinksCompanion.insert(
+                documentId: documentId,
+                nodeId: nodeId,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$ResourceLinksTable, ResourceLinkRow>(table),
+                  $$ResourceLinksTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({documentId = false, nodeId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (documentId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.documentId,
+                                referencedTable: $$ResourceLinksTableReferences
+                                    ._documentIdTable(db),
+                                referencedColumn: $$ResourceLinksTableReferences
+                                    ._documentIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+                    if (nodeId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.nodeId,
+                                referencedTable: $$ResourceLinksTableReferences
+                                    ._nodeIdTable(db),
+                                referencedColumn: $$ResourceLinksTableReferences
+                                    ._nodeIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$ResourceLinksTableProcessedTableManager =
+    ProcessedTableManager<
+      _$VergerDatabase,
+      $ResourceLinksTable,
+      ResourceLinkRow,
+      $$ResourceLinksTableFilterComposer,
+      $$ResourceLinksTableOrderingComposer,
+      $$ResourceLinksTableAnnotationComposer,
+      $$ResourceLinksTableCreateCompanionBuilder,
+      $$ResourceLinksTableUpdateCompanionBuilder,
+      (ResourceLinkRow, $$ResourceLinksTableReferences),
+      ResourceLinkRow,
+      PrefetchHooks Function({bool documentId, bool nodeId})
+    >;
 
 class $VergerDatabaseManager {
   final _$VergerDatabase _db;
@@ -8450,4 +9592,6 @@ class $VergerDatabaseManager {
       $$AnchorsTableTableManager(_db, _db.anchors);
   $$NotesTableTableManager get notes =>
       $$NotesTableTableManager(_db, _db.notes);
+  $$ResourceLinksTableTableManager get resourceLinks =>
+      $$ResourceLinksTableTableManager(_db, _db.resourceLinks);
 }

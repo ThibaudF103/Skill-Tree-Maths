@@ -3,6 +3,7 @@ import 'package:verger_core/verger_core.dart';
 
 import '../../app/app_scope.dart';
 import '../../pdf/pdf_region_view.dart';
+import '../../ui/labels.dart';
 import '../documents/document_viewer_page.dart';
 
 /// Zone de PDF (recto ou verso), en vectoriel avec texte sélectionnable si
@@ -25,13 +26,20 @@ class AnchorSnapshot extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
       ),
       clipBehavior: Clip.antiAlias,
-      child: PdfRegionView(
-        store: AppScope.of(context).store,
-        documentId: anchor.documentId,
-        page: anchor.page,
-        region: anchor.region ?? const NormalizedRect(0, 0, 1, 1),
-        snapshot: snapshot,
-      ),
+      child: anchor.page == null
+          ? SizedBox(
+              height: 60,
+              child: Center(
+                child: Text('Extrait vidéo · ${anchorPlace(anchor)}'),
+              ),
+            )
+          : PdfRegionView(
+              store: AppScope.of(context).store,
+              documentId: anchor.documentId,
+              page: anchor.page!,
+              region: anchor.region ?? const NormalizedRect(0, 0, 1, 1),
+              snapshot: snapshot,
+            ),
     );
   }
 }
@@ -62,10 +70,17 @@ class _AnchorsSectionState extends State<AnchorsSection> {
     BuildContext context,
     List<SourceDocument> documents,
   ) async {
-    if (documents.isEmpty) {
+    final pdfs = [
+      for (final d in documents)
+        if (d.isPdf) d,
+    ];
+    if (pdfs.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Importez d\'abord un PDF dans l\'onglet Documents.'),
+          content: Text(
+            'Importez d\'abord un PDF (Bibliothèque, ou Contenus d\'une '
+            'branche).',
+          ),
         ),
       );
       return;
@@ -75,24 +90,13 @@ class _AnchorsSectionState extends State<AnchorsSection> {
       builder: (context) => SimpleDialog(
         title: const Text('Depuis quel PDF ?'),
         children: [
-          for (final d in documents)
+          for (final d in pdfs)
             SimpleDialogOption(
               onPressed: () => Navigator.pop(context, d),
               child: ListTile(
-                leading: Icon(
-                  d.role == DocumentRole.course
-                      ? Icons.menu_book_outlined
-                      : Icons.draw_outlined,
-                  color: d.role == DocumentRole.course
-                      ? rectoColor
-                      : versoColor,
-                ),
+                leading: const Icon(Icons.picture_as_pdf_outlined),
                 title: Text(d.title),
-                subtitle: Text(
-                  d.role == DocumentRole.course
-                      ? 'Cours : la zone sera le recto'
-                      : 'Notes : la zone sera le verso',
-                ),
+                subtitle: Text('${d.pageCount} pages'),
               ),
             ),
         ],
@@ -182,7 +186,8 @@ class _AnchorCard extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                '${document?.title ?? 'Document supprimé'} · p. ${anchor.page}',
+                '${document?.title ?? 'Contenu supprimé'} · '
+                '${anchorPlace(anchor)}',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.outline,
                 ),
@@ -199,7 +204,7 @@ class _AnchorCard extends StatelessWidget {
                   visualDensity: VisualDensity.compact,
                 ),
               ),
-            if (document != null)
+            if (document != null && document!.isPdf)
               IconButton(
                 tooltip: 'Ouvrir dans le PDF',
                 icon: const Icon(Icons.open_in_new),

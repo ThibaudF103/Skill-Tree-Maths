@@ -404,17 +404,20 @@ class VergerStore {
   }
 
   /// Ajoute un PDF à la bibliothèque. [fingerprints] : une empreinte par page.
+  /// Le contenu est rattaché aux nœuds [nodeIds].
   Future<SourceDocument> importDocument({
     required String title,
-    required DocumentRole role,
     required Uint8List bytes,
     required String contentHash,
     required List<Uint8List> fingerprints,
+    String? url,
+    Iterable<String> nodeIds = const [],
   }) => _db.transaction(() async {
     final row = DocumentRow(
       id: newId(),
       title: title.trim(),
-      role: role,
+      kind: ResourceKind.pdf,
+      url: _blankToNull(url),
       pageCount: fingerprints.length,
       contentHash: contentHash,
       importedAt: _now(),
@@ -427,15 +430,72 @@ class VergerStore {
     await _db
         .into(_db.documentFiles)
         .insert(DocumentFileRow(documentId: row.id, bytes: bytes));
+    for (final nodeId in nodeIds) {
+      await linkResource(row.id, nodeId);
+    }
     return _toDocument(row);
   });
+
+  /// Ajoute une vidéo en ligne ([videoId] : identifiant YouTube), rattachée
+  /// aux nœuds [nodeIds].
+  Future<SourceDocument> addVideo({
+    required String title,
+    required String url,
+    required String videoId,
+    Iterable<String> nodeIds = const [],
+  }) => _db.transaction(() async {
+    final row = DocumentRow(
+      id: newId(),
+      title: title.trim(),
+      kind: ResourceKind.video,
+      url: url.trim(),
+      pageCount: 0,
+      contentHash: videoId,
+      importedAt: _now(),
+      version: 1,
+      fingerprints: Uint8List(0),
+      newPages: '[]',
+      lastPage: 1,
+    );
+    await _db.into(_db.documents).insert(row);
+    for (final nodeId in nodeIds) {
+      await linkResource(row.id, nodeId);
+    }
+    return _toDocument(row);
+  });
+
+  // --- Rattachement des contenus aux nœuds ----------------------------------
+
+  Future<void> linkResource(String documentId, String nodeId) => _db
+      .into(_db.resourceLinks)
+      .insertOnConflictUpdate(
+        ResourceLinkRow(documentId: documentId, nodeId: nodeId),
+      );
+
+  Future<void> unlinkResource(String documentId, String nodeId) =>
+      (_db.delete(_db.resourceLinks)..where(
+            (l) => l.documentId.equals(documentId) & l.nodeId.equals(nodeId),
+          ))
+          .go();
+
+  Future<List<ResourceLink>> resourceLinks() async =>
+      (await _db.select(_db.resourceLinks).get()).map(_toLink).toList();
+
+  Stream<List<ResourceLink>> watchResourceLinks() => _db
+      .select(_db.resourceLinks)
+      .watch()
+      .map((rows) => rows.map(_toLink).toList());
+
+  static ResourceLink _toLink(ResourceLinkRow row) =>
+      (documentId: row.documentId, nodeId: row.nodeId);
 
   Future<void> renameDocument(String id, String title) =>
       (_db.update(_db.documents)..where((d) => d.id.equals(id))).write(
         DocumentsCompanion(title: Value(title.trim())),
       );
 
-  /// Supprime le PDF et toutes les ancres qui y renvoient.
+  /// Supprime le contenu, ses rattachements et toutes les ancres qui y
+  /// renvoient.
   Future<void> deleteDocument(String id) =>
       (_db.delete(_db.documents)..where((d) => d.id.equals(id))).go();
 
@@ -456,8 +516,8 @@ class VergerStore {
     for (final anchor in await _anchorsQuery(documentId: id).get()) {
       // Déjà à vérifier : son numéro de page ne désigne plus rien de sûr dans
       // la version actuelle, on ne le recale pas au hasard.
-      if (anchor.needsReview) continue;
-      final match = remap.matches[anchor.page];
+      if (anchor.needsReview || anchor.page == null) continue;
+      final match = remap.matches[anchor.page!];
       if (match?.page != null) {
         if (match!.page != anchor.page) moved++;
         await (_db.update(_db.anchors)..where((a) => a.id.equals(anchor.id)))
@@ -502,7 +562,9 @@ class VergerStore {
     required String itemId,
     required String documentId,
     required AnchorRole role,
-    required int page,
+    int? page,
+    int? startMs,
+    int? endMs,
     NormalizedRect? region,
     String? textSnippet,
     Uint8List? snapshot,
@@ -513,6 +575,8 @@ class VergerStore {
       documentId: documentId,
       role: role,
       page: page,
+      startMs: startMs,
+      endMs: endMs,
       region: region,
       textSnippet: _blankToNull(textSnippet),
       snapshot: snapshot,
@@ -558,6 +622,8 @@ class VergerStore {
     String body = '',
     String? documentId,
     int? page,
+    int? startMs,
+    int? endMs,
     NormalizedRect? region,
     Uint8List? snapshot,
     String? itemId,
@@ -568,6 +634,8 @@ class VergerStore {
       body: body,
       documentId: documentId,
       page: page,
+      startMs: startMs,
+      endMs: endMs,
       region: region,
       snapshot: snapshot,
       itemId: itemId,
@@ -644,6 +712,7 @@ class VergerStore {
       documents: await allDocuments(),
       anchors: (await _anchorsQuery().get()).map(_toAnchor).toList(),
       notes: (await _notesQuery().get()).map(_toNote).toList(),
+      resourceLinks: await resourceLinks(),
     );
   }
 
@@ -653,6 +722,7 @@ class VergerStore {
       _db.transaction(() async {
         archive.validate();
         await _db.delete(_db.reviewLogs).go();
+        await _db.delete(_db.resourceLinks).go();
         await _db.delete(_db.notes).go();
         await _db.delete(_db.anchors).go();
         await _db.delete(_db.items).go();
@@ -682,7 +752,8 @@ class VergerStore {
                 DocumentRow(
                   id: d.id,
                   title: d.title,
-                  role: d.role,
+                  kind: d.kind,
+                  url: d.url,
                   pageCount: d.pageCount,
                   contentHash: d.contentHash,
                   importedAt: d.importedAt.toUtc(),
@@ -702,6 +773,9 @@ class VergerStore {
         }
         for (final note in archive.notes) {
           await _db.into(_db.notes).insert(_noteRow(note));
+        }
+        for (final link in archive.resourceLinks) {
+          await linkResource(link.documentId, link.nodeId);
         }
         for (final review in archive.reviews) {
           await _insertReview(review.itemId, review.record);
@@ -855,10 +929,8 @@ class VergerStore {
   }
 
   SimpleSelectStatement<$DocumentsTable, DocumentRow> _documentsQuery() =>
-      _db.select(_db.documents)..orderBy([
-        (d) => OrderingTerm.asc(d.role),
-        (d) => OrderingTerm.asc(d.title),
-      ]);
+      _db.select(_db.documents)
+        ..orderBy([(d) => OrderingTerm.asc(d.title.lower())]);
 
   SimpleSelectStatement<$AnchorsTable, AnchorRow> _anchorsQuery({
     String? itemId,
@@ -893,6 +965,8 @@ class VergerStore {
     body: row.body,
     documentId: row.documentId,
     page: row.page,
+    startMs: row.startMs,
+    endMs: row.endMs,
     region:
         row.left == null ||
             row.top == null ||
@@ -911,6 +985,8 @@ class VergerStore {
     body: n.body,
     documentId: n.documentId,
     page: n.page,
+    startMs: n.startMs,
+    endMs: n.endMs,
     left: n.region?.left,
     top: n.region?.top,
     right: n.region?.right,
@@ -941,7 +1017,8 @@ class VergerStore {
   static SourceDocument _toDocument(DocumentRow row) => SourceDocument(
     id: row.id,
     title: row.title,
-    role: row.role,
+    kind: row.kind,
+    url: row.url,
     pageCount: row.pageCount,
     contentHash: row.contentHash,
     importedAt: row.importedAt.toUtc(),
@@ -957,6 +1034,8 @@ class VergerStore {
     documentId: row.documentId,
     role: row.role,
     page: row.page,
+    startMs: row.startMs,
+    endMs: row.endMs,
     region:
         row.left == null ||
             row.top == null ||
@@ -976,6 +1055,8 @@ class VergerStore {
     documentId: a.documentId,
     role: a.role,
     page: a.page,
+    startMs: a.startMs,
+    endMs: a.endMs,
     left: a.region?.left,
     top: a.region?.top,
     right: a.region?.right,

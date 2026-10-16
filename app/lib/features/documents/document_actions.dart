@@ -3,24 +3,20 @@ import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:verger_core/verger_core.dart';
 import 'package:verger_data/verger_data.dart';
 
 import '../../app/app_scope.dart';
 import '../../pdf/pdf_tools.dart';
+import '../trees/node_picker.dart';
 import 'document_viewer_page.dart';
 
-extension DocumentRoleLabel on DocumentRole {
-  String get label => switch (this) {
-    DocumentRole.course => 'Cours',
-    DocumentRole.notes => 'Notes',
-  };
-
-  String get hint => switch (this) {
-    DocumentRole.course => 'PDF d\'où viennent les énoncés (recto)',
-    DocumentRole.notes => 'Notes manuscrites exportées, ex. CollaNote (verso)',
-  };
-}
+/// Icône d'un contenu selon sa nature.
+IconData resourceIcon(SourceDocument document) => switch (document.kind) {
+  ResourceKind.pdf => Icons.picture_as_pdf_outlined,
+  ResourceKind.video => Icons.smart_display_outlined,
+};
 
 void _notify(BuildContext context, String message) {
   ScaffoldMessenger.of(context)
@@ -77,21 +73,23 @@ Future<PdfAnalysis?> _analyzeWithProgress(
   }
 }
 
-/// Importe un PDF dans la bibliothèque.
+/// Importe un PDF dans la bibliothèque, rattaché à [nodeId] s'il est donné
+/// (sinon, au choix dans le formulaire).
 Future<SourceDocument?> importPdf(
   BuildContext context, {
-  DocumentRole? role,
+  String? nodeId,
 }) async {
   final store = AppScope.of(context).store;
   final picked = await _pickPdf();
   if (picked == null || !context.mounted) return null;
   final (name, bytes) = picked;
 
-  final choice = await showDialog<(String, DocumentRole)>(
+  final choice = await showDialog<(String, String?)>(
     context: context,
-    builder: (_) => _ImportDialog(initialTitle: name, initialRole: role),
+    builder: (_) => _ImportDialog(initialTitle: name, nodeId: nodeId),
   );
   if (choice == null || !context.mounted) return null;
+  final (title, targetNode) = choice;
 
   final analysis = await _analyzeWithProgress(context, bytes);
   if (analysis == null || !context.mounted) return null;
@@ -99,20 +97,22 @@ Future<SourceDocument?> importPdf(
       .where((d) => d.contentHash == analysis.contentHash)
       .firstOrNull;
   if (existing != null) {
+    if (targetNode != null) await store.linkResource(existing.id, targetNode);
     if (context.mounted) {
       _notify(
         context,
-        'Ce PDF est déjà dans la bibliothèque : « ${existing.title} ».',
+        'Ce PDF est déjà dans la bibliothèque : « ${existing.title} »'
+        '${targetNode != null ? ', rattaché ici' : ''}.',
       );
     }
     return existing;
   }
   final document = await store.importDocument(
-    title: choice.$1,
-    role: choice.$2,
+    title: title,
     bytes: bytes,
     contentHash: analysis.contentHash,
     fingerprints: analysis.fingerprints,
+    nodeIds: [?targetNode],
   );
   if (context.mounted) {
     _notify(
@@ -121,6 +121,75 @@ Future<SourceDocument?> importPdf(
     );
   }
   return document;
+}
+
+/// Rattache [document] à une branche choisie dans l'arbre.
+Future<void> linkResourceToNode(
+  BuildContext context,
+  SourceDocument document,
+) async {
+  final store = AppScope.of(context).store;
+  final node = await pickNode(
+    context,
+    title: 'Rattacher « ${document.title} » à…',
+  );
+  if (node == null) return;
+  await store.linkResource(document.id, node.id);
+  if (context.mounted) {
+    _notify(context, '« ${document.title} » rattaché à « ${node.title} ».');
+  }
+}
+
+/// Choisit un contenu de la bibliothèque (sauf [exclude]).
+Future<SourceDocument?> pickResource(
+  BuildContext context, {
+  required String title,
+  Set<String> exclude = const {},
+}) async {
+  final store = AppScope.of(context).store;
+  final documents = [
+    for (final d in await store.allDocuments())
+      if (!exclude.contains(d.id)) d,
+  ];
+  if (!context.mounted) return null;
+  return showDialog<SourceDocument>(
+    context: context,
+    builder: (context) => SimpleDialog(
+      title: Text(title),
+      children: [
+        if (documents.isEmpty)
+          const Padding(
+            padding: EdgeInsets.all(24),
+            child: Text('La bibliothèque est vide.'),
+          ),
+        for (final d in documents)
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, d),
+            child: Row(
+              children: [
+                Icon(resourceIcon(d)),
+                const SizedBox(width: 12),
+                Expanded(child: Text(d.title)),
+              ],
+            ),
+          ),
+      ],
+    ),
+  );
+}
+
+/// Ouvre un contenu : visionneuse pour un PDF, navigateur pour une vidéo.
+Future<void> openResource(BuildContext context, SourceDocument document) async {
+  if (document.isVideo) {
+    final url = Uri.tryParse(document.url ?? '');
+    if (url != null) await launchUrl(url);
+    return;
+  }
+  await Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => DocumentViewerPage(documentId: document.id),
+    ),
+  );
 }
 
 /// Remplace le PDF par une nouvelle version et recale les ancres.
@@ -187,10 +256,10 @@ Future<void> updatePdf(BuildContext context, SourceDocument document) async {
 }
 
 class _ImportDialog extends StatefulWidget {
-  const _ImportDialog({required this.initialTitle, this.initialRole});
+  const _ImportDialog({required this.initialTitle, this.nodeId});
 
   final String initialTitle;
-  final DocumentRole? initialRole;
+  final String? nodeId;
 
   @override
   State<_ImportDialog> createState() => _ImportDialogState();
@@ -198,7 +267,33 @@ class _ImportDialog extends StatefulWidget {
 
 class _ImportDialogState extends State<_ImportDialog> {
   late final _title = TextEditingController(text: widget.initialTitle);
-  late DocumentRole _role = widget.initialRole ?? DocumentRole.course;
+  late String? _nodeId = widget.nodeId;
+  String? _nodePath;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_nodeId != null && _nodePath == null) _loadPath();
+  }
+
+  Future<void> _loadPath() async {
+    final nodes = await AppScope.of(context).store.allNodes();
+    if (!mounted) return;
+    setState(
+      () => _nodePath = nodePath({for (final n in nodes) n.id: n}, _nodeId!),
+    );
+  }
+
+  Future<void> _chooseNode() async {
+    final node = await pickNode(
+      context,
+      title: 'Rattacher à…',
+      initialId: _nodeId,
+    );
+    if (node == null || !mounted) return;
+    _nodeId = node.id;
+    await _loadPath();
+  }
 
   @override
   void dispose() {
@@ -208,6 +303,7 @@ class _ImportDialogState extends State<_ImportDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return AlertDialog(
       title: const Text('Importer un PDF'),
       content: SizedBox(
@@ -223,21 +319,25 @@ class _ImportDialogState extends State<_ImportDialog> {
                 border: OutlineInputBorder(),
               ),
             ),
-            const SizedBox(height: 16),
-            SegmentedButton<DocumentRole>(
-              segments: [
-                for (final role in DocumentRole.values)
-                  ButtonSegment(value: role, label: Text(role.label)),
-              ],
-              selected: {_role},
-              showSelectedIcon: false,
-              onSelectionChanged: (s) => setState(() => _role = s.first),
+            const SizedBox(height: 12),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.account_tree_outlined),
+              title: const Text('Rattaché à'),
+              subtitle: Text(
+                _nodeId == null
+                    ? 'Aucune branche (bibliothèque seulement)'
+                    : _nodePath ?? '…',
+              ),
+              trailing: TextButton(
+                onPressed: _chooseNode,
+                child: Text(_nodeId == null ? 'Choisir' : 'Changer'),
+              ),
             ),
-            const SizedBox(height: 6),
             Text(
-              _role.hint,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.outline,
+              'Un même contenu peut servir à plusieurs branches.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.outline,
               ),
             ),
           ],
@@ -251,7 +351,7 @@ class _ImportDialogState extends State<_ImportDialog> {
         FilledButton(
           onPressed: () {
             final title = _title.text.trim();
-            if (title.isNotEmpty) Navigator.pop(context, (title, _role));
+            if (title.isNotEmpty) Navigator.pop(context, (title, _nodeId));
           },
           child: const Text('Importer'),
         ),
