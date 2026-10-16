@@ -50,6 +50,9 @@ jobs:
     name: Exécutable Windows
     needs: test
     runs-on: windows-latest
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -63,7 +66,34 @@ jobs:
           flutter pub get
           flutter build windows --release
       - uses: actions/upload-artifact@v4
+        id: upload
         with:
           name: verger-windows
           path: app/build/windows/x64/runner/Release/
           retention-days: 30
+      # Lien direct vers l'exécutable dans la PR (un seul commentaire, mis à
+      # jour à chaque compilation).
+      - name: Lien dans la PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        env:
+          ARTIFACT_URL: ${{ steps.upload.outputs.artifact-url }}
+        with:
+          script: |
+            const marker = '<!-- verger-windows -->';
+            const sha = context.payload.pull_request.head.sha.slice(0, 7);
+            const body = [
+              marker,
+              `**Exécutable Windows** (commit ${sha}) : [télécharger verger-windows.zip](${process.env.ARTIFACT_URL})`,
+              '',
+              'Décompresser puis lancer `verger.exe`. Lien valable 30 jours, connexion à GitHub requise.',
+            ].join('\n');
+            const { owner, repo } = context.repo;
+            const issue_number = context.payload.pull_request.number;
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
+            const previous = comments.find((c) => c.body?.includes(marker));
+            if (previous) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: previous.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
