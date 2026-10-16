@@ -1,8 +1,8 @@
 name: CI
 
-# Minutes GitHub Actions comptées sur le forfait du dépôt privé : une seule
-# exécution par commit (les PR via pull_request, main via push), et une
-# exécution dépassée par un nouveau commit est annulée.
+# Une seule exécution par commit (les PR via pull_request, main via push),
+# et une exécution dépassée par un nouveau commit est annulée : la CI reste
+# rapide et sobre (et tiendrait dans le forfait d'un dépôt privé).
 on:
   push:
     branches: [main]
