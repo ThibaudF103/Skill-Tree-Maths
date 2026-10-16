@@ -90,6 +90,32 @@ final class PrerequisiteGraph {
     return out.length == items.length ? out : null;
   }
 
+  /// Liens entre [items] sans ceux qu'un autre chemin entre [items]
+  /// implique déjà (réduction transitive) : si C s'appuie sur B qui s'appuie
+  /// sur A, le lien direct C → A est omis. `null` si cycle.
+  List<Prerequisite>? reduction(List<String> items) {
+    final sorted = order(items);
+    if (sorted == null) return null;
+    final present = items.toSet();
+    final below = <String, Set<String>>{};
+    final out = <Prerequisite>[];
+    for (final i in sorted) {
+      final direct = requires(i).where(present.contains).toList();
+      final reach = <String>{};
+      for (final r in direct) {
+        reach
+          ..add(r)
+          ..addAll(below[r]!);
+      }
+      below[i] = reach;
+      for (final r in direct) {
+        final implied = direct.any((o) => o != r && below[o]!.contains(r));
+        if (!implied) out.add((itemId: i, requiresId: r));
+      }
+    }
+    return out;
+  }
+
   /// Niveau de chaque connaissance : 0 sans prérequis, sinon un de plus que
   /// le plus haut de ses prérequis (parmi [items]). `null` si cycle.
   Map<String, int>? levels(List<String> items) {

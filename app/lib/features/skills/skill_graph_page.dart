@@ -29,6 +29,7 @@ class SkillGraphPage extends StatefulWidget {
 class _SkillGraphPageState extends State<SkillGraphPage> {
   Stream<List<Prerequisite>>? _edges;
   bool _showUnlinked = false;
+  bool _showExercises = true;
   String? _selected;
 
   @override
@@ -56,6 +57,7 @@ class _SkillGraphPageState extends State<SkillGraphPage> {
             nodeId: widget.nodeId,
             edges: edges.data!,
             showUnlinked: _showUnlinked,
+            showExercises: _showExercises,
             scheduler: AppScope.of(context).scheduler,
             mastery: AppScope.of(context).mastery,
           );
@@ -66,6 +68,15 @@ class _SkillGraphPageState extends State<SkillGraphPage> {
             appBar: AppBar(
               title: Text('Compétences · $title'),
               actions: [
+                if (model.exerciseCount > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: FilterChip(
+                      label: Text('Exercices (${model.exerciseCount})'),
+                      selected: _showExercises,
+                      onSelected: (v) => setState(() => _showExercises = v),
+                    ),
+                  ),
                 if (model.unlinkedCount > 0)
                   Padding(
                     padding: const EdgeInsets.only(right: 12),
@@ -142,27 +153,37 @@ class SkillGraphModel {
     required this.graph,
     required this.cards,
     required this.layout,
+    required this.bandTitles,
     required this.edges,
     required this.unlinkedCount,
+    required this.exerciseCount,
   });
 
   final PrerequisiteGraph graph;
   final Map<String, SkillCard> cards;
   final SkillLayout layout;
 
-  /// Flèches affichées (les deux bouts sont dans le graphe).
+  /// Titre de chaque bande (sous-branche), dans l'ordre de [layout].
+  final List<String> bandTitles;
+
+  /// Flèches affichées : les deux bouts sont dans le graphe, et celles
+  /// qu'un autre chemin implique déjà sont omises (réduction transitive).
   final List<Prerequisite> edges;
 
   /// Connaissances de la branche sans aucun lien, masquées par défaut.
   final int unlinkedCount;
 
-  Map<String, ({int column, int row})> get cells => layout.cells;
+  /// Exercices de la branche qu'on peut afficher (ou masquer).
+  final int exerciseCount;
+
+  Map<String, SkillCell> get cells => layout.cells;
 
   factory SkillGraphModel.of({
     required TreeData data,
     required String nodeId,
     required List<Prerequisite> edges,
     required bool showUnlinked,
+    bool showExercises = true,
     Scheduler? scheduler,
     MasteryModel mastery = const MasteryModel(),
   }) {
@@ -172,14 +193,19 @@ class SkillGraphModel {
     final byId = {for (final i in data.items) i.id: i};
     bool linked(String id) =>
         graph.requires(id).isNotEmpty || graph.usedBy(id).isNotEmpty;
+    bool exercise(KnowledgeItem i) => i.kind.family == ItemFamily.exercise;
     final shown = [
       for (final i in scope)
-        if (showUnlinked || linked(i.id)) i,
+        if ((showUnlinked || linked(i.id)) && (showExercises || !exercise(i)))
+          i,
     ];
     final external = <String>{
       for (final i in shown)
         for (final r in graph.requires(i.id))
-          if (!inScope.contains(r) && byId.containsKey(r)) r,
+          if (!inScope.contains(r) &&
+              byId.containsKey(r) &&
+              (showExercises || !exercise(byId[r]!)))
+            r,
     };
     final ids = [
       for (final i in data.items)
@@ -211,15 +237,52 @@ class SkillGraphModel {
         }(),
     };
     final present = cards.keys.toSet();
+    // Bandes : une par sous-branche directe de [nodeId] (ou la branche
+    // elle-même), plus une pour les prérequis venus d'ailleurs.
+    const elsewhere = '';
+    String groupOf(String id) {
+      if (external.contains(id)) return elsewhere;
+      final path = data.pathTo(byId[id]!.nodeId);
+      final at = path.indexWhere((n) => n.id == nodeId);
+      return at >= 0 && at + 1 < path.length ? path[at + 1].id : nodeId;
+    }
+
+    // Bandes dans l'ordre des sous-branches ; la branche elle-même (ses
+    // connaissances directes) en dernier.
+    final rank = {
+      elsewhere: -1,
+      for (final (n, c) in data.children(nodeId).indexed) c.id: n,
+      nodeId: 1 << 30,
+    };
+    final start = {for (final (n, id) in ids.indexed) id: n};
+    ids.sort((a, b) {
+      final byBand = rank[groupOf(a)]!.compareTo(rank[groupOf(b)]!);
+      return byBand != 0 ? byBand : start[a]!.compareTo(start[b]!);
+    });
+    final layout = SkillLayout.of(ids, graph, groupOf: groupOf);
     return SkillGraphModel._(
       graph: graph,
       cards: cards,
-      layout: SkillLayout.of(ids, graph),
-      edges: [
-        for (final e in edges)
-          if (present.contains(e.itemId) && present.contains(e.requiresId)) e,
+      layout: layout,
+      bandTitles: [
+        for (final b in layout.bands)
+          b.group == elsewhere
+              ? 'Prérequis venus d\'autres branches'
+              : b.group == nodeId
+              ? 'Directement dans « ${data.byId[nodeId]?.title} »'
+              : data.byId[b.group]?.title ?? '',
       ],
+      edges:
+          graph.reduction(ids) ??
+          [
+            for (final e in edges)
+              if (present.contains(e.itemId) && present.contains(e.requiresId))
+                e,
+          ],
       unlinkedCount: scope.where((i) => !linked(i.id)).length,
+      exerciseCount: scope
+          .where((i) => exercise(i) && (showUnlinked || linked(i.id)))
+          .length,
     );
   }
 }
@@ -229,11 +292,40 @@ const _cardHeight = 64.0;
 const _columnGap = 80.0;
 const _rowGap = 16.0;
 const _margin = 32.0;
+const _bandHeader = 36.0;
+const _bandGap = 16.0;
 
-Offset _origin(({int column, int row}) cell) => Offset(
-  _margin + cell.column * (_cardWidth + _columnGap),
-  _margin + cell.row * (_cardHeight + _rowGap),
-);
+/// Positions en pixels : cartes, bandes et taille totale.
+class _Geometry {
+  _Geometry(SkillLayout layout) {
+    var top = _margin;
+    for (final band in layout.bands) {
+      final height =
+          _bandHeader +
+          band.rowCount * _cardHeight +
+          math.max(0, band.rowCount - 1) * _rowGap;
+      bands.add(Rect.fromLTWH(0, top, 0, height));
+      top += height + _bandGap;
+    }
+    size = Size(
+      2 * _margin +
+          layout.columnCount * _cardWidth +
+          math.max(0, layout.columnCount - 1) * _columnGap,
+      top - _bandGap + _margin,
+    );
+    for (final MapEntry(key: id, value: cell) in layout.cells.entries) {
+      origins[id] = Offset(
+        _margin + cell.column * (_cardWidth + _columnGap),
+        bands[cell.band].top + _bandHeader + cell.row * (_cardHeight + _rowGap),
+      );
+    }
+  }
+
+  /// Bandes (seuls le haut et la hauteur comptent).
+  final bands = <Rect>[];
+  final origins = <String, Offset>{};
+  late final Size size;
+}
 
 class _GraphView extends StatelessWidget {
   const _GraphView({
@@ -248,15 +340,8 @@ class _GraphView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final layout = model.layout;
-    final size = Size(
-      2 * _margin +
-          layout.columnCount * _cardWidth +
-          math.max(0, layout.columnCount - 1) * _columnGap,
-      2 * _margin +
-          layout.rowCount * _cardHeight +
-          math.max(0, layout.rowCount - 1) * _rowGap,
-    );
+    final geometry = _Geometry(model.layout);
+    final size = geometry.size;
     final selected = this.selected;
     final chain = selected == null
         ? null
@@ -265,7 +350,8 @@ class _GraphView extends StatelessWidget {
             ...model.graph.ancestors(selected),
             ...model.graph.descendants(selected),
           };
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     return InteractiveViewer(
       constrained: false,
       minScale: 0.2,
@@ -275,21 +361,52 @@ class _GraphView extends StatelessWidget {
         size: size,
         child: Stack(
           children: [
+            // Bandes alternées, titrées par sous-branche.
+            for (final (b, band) in geometry.bands.indexed) ...[
+              Positioned(
+                left: 0,
+                top: band.top - _bandGap / 2,
+                width: size.width,
+                height: band.height + _bandGap,
+                child: ColoredBox(
+                  color: b.isEven ? scheme.surfaceContainerLow : scheme.surface,
+                ),
+              ),
+              Positioned(
+                left: _margin,
+                top: band.top + 4,
+                width: size.width - 2 * _margin,
+                child: Text(
+                  model.bandTitles[b],
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: scheme.outline,
+                  ),
+                ),
+              ),
+            ],
             Positioned.fill(
               child: CustomPaint(
                 painter: _EdgePainter(
                   edges: model.edges,
-                  cells: model.cells,
+                  origins: geometry.origins,
+                  exercises: {
+                    for (final MapEntry(key: id, value: c)
+                        in model.cards.entries)
+                      if (c.item.kind.family == ItemFamily.exercise) id,
+                  },
                   chain: chain,
                   color: scheme.outline,
                   highlight: scheme.primary,
                 ),
               ),
             ),
-            for (final MapEntry(key: id, value: cell) in model.cells.entries)
+            for (final MapEntry(key: id, value: origin)
+                in geometry.origins.entries)
               Positioned(
-                left: _origin(cell).dx,
-                top: _origin(cell).dy,
+                left: origin.dx,
+                top: origin.dy,
                 width: _cardWidth,
                 height: _cardHeight,
                 child: Opacity(
@@ -311,14 +428,19 @@ class _GraphView extends StatelessWidget {
 class _EdgePainter extends CustomPainter {
   _EdgePainter({
     required this.edges,
-    required this.cells,
+    required this.origins,
+    required this.exercises,
     required this.chain,
     required this.color,
     required this.highlight,
   });
 
   final List<Prerequisite> edges;
-  final Map<String, ({int column, int row})> cells;
+  final Map<String, Offset> origins;
+
+  /// Les exercices s'appuient sur toute leur partie : leurs flèches ne sont
+  /// tracées que pour la chaîne sélectionnée.
+  final Set<String> exercises;
   final Set<String>? chain;
   final Color color;
   final Color highlight;
@@ -326,14 +448,14 @@ class _EdgePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     for (final e in edges) {
-      final from = cells[e.requiresId]!;
-      final to = cells[e.itemId]!;
-      final a = _origin(from) + const Offset(_cardWidth, _cardHeight / 2);
-      final b = _origin(to) + const Offset(0, _cardHeight / 2);
       final lit =
           chain != null &&
           chain!.contains(e.itemId) &&
           chain!.contains(e.requiresId);
+      if (!lit && exercises.contains(e.itemId)) continue;
+      final a =
+          origins[e.requiresId]! + const Offset(_cardWidth, _cardHeight / 2);
+      final b = origins[e.itemId]! + const Offset(0, _cardHeight / 2);
       final paint = Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = lit ? 2 : 1.2
@@ -358,7 +480,7 @@ class _EdgePainter extends CustomPainter {
   @override
   bool shouldRepaint(_EdgePainter old) =>
       old.edges != edges ||
-      old.cells != cells ||
+      old.origins != origins ||
       old.chain != chain ||
       old.color != color ||
       old.highlight != highlight;
@@ -390,6 +512,7 @@ class _SkillTile extends StatelessWidget {
       )!,
     };
     final foreground = locked ? scheme.outline : scheme.onSurface;
+    final title = splitTitle(card.item.title);
     final border = selected
         ? BorderSide(color: scheme.primary, width: 2.5)
         : card.state == SkillState.ready
@@ -414,9 +537,11 @@ class _SkillTile extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      card.external
-                          ? '${card.item.typeLabel} · autre branche'
-                          : card.item.typeLabel,
+                      [
+                        card.item.typeLabel,
+                        ?title.number,
+                        if (card.external) 'autre branche',
+                      ].join(' · '),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.labelSmall?.copyWith(
@@ -424,7 +549,7 @@ class _SkillTile extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      card.item.title,
+                      title.text,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall?.copyWith(
@@ -445,6 +570,21 @@ class _SkillTile extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Sépare le numéro d'un énoncé de son titre pour l'afficher à part :
+/// « Proposition I.6.19 : Soit f… » ou « Théorème de Rolle · I.3.40 ».
+({String? number, String text}) splitTitle(String title) {
+  const number = r'([IVX]+(?:\.\d+)+)';
+  final prefixed = RegExp('^\\S+ $number : (.+)\$').firstMatch(title);
+  if (prefixed != null) {
+    return (number: prefixed[1], text: prefixed[2]!);
+  }
+  final suffixed = RegExp('^(.+) · $number\$').firstMatch(title);
+  if (suffixed != null) {
+    return (number: suffixed[2], text: suffixed[1]!);
+  }
+  return (number: null, text: title);
 }
 
 class _SelectionBar extends StatelessWidget {
@@ -559,8 +699,9 @@ class _Legend extends StatelessWidget {
             'Autre branche',
           ),
           Text(
-            'Une flèche va d\'un prérequis vers ce qui s\'appuie dessus. '
-            'Touchez une carte pour suivre sa chaîne.',
+            'Une flèche va d\'un prérequis vers ce qui s\'appuie dessus ; '
+            'les exercices s\'appuient sur toute leur partie. Touchez une '
+            'carte pour suivre sa chaîne.',
             style: theme.textTheme.bodySmall?.copyWith(color: scheme.outline),
           ),
         ],

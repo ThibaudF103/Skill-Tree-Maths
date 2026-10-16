@@ -62,10 +62,14 @@ CHAPTERS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X']
 
 
 def references(statements):
-    """Prérequis tirés des renvois explicites de chaque énoncé et de sa
-    démonstration (« d'après le théorème 2.8 », « la proposition 4.17 du
-    Chapitre I ») : seulement vers un énoncé antérieur dans le poly (les
-    renvois en avant sont des « voir plus loin »), ce qui exclut les cycles."""
+    """Prérequis du poly, toujours vers un énoncé antérieur (ce qui exclut
+    les cycles) :
+    - renvois explicites de chaque énoncé et de sa démonstration (« d'après
+      le théorème 2.8 », « la proposition 4.17 du Chapitre I ») ; les renvois
+      en avant sont des « voir plus loin », ignorés ;
+    - emploi d'un terme défini plus haut dans le chapitre (term_references) ;
+    - pour un exercice, tout ce qui le précède dans sa partie
+      (exercise_parts)."""
     rank = {s['number']: n for n, s in enumerate(statements)}
     edges = []
     for n, s in enumerate(statements):
@@ -77,20 +81,127 @@ def references(statements):
                 target = f"{target_chapter}.{number}"
                 if target in rank and rank[target] < n:
                     edges.append((s['number'], target))
-    # Définitions nommées (« [Convergence uniforme] ») : un énoncé ultérieur
-    # du même chapitre qui emploie le terme s'appuie sur elles.
-    for n, d in enumerate(statements):
-        key = plain(d['name'] or '')
-        if d['kind'] != 'definition' or len(key) < 6:
-            continue
-        chapter = d['number'].split('.')[0]
-        for s in statements[n + 1:]:
-            if s['number'].split('.')[0] != chapter:
-                break
-            body = re.sub(r"^\S+ \d+\.\d+\.?", '', s['fullText'])
-            if f" {key} " in f" {plain(body)} ":
-                edges.append((s['number'], d['number']))
+    return edges + term_references(statements) + exercise_parts(statements)
+
+
+# Termes définis : le poly ne les met pas en valeur (ni italique ni gras),
+# on les tire des tournures usuelles d'une définition.
+_W = r"[a-zàâäçéèêëîïôöùûüÿœ’'\-]+"
+_TERM = rf"(?P<t>{_W}(?: {_W}){{0,5}}?)"
+_ART = r"(?:un |une |le |la |les |l’|l')?"
+_END = r"\s*(?:\d+\s+)?(?:si|s’il|s'il|s’ils|lorsque|quand|lorsqu|\()"
+DEFINES = [re.compile(p, re.IGNORECASE) for p in (
+    rf"\bon dit qu(?:e|’|')\s?.{{0,80}}?\b(?:est|sont|admet|admettent)\s+{_ART}{_TERM}{_END}",
+    rf"\b(?:est|sont) (?:dite?s?|appel[ée]e?s?)\s+{_ART}{_TERM}{_END}",
+    rf"\bs(?:’|')appellen?t?\s+{_ART}{_TERM}\s*(?:\(|,|\.|$|\bde\b|\bdu\b|\bd’|\bd')",
+    rf"\bon d[ée]finit\s+{_ART}{_TERM}\s+(?:de|du|des|d’|d'|par|pour|sur)\b",
+    rf"\bon (?:appelle|nomme)\s+{_TERM}\s*(?:\(|\bune?\b|\bla\b|\ble\b|\bl’|\bl'|\btoute?\b|\bles\b)",
+    rf"(?:^|\. )\s*(?:une?|la|le|l’|l')\s*{_TERM}\s*(?:\d+\s+)?(?:est|sur|entre|de|du|d’|d')\b",
+    rf"\bon dit qu(?:e|’|')\s?.{{0,60}}?\b(?P<v>converge(?: {_W}){{1,4}}?)\s+(?:vers|si)\b",
+)]
+_EDGE_WORDS = {'si', 's', 'il', 'lorsque', 'quand', 'de', 'du', 'des', 'd', 'la',
+               'le', 'les', 'l', 'un', 'une', 'en', 'et', 'ou', 'sur', 'pour',
+               'par', 'a', 'au', 'aux', 'dans', 'alors'}
+# Termes trop vagues pour signaler un prérequis.
+GENERIC = {'fonction', 'suite', 'ensemble', 'application', 'continue', 'serie',
+           'espace', 'espaces', 'partie', 'partie non vide', 'famille', 'classe',
+           'point', 'nombre', 'valeur', 'elements', 'equation', 'converge',
+           'convergente', 'convergent', 'ordre', 'schema', 'integrale',
+           'solution', 'globale', 'minimum', 'limite reelle', 'mesure',
+           'nulle', 'fini', 'finie', 'positive', 'positif', 'bornee', 'borne'}
+
+
+def _term(raw):
+    words = plain(raw).split()
+    while words and (words[-1] in _EDGE_WORDS or len(words[-1]) == 1):
+        words.pop()
+    while words and words[0] in _EDGE_WORDS:
+        words.pop(0)
+    return ' '.join(words)
+
+
+def definition_terms(d):
+    """Termes définis par la définition [d] : son titre et les mots qui
+    suivent « on dit que … est », « on appelle », « est dit »…"""
+    text = re.sub(r"^\S+ \d+\.\d+\.?", '', d['fullText'])
+    found = {_term(d['name'] or '')}
+    for pattern in DEFINES:
+        for m in pattern.finditer(text):
+            found.add(_term(m.group('v') if 'v' in pattern.groupindex and m.group('v')
+                            else m.group('t') or ''))
+    terms = set()
+    for t in found:
+        terms.update(p.strip() for p in t.split(' ou '))
+    return {t for t in terms
+            if t and t not in GENERIC and len(t.split()) <= 5
+            and (len(t) >= 5 or ' ' in t)}
+
+
+def _pattern(term):
+    """Le terme au singulier ou au pluriel, au masculin ou au féminin."""
+    words = [re.escape(w) + r"(?:e?s|e|x)?" for w in term.split()]
+    return re.compile(r"\b" + r"\s+".join(words) + r"\b")
+
+
+def term_references(statements):
+    """Un énoncé ultérieur du même chapitre qui emploie un terme défini
+    (énoncé ou démonstration) s'appuie sur la définition la plus récente
+    de ce terme."""
+    edges = []
+    latest = {}  # terme -> (définition, motif), dans le chapitre en cours
+    chapter = None
+    for s in statements:
+        if s['number'].split('.')[0] != chapter:
+            chapter, latest = s['number'].split('.')[0], {}
+        text = plain(re.sub(r"^\S+ \d+\.\d+\.?", '', s['fullText'])
+                     + ' ' + s['versoText'])
+        for number, pattern in {v for v in latest.values()}:
+            if pattern.search(text):
+                edges.append((s['number'], number))
+        if s['kind'] == 'definition':
+            for t in definition_terms(s):
+                latest[t] = (s['number'], _pattern(t))
     return edges
+
+
+def exercise_parts(statements):
+    """Les exercices, sans corrigé donc sans renvoi, s'appuient sur tout ce
+    qui les précède dans leur partie : une section « Exercices » clôt la
+    partie parente (I.2.1.4 Exercices porte sur I.2.1), un exercice au fil
+    d'une section porte sur cette section. Les extraits d'annales, qui
+    couvrent tout un chapitre, sont laissés libres."""
+    edges = []
+    for n, s in enumerate(statements):
+        if s['kind'] != 'exercise' or 'annales' in s['sectionTitle'].lower():
+            continue
+        section = s['section']
+        if plain(s['sectionTitle']) == 'exercices':
+            section = section.rsplit('.', 1)[0]
+        prefix = section + '.'
+        for t in statements[:n]:
+            if t['kind'] != 'exercise' and (t['section'] == section
+                                            or t['section'].startswith(prefix)):
+                edges.append((s['number'], t['number']))
+    return edges
+
+
+def common_branch(nodes, parent_of):
+    """Branche la plus profonde qui contient toutes [nodes] (None si elles
+    sont dans des arbres différents)."""
+    def path(n):
+        out = []
+        while n is not None:
+            out.insert(0, n)
+            n = parent_of.get(n)
+        return out
+    paths = [path(n) for n in nodes]
+    common = paths[0]
+    for p in paths[1:]:
+        k = 0
+        while k < min(len(common), len(p)) and common[k] == p[k]:
+            k += 1
+        common = common[:k]
+    return common[-1] if common else None
 
 
 def title_of(s):
@@ -114,6 +225,7 @@ def main():
     statements = extract(args.pdf)
     items = prog['items']
     node_of_item = {i['id']: i['nodeId'] for i in items}
+    parent_of = {n['id']: n['parentId'] for n in prog['nodes']}
     cores = {i['id']: core(i['title']) for i in items
              if i['kind'] != 'exercise' and len(core(i['title'])) >= 5}
     anchors, new_items, used, matches = [], [], set(), []
@@ -121,6 +233,14 @@ def main():
     counts = {}
     for n, s in enumerate(statements):
         node = node_for(s['section'])
+        # Une section « Exercices » n'a pas de branche au programme : ses
+        # exercices rejoignent celle de la partie qu'elle clôt.
+        if s['kind'] == 'exercise' and plain(s['sectionTitle']) == 'exercices':
+            prefix = s['section'].rsplit('.', 1)[0] + '.'
+            part = {node_for(t['section']) for t in statements[:n]
+                    if t['kind'] != 'exercise' and t['section'].startswith(prefix)}
+            if part:
+                node = common_branch(part, parent_of) or node
         target = None
         if s['name'] and s['kind'] != 'exercise' and s['label'] not in NO_MATCH:
             name = plain(s['name'])

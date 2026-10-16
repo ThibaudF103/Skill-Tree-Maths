@@ -198,7 +198,7 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
         duration: const Duration(seconds: 10),
         content: Text(
           '« ${item.title} » s\'appuie sur '
-          '${weak.map((p) => '« ${p.title} »').join(', ')}, '
+          '${[for (final p in weak.take(3)) '« ${p.title} »', if (weak.length > 3) '${weak.length - 3} autre(s)'].join(', ')}, '
           '${weak.length > 1 ? 'fragiles ou pas encore vus' : 'fragile ou pas encore vu'}.',
         ),
         action: SnackBarAction(
