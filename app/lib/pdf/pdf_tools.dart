@@ -206,3 +206,58 @@ NormalizedRect regionOfPdfRect(
 }
 
 const _wordSeparators = ' \t\r\n.,;:!?()[]{}«»"\'’';
+
+/// Index du caractère de [text] situé au point ([x], [y]) (coordonnées PDF),
+/// ou du plus proche à moins de [margin] points ; `null` sinon.
+///
+/// Les caractères démesurés (plus de trois fois la hauteur médiane) qui
+/// recouvrent d'autres caractères — un filigrane en travers de la page —
+/// sont ignorés : pdfrx prend le premier caractère dont la boîte contient le
+/// point, et un filigrane placé en tête du texte captait ainsi toutes les
+/// sélections. Les grandes lettres d'un titre, qui ne recouvrent rien,
+/// restent sélectionnables.
+int? charIndexAt(PdfPageText text, double x, double y, {double margin = 8}) {
+  final rects = text.charRects;
+  final count = rects.length < text.fullText.length
+      ? rects.length
+      : text.fullText.length;
+  final heights = <double>[
+    for (var i = 0; i < count; i++)
+      if (text.fullText[i].trim().isNotEmpty && rects[i].height > 0)
+        rects[i].height,
+  ]..sort();
+  if (heights.isEmpty) return null;
+  final limit = 3 * heights[heights.length ~/ 2];
+  bool visible(int i) => text.fullText[i].trim().isNotEmpty;
+  bool oversized(PdfRect r) => r.height > limit || r.width > limit;
+  // Un caractère démesuré est un filigrane s'il recouvre le centre d'au
+  // moins trois caractères de taille normale.
+  bool watermark(PdfRect r) {
+    var covered = 0;
+    for (var j = 0; j < count && covered < 3; j++) {
+      final o = rects[j];
+      if (!visible(j) || oversized(o)) continue;
+      final cx = (o.left + o.right) / 2;
+      final cy = (o.top + o.bottom) / 2;
+      if (cx > r.left && cx < r.right && cy > r.bottom && cy < r.top) {
+        covered++;
+      }
+    }
+    return covered >= 3;
+  }
+
+  int? closest;
+  var best = margin * margin;
+  for (var i = 0; i < count; i++) {
+    final r = rects[i];
+    if (!visible(i)) continue;
+    final dx = x < r.left ? r.left - x : (x > r.right ? x - r.right : 0.0);
+    final dy = y < r.bottom ? r.bottom - y : (y > r.top ? y - r.top : 0.0);
+    final d2 = dx * dx + dy * dy;
+    if (d2 > best || (oversized(r) && watermark(r))) continue;
+    if (d2 == 0) return i;
+    best = d2;
+    closest = i;
+  }
+  return closest;
+}

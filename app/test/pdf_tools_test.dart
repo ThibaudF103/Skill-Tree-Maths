@@ -74,4 +74,51 @@ void main() {
     expect(await from(0.124), isNull);
     await doc.dispose();
   });
+
+  test('filigrane en travers de la page ignoré (ticket #9)', () async {
+    final doc = await openPdf(
+      File('test/fixtures/filigrane.pdf').readAsBytesSync(),
+    );
+    final text = await doc.pages.first.loadStructuredText();
+    expect(text.fullText, startsWith('Auteur : Filigrane'));
+    // Un caractère du texte courant recouvert par une lettre du filigrane.
+    int? body, mark;
+    for (var i = 20; i < text.charRects.length && body == null; i++) {
+      final r = text.charRects[i];
+      if (text.fullText[i].trim().isEmpty) continue;
+      final c = PdfPoint((r.left + r.right) / 2, (r.top + r.bottom) / 2);
+      for (var j = 0; j < 18; j++) {
+        if (text.charRects[j].containsPoint(c)) {
+          (body, mark) = (i, j);
+          break;
+        }
+      }
+    }
+    expect(body, isNotNull, reason: 'la fixture doit superposer les deux');
+    final r = text.charRects[body!];
+    final x = (r.left + r.right) / 2;
+    final y = (r.top + r.bottom) / 2;
+    // pdfrx aurait pris la lettre du filigrane (premier contenant)…
+    expect(mark, lessThan(body));
+    // … la recherche filtrée trouve le caractère visé.
+    expect(charIndexAt(text, x, y), body);
+    await doc.dispose();
+  });
+
+  test('les grandes lettres d\'un titre restent sélectionnables', () async {
+    final doc = await openPdf(
+      File('test/fixtures/filigrane.pdf').readAsBytesSync(),
+    );
+    final text = await doc.pages.first.loadStructuredText();
+    final c = text.fullText.indexOf('Chapitre');
+    expect(c, greaterThan(0));
+    final r = text.charRects[c];
+    final body = text.charRects[text.fullText.indexOf('Rolle')];
+    expect(r.height, greaterThan(3 * body.height), reason: 'titre démesuré');
+    expect(
+      charIndexAt(text, (r.left + r.right) / 2, (r.top + r.bottom) / 2),
+      c,
+    );
+    await doc.dispose();
+  });
 }

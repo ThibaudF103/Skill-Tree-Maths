@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:flutter/gestures.dart' show PointerDeviceKind;
+import 'package:flutter/gestures.dart' show PointerDeviceKind, kPrimaryButton;
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -335,6 +335,10 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
           // Pavé tactile (deux doigts) : on fait défiler la page même en
           // mode « Encadrer », au lieu de tracer une zone.
           Listener(
+            onPointerDown: _onPointerDown,
+            onPointerMove: _onPointerMove,
+            onPointerUp: _onPointerUp,
+            onPointerCancel: (_) => _dragFrom = _dragTo = null,
             onPointerPanZoomUpdate: (event) {
               if (!_selecting || !_controller.isReady) return;
               _controller.value =
@@ -364,6 +368,9 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
                 onPageChanged: _onPageChanged,
                 onViewSizeChanged: _onViewSizeChanged,
                 onGeneralTap: _onGeneralTap,
+                textSelectionParams: PdfTextSelectionParams(
+                  onTextSelectionChange: _onTextSelectionChange,
+                ),
                 // Liens du PDF : sommaire, renvois, notes de bas de page, web.
                 linkHandlerParams: _selecting
                     ? null
@@ -812,6 +819,33 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
     return true;
   }
 
+  /// Page contenant la position [doc] (coordonnées du document), ou `null`.
+  int? _pageAt(PdfViewerController controller, Offset doc) {
+    final layouts = controller.layout.pageLayouts;
+    for (var i = 0; i < layouts.length; i++) {
+      if (layouts[i].contains(doc)) return i + 1;
+    }
+    return null;
+  }
+
+  /// Caractère de [text] sous la position [doc], filigranes ignorés.
+  PdfTextSelectionPoint? _charAt(
+    PdfViewerController controller,
+    PdfPageText text,
+    Offset doc,
+  ) {
+    final pageIndex = text.pageNumber - 1;
+    final pageRect = controller.layout.pageLayouts[pageIndex];
+    final point = doc
+        .translate(-pageRect.left, -pageRect.top)
+        .toPdfPoint(
+          page: controller.pages[pageIndex],
+          scaledPageSize: pageRect.size,
+        );
+    final index = charIndexAt(text, point.x, point.y);
+    return index == null ? null : PdfTextSelectionPoint(text, index);
+  }
+
   Future<void> _selectWordAt(
     PdfViewerController controller,
     Offset position,
@@ -819,51 +853,100 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
     final delegate = controller.textSelectionDelegate;
     await delegate.selectWord(position);
     final range = delegate.textSelectionPointRange;
-    if (range == null || range.start.text != range.end.text) return;
+    if (range == null) return;
     final text = range.start.text;
-    final from = range.start.index;
-    final to = range.end.index + 1;
-    if (to - from <= 1 || to > text.charRects.length) return;
-    final pageIndex = text.pageNumber - 1;
-    final pageRect = controller.layout.pageLayouts[pageIndex];
-    final point = position
-        .translate(-pageRect.left, -pageRect.top)
-        .toPdfPoint(
-          page: controller.pages[pageIndex],
-          scaledPageSize: pageRect.size,
-        );
-    // Caractère sous le doigt, sinon le plus proche horizontalement.
-    var index = from;
-    var best = double.infinity;
-    for (var i = from; i < to; i++) {
-      final r = text.charRects[i];
-      final d = point.x < r.left
-          ? r.left - point.x
-          : point.x > r.right
-          ? point.x - r.right
-          : 0.0;
-      if (d < best) {
-        best = d;
-        index = i;
-      }
+    final char = _charAt(controller, text, position);
+    if (char == null) {
+      // Seul un filigrane était sous le doigt.
+      await delegate.clearTextSelection();
+      return;
     }
-    final (start, stop) = wordBounds(
-      text.fullText,
-      [
-        for (final r in text.charRects)
-          (left: r.left, right: r.right, height: r.top - r.bottom),
-      ],
-      index,
-      from: from,
-      to: to,
+    final (start, stop) = wordBounds(text.fullText, [
+      for (final r in text.charRects)
+        (left: r.left, right: r.right, height: r.top - r.bottom),
+    ], char.index);
+    final word = PdfTextSelectionRange.fromPoints(
+      PdfTextSelectionPoint(text, start),
+      PdfTextSelectionPoint(text, stop - 1),
     );
-    if (start == from && stop == to) return;
-    await delegate.setTextSelectionPointRange(
-      PdfTextSelectionRange.fromPoints(
-        PdfTextSelectionPoint(text, start),
-        PdfTextSelectionPoint(text, stop - 1),
-      ),
-    );
+    if (word.start == range.start && word.end == range.end) return;
+    await delegate.setTextSelectionPointRange(word);
+  }
+
+  /// Clic glissé (souris, stylet) en cours, en coordonnées globales.
+  Offset? _dragFrom;
+  Offset? _dragTo;
+  PdfTextSelectionPoint? _dragAnchor;
+  PdfTextSelectionPoint? _lastDragEnd;
+
+  /// Textes des pages vues pendant le clic glissé : pdfrx ne garde que les
+  /// pages des bornes de la sélection en cours.
+  final _dragTexts = <int, PdfPageText>{};
+
+  /// Recalcule les bornes de la sélection en cours de clic glissé en
+  /// ignorant les filigranes : pdfrx prend le premier caractère dont la
+  /// boîte contient le pointeur, souvent une lettre géante du filigrane
+  /// placée en tête du texte, et sélectionnait alors des pages entières.
+  void _fixDragSelection() {
+    final from = _dragFrom;
+    final to = _dragTo;
+    if (from == null || to == null || !_controller.isReady) return;
+    final delegate = _controller.textSelectionDelegate;
+    final range = delegate.textSelectionPointRange;
+    if (range == null) return;
+    _dragTexts[range.start.text.pageNumber] = range.start.text;
+    _dragTexts[range.end.text.pageNumber] = range.end.text;
+    PdfTextSelectionPoint? at(Offset global) {
+      final doc = _controller.globalToDocument(global);
+      if (doc == null) return null;
+      final text = _dragTexts[_pageAt(_controller, doc)];
+      return text == null ? null : _charAt(_controller, text, doc);
+    }
+
+    // Le point de départ est fixé au premier passage : en glissant vers le
+    // haut, pdfrx remplace ensuite la borne de départ par le pointeur.
+    final a = _dragAnchor ??= at(from);
+    if (a == null) {
+      // Départ hors du texte : seul un filigrane avait été touché.
+      delegate.clearTextSelection();
+      return;
+    }
+    final b = at(to) ?? _lastDragEnd ?? a;
+    _lastDragEnd = b;
+    final fixed = PdfTextSelectionRange.fromPoints(a, b);
+    if (fixed.start == range.start && fixed.end == range.end) return;
+    delegate.setTextSelectionPointRange(fixed);
+  }
+
+  void _onTextSelectionChange(PdfTextSelection _) => _fixDragSelection();
+
+  void _onPointerDown(PointerDownEvent event) {
+    final mouseLike =
+        event.kind == PointerDeviceKind.mouse ||
+        event.kind == PointerDeviceKind.stylus ||
+        event.kind == PointerDeviceKind.invertedStylus;
+    final drag = !_selecting && mouseLike && event.buttons == kPrimaryButton;
+    _dragFrom = drag ? event.position : null;
+    _dragTo = null;
+    _dragAnchor = _lastDragEnd = null;
+    _dragTexts.clear();
+  }
+
+  // pdfrx traite le même événement après ce Listener (reconnaisseurs de
+  // gestes) : la correction passe en micro-tâche, donc en dernier.
+  void _onPointerMove(PointerMoveEvent event) {
+    if (_dragFrom == null) return;
+    _dragTo = event.position;
+    scheduleMicrotask(_fixDragSelection);
+  }
+
+  void _onPointerUp(PointerUpEvent event) {
+    if (_dragFrom == null) return;
+    if (_dragTo != null) _dragTo = event.position;
+    scheduleMicrotask(() {
+      _fixDragSelection();
+      _dragFrom = _dragTo = null;
+    });
   }
 
   Future<void> _onLinkTap(PdfLink link) async {
