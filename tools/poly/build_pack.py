@@ -220,6 +220,9 @@ def main():
     args.add_argument('pdf')
     args.add_argument('-o', '--output', default='programme-agreg-2026-lamboley.verger')
     args.add_argument('-v', '--verbose', action='store_true')
+    args.add_argument('--corriges', action='append', default=[],
+                      help="JSON {numéro: texte} : corrigés ajoutés en note au verso "
+                           "des exercices (option répétable)")
     args = args.parse_args()
     prog = json.load(open(PROGRAMME, encoding='utf-8'))
     statements = extract(args.pdf)
@@ -277,6 +280,9 @@ def main():
         (item_of[a], item_of[b]) for a, b in references(statements)
         if item_of[a] != item_of[b]
     })
+    corriges = {}
+    for path in args.corriges:
+        corriges.update(json.load(open(path, encoding='utf-8')))
     data = open(args.pdf, 'rb').read()
     import pymupdf
     pages = pymupdf.open(args.pdf).page_count
@@ -295,7 +301,11 @@ def main():
         }],
         'resourceLinks': [{'documentId': DOC, 'nodeId': f'agreg2026.{t}'} for t in trees],
         'anchors': [{k: v for k, v in a.items() if v is not None} for a in anchors],
-        'notes': [],
+        'notes': [
+            {'id': f'corrige.{number}', 'itemId': item_of[number], 'body': body,
+             'createdAt': NOW, 'updatedAt': NOW}
+            for number, body in corriges.items() if number in item_of
+        ],
         'prerequisites': [
             {'itemId': a, 'requiresId': b} for a, b in prerequisites
         ],
@@ -305,7 +315,7 @@ def main():
     print(f"{len(items)} connaissances du programme, {len(new_items)} ajoutées depuis le poly,",
           f"{len(matches)} énoncés rattachés à une connaissance du programme,",
           f"{len(anchors)} cadres ({sum(a['role'] == 'work' for a in anchors)} démonstrations),",
-          f"{len(prerequisites)} prérequis")
+          f"{len(prerequisites)} prérequis, {len(corriges)} corrigés")
     print('contenu rattaché aux arbres', trees)
     if args.verbose:
         for m in matches: print('  ', m)
