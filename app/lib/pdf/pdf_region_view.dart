@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -129,7 +130,13 @@ class _PdfRegionViewState extends State<PdfRegionView> {
       future: _pdf,
       builder: (context, snapshot) {
         final pdf = snapshot.data;
-        final aspect = _aspect ?? pngAspectRatio(widget.snapshot);
+        // Sans miniature (zone importée d'un paquet), proportions estimées
+        // pour une page A4 portrait, corrigées dès que la page est chargée.
+        final r = widget.region;
+        final aspect =
+            _aspect ??
+            pngAspectRatio(widget.snapshot) ??
+            (r.height > 0 ? r.width / r.height / math.sqrt2 : null);
         if (!PdfRegionView.vectorEnabled || pdf == null || aspect == null) {
           return fallback;
         }
