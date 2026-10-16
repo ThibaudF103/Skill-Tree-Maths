@@ -320,5 +320,5 @@ de démonstration (deux mois de révisions simulées).
 | 9 | Contenus (PDF, vidéos) rattachés aux nœuds, ancres généralisées, Bibliothèque ✅ |
 | 10 | Paquets d'arbres : contenus, ancres et notes ; PDF inclus ou par référence ✅ |
 | 11 | Vidéos YouTube : lecteur intégré, extraits recto/verso ✅ |
-| 12 | Arbre de compétences : prérequis entre connaissances (modèle, fiche) ✅, liens tirés du poly, vue graphe, déblocage progressif des nouvelles cartes |
+| 12 | Arbre de compétences : prérequis entre connaissances (modèle, fiche) ✅, liens tirés du poly ✅, vue graphe ✅, déblocage progressif des nouvelles cartes |
 | ensuite | Déplacement par l'interface, LaTeX, statistiques, programme officiel, verger, iPad… |
