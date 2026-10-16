@@ -8,6 +8,14 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Verger ouvre les fichiers (PDF, sauvegardes) que vous choisissez.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Verger n'utilise pas l'appareil photo ; une page web intégrée peut le demander.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Verger n'utilise pas le micro ; une page web intégrée peut le demander.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>

@@ -8,12 +8,19 @@ une fleur ou un fruit qui grandit au rythme de la répétition espacée (FSRS).
 - `packages/verger_core/` : logique métier pure (Dart)
 - `app/` : application Flutter (Windows, web, iPad/iPhone, Android)
 
-## Tester sur Windows
+## Installer sur Windows
 
-1. Onglet **Actions** du dépôt GitHub → dernier run **CI** réussi.
-2. Télécharger l'artefact **verger-windows** (zip), le décompresser.
-3. Lancer `verger.exe` (Windows SmartScreen peut demander « Exécuter quand même » :
-   l'exécutable n'est pas signé).
+- Dernière version de `main` :
+  [verger-windows.zip](https://github.com/ThibaudF103/Skill-Tree-Maths/releases/latest/download/verger-windows.zip).
+- Version d'une PR : lien dans le commentaire « Exécutable Windows » de la PR.
+
+Décompresser puis lancer `verger.exe` (Windows SmartScreen peut demander
+« Exécuter quand même » : l'exécutable n'est pas signé).
+
+## Installer sur iPad
+
+Par TestFlight, mis à jour à chaque fusion dans `main` : configuration dans
+[`docs/TESTFLIGHT.md`](docs/TESTFLIGHT.md).
 
 ## Sauvegarde
 
