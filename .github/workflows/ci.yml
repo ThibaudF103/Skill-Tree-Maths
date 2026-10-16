@@ -128,3 +128,95 @@ jobs:
             --target "$GITHUB_SHA" --latest \
             --title "Verger — dernière version" \
             --notes "Version de main au commit ${GITHUB_SHA::7}. Décompresser puis lancer verger.exe."
+
+  # Appli iPad envoyée à TestFlight à chaque fusion dans main (ou à la
+  # demande, depuis l'onglet Actions). Configuration : docs/TESTFLIGHT.md.
+  # Sans les secrets Apple, l'appli est seulement compilée, sans signature,
+  # pour vérifier qu'elle se construit.
+  testflight:
+    name: TestFlight (iPad)
+    needs: test
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: macos-latest
+    env:
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+    steps:
+      - name: Secrets Apple présents ?
+        id: secrets
+        run: |
+          if [ -n "$APPLE_TEAM_ID" ] && [ -n "$ASC_KEY_ID" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Secrets Apple absents : compilation sans signature, pas d'envoi (voir docs/TESTFLIGHT.md)."
+          fi
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - name: Compilation sans signature (vérification)
+        if: '!steps.secrets.outputs.ready'
+        working-directory: app
+        run: |
+          flutter pub get
+          flutter build ios --release --no-codesign
+      - name: Certificat, profil et clé App Store Connect
+        if: steps.secrets.outputs.ready
+        env:
+          IOS_P12_BASE64: ${{ secrets.IOS_P12_BASE64 }}
+          IOS_P12_PASSWORD: ${{ secrets.IOS_P12_PASSWORD }}
+          IOS_PROFILE_BASE64: ${{ secrets.IOS_PROFILE_BASE64 }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          keychain="$RUNNER_TEMP/verger.keychain-db"
+          motdepasse="$(openssl rand -hex 16)"
+          echo "$IOS_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/verger.p12"
+          security create-keychain -p "$motdepasse" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$motdepasse" "$keychain"
+          security import "$RUNNER_TEMP/verger.p12" -P "$IOS_P12_PASSWORD" \
+            -A -t cert -f pkcs12 -k "$keychain"
+          security set-key-partition-list -S apple-tool:,apple: -k "$motdepasse" "$keychain"
+          security list-keychain -d user -s "$keychain"
+
+          profils="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$profils"
+          echo "$IOS_PROFILE_BASE64" | base64 --decode > "$profils/verger.mobileprovision"
+
+          mkdir -p "$HOME/.appstoreconnect/private_keys"
+          printf '%s\n' "$ASC_KEY_P8" > "$HOME/.appstoreconnect/private_keys/AuthKey_$ASC_KEY_ID.p8"
+      - name: Compilation de l'appli signée
+        if: steps.secrets.outputs.ready
+        working-directory: app
+        env:
+          FLUTTER_XCODE_DEVELOPMENT_TEAM: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>teamID</key><string>$APPLE_TEAM_ID</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>provisioningProfiles</key><dict>
+              <key>io.github.thibaudf103.verger</key><string>Verger App Store</string>
+            </dict>
+          </dict></plist>
+          PLIST
+          flutter pub get
+          flutter build ipa --release \
+            --build-number=${{ github.run_number }} \
+            --export-options-plist="$RUNNER_TEMP/ExportOptions.plist"
+      - name: Envoi à TestFlight
+        if: steps.secrets.outputs.ready
+        working-directory: app
+        run: |
+          xcrun altool --upload-app --type ios \
+            --file build/ios/ipa/*.ipa \
+            --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
+      - name: Nettoyage du trousseau
+        if: always() && steps.secrets.outputs.ready
+        run: security delete-keychain "$RUNNER_TEMP/verger.keychain-db" || true
