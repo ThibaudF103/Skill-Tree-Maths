@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'anchor.dart';
+import 'ink.dart';
 
 /// Note de travail : rédaction (texte, LaTeX entre `$…$` ou `$$…$$`)
 /// éventuellement attachée à une zone d'un PDF et à une connaissance.
@@ -21,11 +22,12 @@ final class Note {
     this.region,
     this.snapshot,
     this.itemId,
+    this.ink,
   });
 
   final String id;
 
-  /// Contenu ; prévu pour accueillir plus tard l'encre (traits au stylet).
+  /// Texte (LaTeX entre `$…$`) ; l'écriture manuscrite est dans [ink].
   final String body;
 
   final String? documentId;
@@ -45,6 +47,12 @@ final class Note {
 
   /// Connaissance dont la note est le verso.
   final String? itemId;
+
+  /// Écriture manuscrite (traits au stylet), en plus du texte.
+  final InkDrawing? ink;
+
+  /// Ni texte ni écriture.
+  bool get isBlank => body.trim().isEmpty && (ink?.isEmpty ?? true);
 
   final DateTime createdAt;
   final DateTime updatedAt;

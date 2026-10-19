@@ -4150,6 +4150,15 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, NoteRow> {
       'REFERENCES items (id) ON DELETE SET NULL',
     ),
   );
+  static const VerificationMeta _inkMeta = const VerificationMeta('ink');
+  @override
+  late final GeneratedColumn<String> ink = GeneratedColumn<String>(
+    'ink',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -4186,6 +4195,7 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, NoteRow> {
     bottom,
     snapshot,
     itemId,
+    ink,
     createdAt,
     updatedAt,
   ];
@@ -4274,6 +4284,12 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, NoteRow> {
         itemId.isAcceptableOrUnknown(data['item_id']!, _itemIdMeta),
       );
     }
+    if (data.containsKey('ink')) {
+      context.handle(
+        _inkMeta,
+        ink.isAcceptableOrUnknown(data['ink']!, _inkMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -4347,6 +4363,10 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, NoteRow> {
         DriftSqlType.string,
         data['${effectivePrefix}item_id'],
       ),
+      ink: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}ink'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -4379,6 +4399,9 @@ class NoteRow extends DataClass implements Insertable<NoteRow> {
   final double? bottom;
   final Uint8List? snapshot;
   final String? itemId;
+
+  /// Écriture manuscrite, JSON de `Ink` (v8).
+  final String? ink;
   final DateTime createdAt;
   final DateTime updatedAt;
   const NoteRow({
@@ -4394,6 +4417,7 @@ class NoteRow extends DataClass implements Insertable<NoteRow> {
     this.bottom,
     this.snapshot,
     this.itemId,
+    this.ink,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -4432,6 +4456,9 @@ class NoteRow extends DataClass implements Insertable<NoteRow> {
     if (!nullToAbsent || itemId != null) {
       map['item_id'] = Variable<String>(itemId);
     }
+    if (!nullToAbsent || ink != null) {
+      map['ink'] = Variable<String>(ink);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -4465,6 +4492,7 @@ class NoteRow extends DataClass implements Insertable<NoteRow> {
       itemId: itemId == null && nullToAbsent
           ? const Value.absent()
           : Value(itemId),
+      ink: ink == null && nullToAbsent ? const Value.absent() : Value(ink),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -4488,6 +4516,7 @@ class NoteRow extends DataClass implements Insertable<NoteRow> {
       bottom: serializer.fromJson<double?>(json['bottom']),
       snapshot: serializer.fromJson<Uint8List?>(json['snapshot']),
       itemId: serializer.fromJson<String?>(json['itemId']),
+      ink: serializer.fromJson<String?>(json['ink']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -4508,6 +4537,7 @@ class NoteRow extends DataClass implements Insertable<NoteRow> {
       'bottom': serializer.toJson<double?>(bottom),
       'snapshot': serializer.toJson<Uint8List?>(snapshot),
       'itemId': serializer.toJson<String?>(itemId),
+      'ink': serializer.toJson<String?>(ink),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -4526,6 +4556,7 @@ class NoteRow extends DataClass implements Insertable<NoteRow> {
     Value<double?> bottom = const Value.absent(),
     Value<Uint8List?> snapshot = const Value.absent(),
     Value<String?> itemId = const Value.absent(),
+    Value<String?> ink = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => NoteRow(
@@ -4541,6 +4572,7 @@ class NoteRow extends DataClass implements Insertable<NoteRow> {
     bottom: bottom.present ? bottom.value : this.bottom,
     snapshot: snapshot.present ? snapshot.value : this.snapshot,
     itemId: itemId.present ? itemId.value : this.itemId,
+    ink: ink.present ? ink.value : this.ink,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -4560,6 +4592,7 @@ class NoteRow extends DataClass implements Insertable<NoteRow> {
       bottom: data.bottom.present ? data.bottom.value : this.bottom,
       snapshot: data.snapshot.present ? data.snapshot.value : this.snapshot,
       itemId: data.itemId.present ? data.itemId.value : this.itemId,
+      ink: data.ink.present ? data.ink.value : this.ink,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -4580,6 +4613,7 @@ class NoteRow extends DataClass implements Insertable<NoteRow> {
           ..write('bottom: $bottom, ')
           ..write('snapshot: $snapshot, ')
           ..write('itemId: $itemId, ')
+          ..write('ink: $ink, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -4600,6 +4634,7 @@ class NoteRow extends DataClass implements Insertable<NoteRow> {
     bottom,
     $driftBlobEquality.hash(snapshot),
     itemId,
+    ink,
     createdAt,
     updatedAt,
   );
@@ -4619,6 +4654,7 @@ class NoteRow extends DataClass implements Insertable<NoteRow> {
           other.bottom == this.bottom &&
           $driftBlobEquality.equals(other.snapshot, this.snapshot) &&
           other.itemId == this.itemId &&
+          other.ink == this.ink &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -4636,6 +4672,7 @@ class NotesCompanion extends UpdateCompanion<NoteRow> {
   final Value<double?> bottom;
   final Value<Uint8List?> snapshot;
   final Value<String?> itemId;
+  final Value<String?> ink;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
@@ -4652,6 +4689,7 @@ class NotesCompanion extends UpdateCompanion<NoteRow> {
     this.bottom = const Value.absent(),
     this.snapshot = const Value.absent(),
     this.itemId = const Value.absent(),
+    this.ink = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -4669,6 +4707,7 @@ class NotesCompanion extends UpdateCompanion<NoteRow> {
     this.bottom = const Value.absent(),
     this.snapshot = const Value.absent(),
     this.itemId = const Value.absent(),
+    this.ink = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
     this.rowid = const Value.absent(),
@@ -4689,6 +4728,7 @@ class NotesCompanion extends UpdateCompanion<NoteRow> {
     Expression<double>? bottom,
     Expression<Uint8List>? snapshot,
     Expression<String>? itemId,
+    Expression<String>? ink,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
@@ -4706,6 +4746,7 @@ class NotesCompanion extends UpdateCompanion<NoteRow> {
       if (bottom != null) 'bottom': bottom,
       if (snapshot != null) 'snapshot': snapshot,
       if (itemId != null) 'item_id': itemId,
+      if (ink != null) 'ink': ink,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -4725,6 +4766,7 @@ class NotesCompanion extends UpdateCompanion<NoteRow> {
     Value<double?>? bottom,
     Value<Uint8List?>? snapshot,
     Value<String?>? itemId,
+    Value<String?>? ink,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<int>? rowid,
@@ -4742,6 +4784,7 @@ class NotesCompanion extends UpdateCompanion<NoteRow> {
       bottom: bottom ?? this.bottom,
       snapshot: snapshot ?? this.snapshot,
       itemId: itemId ?? this.itemId,
+      ink: ink ?? this.ink,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -4787,6 +4830,9 @@ class NotesCompanion extends UpdateCompanion<NoteRow> {
     if (itemId.present) {
       map['item_id'] = Variable<String>(itemId.value);
     }
+    if (ink.present) {
+      map['ink'] = Variable<String>(ink.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -4814,6 +4860,7 @@ class NotesCompanion extends UpdateCompanion<NoteRow> {
           ..write('bottom: $bottom, ')
           ..write('snapshot: $snapshot, ')
           ..write('itemId: $itemId, ')
+          ..write('ink: $ink, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -8975,6 +9022,7 @@ typedef $$NotesTableCreateCompanionBuilder =
       Value<double?> bottom,
       Value<Uint8List?> snapshot,
       Value<String?> itemId,
+      Value<String?> ink,
       required DateTime createdAt,
       required DateTime updatedAt,
       Value<int> rowid,
@@ -8993,6 +9041,7 @@ typedef $$NotesTableUpdateCompanionBuilder =
       Value<double?> bottom,
       Value<Uint8List?> snapshot,
       Value<String?> itemId,
+      Value<String?> ink,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<int> rowid,
@@ -9093,6 +9142,11 @@ class $$NotesTableFilterComposer
 
   ColumnFilters<Uint8List> get snapshot => $composableBuilder(
     column: $table.snapshot,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get ink => $composableBuilder(
+    column: $table.ink,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -9212,6 +9266,11 @@ class $$NotesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get ink => $composableBuilder(
+    column: $table.ink,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -9308,6 +9367,9 @@ class $$NotesTableAnnotationComposer
   GeneratedColumn<Uint8List> get snapshot =>
       $composableBuilder(column: $table.snapshot, builder: (column) => column);
 
+  GeneratedColumn<String> get ink =>
+      $composableBuilder(column: $table.ink, builder: (column) => column);
+
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -9401,6 +9463,7 @@ class $$NotesTableTableManager
                 Value<double?> bottom = const Value.absent(),
                 Value<Uint8List?> snapshot = const Value.absent(),
                 Value<String?> itemId = const Value.absent(),
+                Value<String?> ink = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -9417,6 +9480,7 @@ class $$NotesTableTableManager
                 bottom: bottom,
                 snapshot: snapshot,
                 itemId: itemId,
+                ink: ink,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,
@@ -9435,6 +9499,7 @@ class $$NotesTableTableManager
                 Value<double?> bottom = const Value.absent(),
                 Value<Uint8List?> snapshot = const Value.absent(),
                 Value<String?> itemId = const Value.absent(),
+                Value<String?> ink = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
                 Value<int> rowid = const Value.absent(),
@@ -9451,6 +9516,7 @@ class $$NotesTableTableManager
                 bottom: bottom,
                 snapshot: snapshot,
                 itemId: itemId,
+                ink: ink,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,

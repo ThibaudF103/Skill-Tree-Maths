@@ -12,6 +12,8 @@ import '../../ui/math_text.dart';
 import '../documents/pickers.dart';
 import '../items/item_detail_page.dart';
 import '../items/item_editor.dart';
+import 'ink_editor_page.dart';
+import 'ink_view.dart';
 
 /// Panneau de notes d'un PDF : liste des notes (par page) ou édition d'une
 /// note, avec aperçu LaTeX et liens vers les connaissances.
@@ -148,7 +150,9 @@ class _NoteList extends StatelessWidget {
       itemBuilder: (context, i) {
         final note = notes[i];
         final onPage = note.page == currentPage;
-        final headline = note.headline;
+        final headline = note.headline.isEmpty && !(note.ink?.isEmpty ?? true)
+            ? 'Note manuscrite'
+            : note.headline;
         return ListTile(
           selected: onPage,
           leading: CircleAvatar(
@@ -247,11 +251,15 @@ class _NoteEditorState extends State<NoteEditor> {
 
   @override
   void dispose() {
-    // Une note sans texte ni zone n'a rien à garder : on ne laisse pas de
-    // notes vides derrière soi.
+    // Une note sans texte, sans écriture ni zone n'a rien à garder : on ne
+    // laisse pas de notes vides derrière soi. L'écriture est relue en base
+    // (la note reçue peut dater d'avant le passage à l'éditeur manuscrit).
     if (_text.text.trim().isEmpty && widget.note.region == null) {
       _save?.cancel();
-      _store.deleteNote(widget.note.id);
+      final store = _store, id = widget.note.id;
+      store.note(id).then((n) async {
+        if (n != null && n.isBlank) await store.deleteNote(id);
+      });
     } else if (_save != null) {
       _flush();
     }
@@ -355,7 +363,7 @@ class _NoteEditorState extends State<NoteEditor> {
         TextField(
           controller: _text,
           inputFormatters: const [LatexAutoCloseFormatter()],
-          autofocus: note.body.isEmpty,
+          autofocus: note.isBlank,
           minLines: 6,
           maxLines: null,
           keyboardType: TextInputType.multiline,
@@ -379,6 +387,8 @@ class _NoteEditorState extends State<NoteEditor> {
                 )
               : const SizedBox.shrink(),
         ),
+        const SizedBox(height: 16),
+        _Handwriting(note: note, beforeOpen: _flush),
         const SizedBox(height: 16),
         if (note.itemId != null)
           _LinkedItem(itemId: note.itemId!, noteId: note.id)
@@ -409,6 +419,62 @@ class _NoteEditorState extends State<NoteEditor> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Écriture manuscrite de la note : aperçu et accès à l'éditeur.
+class _Handwriting extends StatelessWidget {
+  const _Handwriting({required this.note, required this.beforeOpen});
+
+  final Note note;
+  final Future<void> Function() beforeOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final ink = note.ink;
+    Future<void> open() async {
+      await beforeOpen();
+      if (context.mounted) {
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => InkEditorPage(note: note)),
+        );
+      }
+    }
+
+    if (ink == null || ink.isEmpty) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: OutlinedButton.icon(
+          onPressed: open,
+          icon: const Icon(Icons.draw_outlined),
+          label: const Text('Écrire à la main'),
+        ),
+      );
+    }
+    return InkWell(
+      onTap: open,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          border: Border.all(color: theme.colorScheme.outlineVariant),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            InkView(ink: ink),
+            Text(
+              'Toucher pour modifier l\'écriture',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

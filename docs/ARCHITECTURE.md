@@ -195,8 +195,11 @@ Indicateur séparé « à arroser » : échéance dépassée.
   centrées, `\$` pour un dollar), éventuellement attachée à une zone d'un
   PDF (page, rectangle, miniature) et à une connaissance, dont elle devient
   le **verso** (affiché en révision). Une note survit à la suppression du
-  PDF ou de la connaissance (liens mis à `NULL`). Prévue pour accueillir
-  l'encre au stylet plus tard.
+  PDF ou de la connaissance (liens mis à `NULL`). Elle peut aussi porter
+  une **écriture manuscrite** (`InkDrawing`, schéma v8) : des traits sur une
+  page de 1000 unités de large, mise à l'échelle à l'affichage. Le stylet et
+  la souris écrivent, le doigt fait défiler (sauf « Écrire au doigt ») ; le
+  bout gomme du stylet efface.
 - **Visionneuse** : miniatures des pages et sommaire du PDF (panneau
   latéral), recherche dans le texte, reprise à la dernière page lue
   (`documents.last_page`), panneau de notes à droite (écran partagé sur
@@ -331,4 +334,5 @@ de démonstration (deux mois de révisions simulées).
 | 10 | Paquets d'arbres : contenus, ancres et notes ; PDF inclus ou par référence ✅ |
 | 11 | Vidéos YouTube : lecteur intégré, extraits recto/verso ✅ |
 | 12 | Arbre de compétences : prérequis entre connaissances (modèle, fiche) ✅, liens tirés du poly ✅, vue graphe ✅, déblocage progressif des nouvelles cartes et révisions implicites ✅ |
+| 13 | Notes manuscrites : stylet (Apple Pencil), souris ou doigt ; stylo, surligneur, gomme, annuler ✅ |
 | ensuite | Déplacement par l'interface, LaTeX, statistiques, programme officiel, verger, iPad… |

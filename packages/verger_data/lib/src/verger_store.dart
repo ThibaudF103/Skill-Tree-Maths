@@ -715,6 +715,7 @@ class VergerStore {
     NormalizedRect? region,
     Uint8List? snapshot,
     String? itemId,
+    InkDrawing? ink,
   }) async {
     final now = _now();
     final note = Note(
@@ -727,6 +728,7 @@ class VergerStore {
       region: region,
       snapshot: snapshot,
       itemId: itemId,
+      ink: ink,
       createdAt: now,
       updatedAt: now,
     );
@@ -760,15 +762,20 @@ class VergerStore {
         itemId: itemId,
       ).watch().map((rows) => rows.map(_toNote).toList());
 
-  /// Modifie le texte et/ou la connaissance liée ([itemId] : fonction
-  /// renvoyant le nouvel identifiant, `null` pour délier).
+  /// Modifie le texte, l'écriture manuscrite ([ink] vide : effacée) et/ou
+  /// la connaissance liée ([itemId] : fonction renvoyant le nouvel
+  /// identifiant, `null` pour délier).
   Future<void> updateNote(
     String id, {
     String? body,
+    InkDrawing? ink,
     String? Function()? itemId,
   }) => (_db.update(_db.notes)..where((n) => n.id.equals(id))).write(
     NotesCompanion(
       body: Value.absentIfNull(body),
+      ink: ink == null
+          ? const Value.absent()
+          : Value(ink.isEmpty ? null : ink.encode()),
       itemId: itemId == null ? const Value.absent() : Value(itemId()),
       updatedAt: Value(_now()),
     ),
@@ -1125,6 +1132,7 @@ class VergerStore {
                 region: n.region,
                 snapshot: n.snapshot,
                 itemId: n.itemId == null ? null : itemIds[n.itemId],
+                ink: n.ink,
                 createdAt: n.createdAt,
                 updatedAt: n.updatedAt,
               ),
@@ -1288,6 +1296,7 @@ class VergerStore {
         : NormalizedRect(row.left!, row.top!, row.right!, row.bottom!),
     snapshot: row.snapshot,
     itemId: row.itemId,
+    ink: row.ink == null ? null : InkDrawing.decode(row.ink!),
     createdAt: row.createdAt.toUtc(),
     updatedAt: row.updatedAt.toUtc(),
   );
@@ -1305,6 +1314,7 @@ class VergerStore {
     bottom: n.region?.bottom,
     snapshot: n.snapshot,
     itemId: n.itemId,
+    ink: n.ink == null || n.ink!.isEmpty ? null : n.ink!.encode(),
     createdAt: n.createdAt.toUtc(),
     updatedAt: n.updatedAt.toUtc(),
   );

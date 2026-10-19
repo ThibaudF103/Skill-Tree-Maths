@@ -405,7 +405,11 @@ class _VideoPageState extends State<VideoPage> {
                   ListTile(
                     leading: const Icon(Icons.edit_note, color: noteColor),
                     title: Text(
-                      n.headline.isEmpty ? 'Note vide' : n.headline,
+                      n.headline.isNotEmpty
+                          ? n.headline
+                          : n.isBlank
+                          ? 'Note vide'
+                          : 'Note manuscrite',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
