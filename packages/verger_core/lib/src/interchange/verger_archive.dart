@@ -8,6 +8,7 @@ import '../domain/knowledge_node.dart';
 import '../domain/note.dart';
 import '../domain/prerequisites.dart';
 import '../domain/rating.dart';
+import '../domain/ink.dart';
 import '../domain/review_record.dart';
 import '../domain/scheduling_state.dart';
 import '../domain/source_document.dart';
@@ -48,7 +49,9 @@ final class VergerArchive {
 
   /// 2 : contenus (PDF, vidéos) rattachés aux nœuds, ancres sans page.
   /// 3 : prérequis entre connaissances.
-  static const currentVersion = 3;
+  /// 4 : écriture manuscrite des notes (une version plus ancienne de
+  /// l'appli refuse l'archive plutôt que de la perdre).
+  static const currentVersion = 4;
 
   final List<KnowledgeNode> nodes;
   final List<KnowledgeItem> items;
@@ -210,6 +213,9 @@ final class VergerArchive {
             region: region(n['region']),
             snapshot: bytes(n['snapshot']),
             itemId: n['itemId'] as String?,
+            ink: n['ink'] == null
+                ? null
+                : InkDrawing.fromJson((n['ink'] as Map).cast()),
             createdAt: date(n['createdAt']),
             updatedAt: n['updatedAt'] == null
                 ? date(n['createdAt'])
@@ -457,6 +463,7 @@ final class VergerArchive {
                 ]),
           'snapshot': ?(n.snapshot == null ? null : base64Encode(n.snapshot!)),
           'itemId': ?n.itemId,
+          'ink': ?n.ink?.toJson(),
           'createdAt': n.createdAt.toUtc().toIso8601String(),
           'updatedAt': n.updatedAt.toUtc().toIso8601String(),
         },

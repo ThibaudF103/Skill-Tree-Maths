@@ -8,6 +8,7 @@ import '../../ui/item_glyph.dart';
 import '../../ui/labels.dart';
 import '../../ui/math_text.dart';
 import '../items/anchors_section.dart';
+import '../notes/note_page.dart';
 
 /// Session de révision façon cartes : on lit le titre, on tente de se
 /// souvenir, on révèle le contenu, puis on s'évalue.
@@ -362,9 +363,7 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
                         const SizedBox(height: 16),
                       ],
                       // Verso : les notes rédigées dans l'application.
-                      for (final note in _notes.where(
-                        (n) => n.body.trim().isNotEmpty,
-                      )) ...[
+                      for (final note in _notes.where((n) => !n.isBlank)) ...[
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.all(20),
@@ -374,7 +373,7 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
                             ),
                             borderRadius: BorderRadius.circular(16),
                           ),
-                          child: MathText(note.body),
+                          child: NoteContent(note: note),
                         ),
                         const SizedBox(height: 16),
                       ],
@@ -396,7 +395,7 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
                       else if (!_anchors.any(
                             (a) => a.role == AnchorRole.work,
                           ) &&
-                          !_notes.any((n) => n.body.trim().isNotEmpty))
+                          _notes.every((n) => n.isBlank))
                         Text(
                           'Pas de contenu enregistré : comparez avec vos notes.',
                           style: theme.textTheme.bodyLarge?.copyWith(

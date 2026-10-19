@@ -174,4 +174,56 @@ void main() {
     await sub.cancel();
     expect(values, ['a', 'b', null]);
   });
+
+  test(
+    'écriture manuscrite : enregistrée, modifiée, effacée, sauvegardée',
+    () async {
+      final ink = InkDrawing([
+        InkStroke(
+          points: [
+            (x: 10, y: 20, pressure: 0.4),
+            (x: 30, y: 25, pressure: 0.8),
+          ],
+          color: 0xFF000000,
+          width: 2.5,
+        ),
+      ]);
+      final note = await store.createNote(itemId: item.id, ink: ink);
+      expect((await store.note(note.id))!.ink!.strokes, ink.strokes);
+      expect((await store.note(note.id))!.isBlank, isFalse);
+
+      // Modifier le texte ne touche pas à l'encre.
+      await store.updateNote(note.id, body: 'Démonstration');
+      expect((await store.note(note.id))!.ink!.strokes, hasLength(1));
+
+      final archive = VergerArchive.fromJson(
+        (await store.exportArchive()).toJson(),
+      );
+      final copy = VergerStore(VergerDatabase(NativeDatabase.memory()));
+      await copy.restoreArchive(archive);
+      expect((await copy.note(note.id))!.ink!.strokes, ink.strokes);
+      await copy.close();
+
+      // Encre vide : effacée.
+      await store.updateNote(note.id, body: '', ink: InkDrawing.empty);
+      final blank = (await store.note(note.id))!;
+      expect(blank.ink, isNull);
+      expect(blank.isBlank, isTrue);
+    },
+  );
+
+  test('suppression d\'une note vide seulement', () async {
+    final blank = await store.createNote(itemId: item.id);
+    final written = await store.createNote(itemId: item.id, body: 'Texte');
+    final zoned = await store.createNote(
+      documentId: course.id,
+      page: 1,
+      region: const NormalizedRect(0.1, 0.1, 0.5, 0.5),
+    );
+    expect(await store.deleteNoteIfBlank(blank.id), isTrue);
+    expect(await store.deleteNoteIfBlank(written.id), isFalse);
+    expect(await store.deleteNoteIfBlank(zoned.id), isFalse);
+    expect(await store.note(blank.id), isNull);
+    expect(await store.note(written.id), isNotNull);
+  });
 }

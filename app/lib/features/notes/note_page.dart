@@ -6,6 +6,8 @@ import '../../ui/labels.dart';
 import '../../ui/math_text.dart';
 import '../documents/document_viewer_page.dart';
 import '../video/video_page.dart';
+import 'ink_editor_page.dart';
+import 'ink_view.dart';
 import 'notes_panel.dart';
 
 /// Page d'édition d'une note (hors visionneuse).
@@ -142,6 +144,16 @@ class _ItemNotesSectionState extends State<ItemNotesSection> {
     ).push(MaterialPageRoute<void>(builder: (_) => NotePage(noteId: note.id)));
   }
 
+  Future<void> _newHandwritten() async {
+    final store = AppScope.of(context).store;
+    final note = await store.createNote(itemId: widget.item.id);
+    if (!mounted) {
+      await store.deleteNoteIfBlank(note.id);
+      return;
+    }
+    await openInkEditor(context, note);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -172,23 +184,55 @@ class _ItemNotesSectionState extends State<ItemNotesSection> {
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(16),
-                    child: note.body.trim().isEmpty
+                    child: note.isBlank
                         ? Text(
                             'Note vide',
                             style: TextStyle(color: theme.colorScheme.outline),
                           )
-                        : MathText(note.body),
+                        : NoteContent(note: note),
                   ),
                 ),
               ),
-            OutlinedButton.icon(
-              onPressed: _newNote,
-              icon: const Icon(Icons.edit_note),
-              label: const Text('Nouvelle note'),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _newNote,
+                  icon: const Icon(Icons.edit_note),
+                  label: const Text('Nouvelle note'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: _newHandwritten,
+                  icon: const Icon(Icons.draw_outlined),
+                  label: const Text('Note manuscrite'),
+                ),
+              ],
             ),
           ],
         );
       },
+    );
+  }
+}
+
+/// Contenu d'une note : texte (LaTeX) puis écriture manuscrite.
+class NoteContent extends StatelessWidget {
+  const NoteContent({super.key, required this.note});
+
+  final Note note;
+
+  @override
+  Widget build(BuildContext context) {
+    final ink = note.ink;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (note.body.trim().isNotEmpty) MathText(note.body),
+        if (note.body.trim().isNotEmpty && ink != null && !ink.isEmpty)
+          const SizedBox(height: 8),
+        if (ink != null && !ink.isEmpty) InkView(ink: ink),
+      ],
     );
   }
 }

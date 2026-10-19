@@ -240,4 +240,29 @@ void main() {
     expect((await store.history('d')).last.impliedBy, 't');
     await store.close();
   });
+
+  test('v7 → v8 : notes conservées, écriture manuscrite disponible', () async {
+    final schema = await verifier.schemaAt(7);
+    final db = schema.rawDatabase;
+    db.execute(
+      "INSERT INTO notes (id, body, document_id, page, start_ms, end_ms, "
+      "\"left\", top, \"right\", bottom, snapshot, item_id, created_at, "
+      "updated_at) VALUES ('n1', 'Texte', NULL, NULL, NULL, NULL, NULL, NULL, "
+      "NULL, NULL, NULL, NULL, '2026-03-02T09:00:00.000Z', "
+      "'2026-03-02T09:00:00.000Z')",
+    );
+
+    final store = VergerStore(VergerDatabase(schema.newConnection()));
+    final old = (await store.note('n1'))!;
+    expect(old.body, 'Texte');
+    expect(old.ink, equals(null));
+    await store.updateNote(
+      'n1',
+      ink: InkDrawing([
+        InkStroke(points: [(x: 1, y: 2, pressure: 0.5)], color: 0, width: 1),
+      ]),
+    );
+    expect((await store.note('n1'))!.ink!.strokes, hasLength(1));
+    await store.close();
+  });
 }

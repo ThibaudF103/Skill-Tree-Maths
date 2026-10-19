@@ -201,6 +201,9 @@ class Notes extends Table {
   BlobColumn get snapshot => blob().nullable()();
   TextColumn get itemId =>
       text().nullable().references(Items, #id, onDelete: KeyAction.setNull)();
+
+  /// Écriture manuscrite, JSON de `Ink` (v8).
+  TextColumn get ink => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
 
@@ -236,7 +239,7 @@ class VergerDatabase extends _$VergerDatabase {
   VergerDatabase(super.executor);
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -308,6 +311,10 @@ class VergerDatabase extends _$VergerDatabase {
         // v7 : révisions implicites (via une connaissance qui s'appuie
         // sur celle révisée).
         await m.addColumn(schema.reviewLogs, schema.reviewLogs.impliedBy);
+      },
+      from7To8: (m, schema) async {
+        // v8 : écriture manuscrite des notes.
+        await m.addColumn(schema.notes, schema.notes.ink);
       },
     ),
     beforeOpen: (details) async {

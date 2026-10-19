@@ -4,6 +4,7 @@ library;
 export 'src/documents/page_remap.dart';
 export 'src/domain/anchor.dart';
 export 'src/domain/ids.dart';
+export 'src/domain/ink.dart';
 export 'src/domain/item_kind.dart';
 export 'src/domain/knowledge_item.dart';
 export 'src/domain/knowledge_node.dart';
