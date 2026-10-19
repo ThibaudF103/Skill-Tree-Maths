@@ -62,6 +62,17 @@ void main() {
       c.undo();
       expect(c.ink.strokes, hasLength(2));
 
+      // Gomme rapide : un trait traversé entre deux positions est effacé.
+      c.select(InkMode.pen);
+      c.down(pt(200, 0));
+      c.move(pt(200, 300));
+      c.up();
+      c.select(InkMode.eraser);
+      c.down(pt(100, 150));
+      c.move(pt(300, 150)); // 200 unités d'un coup, à travers le trait
+      expect(c.up(), isTrue);
+      expect(c.ink.strokes.where((s) => s.points.first.x == 200), isEmpty);
+
       // Gomme dans le vide : rien ne change.
       c.select(InkMode.eraser);
       c.down(pt(500, 500));
@@ -142,6 +153,34 @@ void main() {
     await settle(tester);
     await tester.pageBack();
     await settle(tester);
+    expect((await tester.runAsync(store.notes))!, isEmpty);
+    await unmountTestApp(tester);
+  });
+
+  testWidgets('texte vidé puis note fermée aussitôt : note supprimée', (
+    tester,
+  ) async {
+    final store = await pumpTestApp(
+      tester,
+      seed: (store) async {
+        await seed(store);
+        final item = (await store.allItems()).single;
+        await store.createNote(itemId: item.id, body: 'Brouillon');
+      },
+    );
+    await tester.tap(find.text('Arbres'));
+    await settle(tester);
+    await tester.tap(find.text('Théorème de Rolle'));
+    await settle(tester);
+    await tester.ensureVisible(find.text('Brouillon'));
+    await tester.tap(find.text('Brouillon'));
+    await settle(tester);
+    await tester.enterText(find.byType(TextField), '');
+    await tester.pageBack(); // avant la fin du délai d'enregistrement
+    await settle(tester);
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 50)),
+    );
     expect((await tester.runAsync(store.notes))!, isEmpty);
     await unmountTestApp(tester);
   });

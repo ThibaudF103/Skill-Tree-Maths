@@ -150,34 +150,54 @@ final class InkDrawing {
     ],
   };
 
+  /// Lit le format compact ; refuse une version inconnue, un trait mal
+  /// formé ou des valeurs aberrantes (épaisseur, pression, position hors
+  /// bornes). Un trait sans point est ignoré.
   factory InkDrawing.fromJson(Map<String, Object?> json) {
+    if (json['v'] != 1 || json['strokes'] is! List) {
+      throw const FormatException('Écriture manuscrite : format inconnu');
+    }
     final strokes = <InkStroke>[];
-    for (final s in (json['strokes'] as List? ?? const [])) {
+    for (final s in json['strokes'] as List) {
       final m = (s as Map).cast<String, Object?>();
       final flat = (m['p'] as List).cast<num>();
-      if (flat.length % 3 != 0) {
+      final width = (m['w'] as num).toDouble();
+      if (flat.length % 3 != 0 || !(width > 0 && width <= maxStrokeWidth)) {
         throw const FormatException('Trait mal formé');
       }
+      final points = <InkPoint>[
+        for (var i = 0; i < flat.length; i += 3)
+          (
+            x: flat[i].toDouble(),
+            y: flat[i + 1].toDouble(),
+            pressure: flat[i + 2].toDouble(),
+          ),
+      ];
+      for (final p in points) {
+        if (!(p.x >= -pageWidth && p.x <= 2 * pageWidth) ||
+            !(p.y >= -pageWidth && p.y <= maxHeight) ||
+            !(p.pressure >= 0 && p.pressure <= 1)) {
+          throw const FormatException('Point hors de la page');
+        }
+      }
+      if (points.isEmpty) continue;
       strokes.add(
         InkStroke(
           color: m['c'] as int,
-          width: (m['w'] as num).toDouble(),
+          width: width,
           tool: m['t'] == null
               ? InkTool.pen
               : InkTool.values.byName(m['t'] as String),
-          points: [
-            for (var i = 0; i < flat.length; i += 3)
-              (
-                x: flat[i].toDouble(),
-                y: flat[i + 1].toDouble(),
-                pressure: flat[i + 2].toDouble(),
-              ),
-          ],
+          points: points,
         ),
       );
     }
     return InkDrawing(strokes);
   }
+
+  /// Bornes acceptées à la lecture.
+  static const double maxStrokeWidth = 100;
+  static const double maxHeight = 200000;
 
   String encode() => jsonEncode(toJson());
 

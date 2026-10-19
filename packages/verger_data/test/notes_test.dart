@@ -211,4 +211,19 @@ void main() {
       expect(blank.isBlank, isTrue);
     },
   );
+
+  test('suppression d\'une note vide seulement', () async {
+    final blank = await store.createNote(itemId: item.id);
+    final written = await store.createNote(itemId: item.id, body: 'Texte');
+    final zoned = await store.createNote(
+      documentId: course.id,
+      page: 1,
+      region: const NormalizedRect(0.1, 0.1, 0.5, 0.5),
+    );
+    expect(await store.deleteNoteIfBlank(blank.id), isTrue);
+    expect(await store.deleteNoteIfBlank(written.id), isFalse);
+    expect(await store.deleteNoteIfBlank(zoned.id), isFalse);
+    expect(await store.note(blank.id), isNull);
+    expect(await store.note(written.id), isNotNull);
+  });
 }

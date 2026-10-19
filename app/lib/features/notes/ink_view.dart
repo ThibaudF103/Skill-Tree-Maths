@@ -109,7 +109,8 @@ class InkPainter extends CustomPainter {
   bool shouldRepaint(InkPainter old) =>
       old.ink != ink ||
       old.scale != scale ||
-      old.current != current ||
+      // Trait en cours : sa liste de points grandit sur place.
+      !identical(old.current, current) ||
       old.lines != lines;
 }
 

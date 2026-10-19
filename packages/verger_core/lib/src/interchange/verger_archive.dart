@@ -49,7 +49,9 @@ final class VergerArchive {
 
   /// 2 : contenus (PDF, vidéos) rattachés aux nœuds, ancres sans page.
   /// 3 : prérequis entre connaissances.
-  static const currentVersion = 3;
+  /// 4 : écriture manuscrite des notes (une version plus ancienne de
+  /// l'appli refuse l'archive plutôt que de la perdre).
+  static const currentVersion = 4;
 
   final List<KnowledgeNode> nodes;
   final List<KnowledgeItem> items;

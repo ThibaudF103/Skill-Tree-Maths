@@ -255,11 +255,15 @@ class _NoteEditorState extends State<NoteEditor> {
     // laisse pas de notes vides derrière soi. L'écriture est relue en base
     // (la note reçue peut dater d'avant le passage à l'éditeur manuscrit).
     if (_text.text.trim().isEmpty && widget.note.region == null) {
+      // Le texte vidé est d'abord enregistré, puis la note supprimée si
+      // elle est restée vide (sans écriture manuscrite) : en une requête,
+      // sans risque d'effacer une modification faite entre-temps.
       _save?.cancel();
       final store = _store, id = widget.note.id;
-      store.note(id).then((n) async {
-        if (n != null && n.isBlank) await store.deleteNote(id);
-      });
+      final cleared = _text.text != _saved
+          ? store.updateNote(id, body: _text.text)
+          : Future<void>.value();
+      cleared.then((_) => store.deleteNoteIfBlank(id));
     } else if (_save != null) {
       _flush();
     }
@@ -436,11 +440,13 @@ class _Handwriting extends StatelessWidget {
     final ink = note.ink;
     Future<void> open() async {
       await beforeOpen();
-      if (context.mounted) {
-        await Navigator.of(context).push(
-          MaterialPageRoute<void>(builder: (_) => InkEditorPage(note: note)),
-        );
-      }
+      if (!context.mounted) return;
+      // La note relue en base : l'écriture la plus récente.
+      final latest = await AppScope.of(context).store.note(note.id);
+      if (latest == null || !context.mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => InkEditorPage(note: latest)),
+      );
     }
 
     if (ink == null || ink.isEmpty) {

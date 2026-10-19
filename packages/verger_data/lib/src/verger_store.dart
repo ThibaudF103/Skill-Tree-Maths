@@ -784,6 +784,22 @@ class VergerStore {
   Future<void> deleteNote(String id) =>
       (_db.delete(_db.notes)..where((n) => n.id.equals(id))).go();
 
+  /// Supprime la note seulement si elle est toujours vide (ni texte, ni
+  /// écriture, ni zone d'un PDF), en une seule requête : une modification
+  /// enregistrée entre-temps n'est jamais perdue. Vrai si elle est supprimée.
+  Future<bool> deleteNoteIfBlank(String id) async {
+    final count =
+        await (_db.delete(_db.notes)..where(
+              (n) =>
+                  n.id.equals(id) &
+                  n.body.trim().equals('') &
+                  n.ink.isNull() &
+                  n.left.isNull(),
+            ))
+            .go();
+    return count > 0;
+  }
+
   /// Mémorise la page consultée pour reprendre la lecture.
   Future<void> setLastPage(String documentId, int page) =>
       (_db.update(_db.documents)..where((d) => d.id.equals(documentId))).write(

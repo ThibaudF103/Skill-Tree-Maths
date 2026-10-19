@@ -52,8 +52,15 @@ class InkEditorController extends ChangeNotifier {
   InkStroke? _current;
   InkStroke? get current => _current;
 
+  /// Points du trait en cours, complétés sur place (pas de copie à chaque
+  /// déplacement du stylet).
+  final _points = <InkPoint>[];
+
   /// Effacement en cours : l'état d'avant, pour un seul « annuler ».
   InkDrawing? _beforeErase;
+
+  /// Dernière position de la gomme : on efface tout le long du geste.
+  InkPoint? _lastErase;
 
   void select(InkMode m) {
     mode = m;
@@ -76,12 +83,16 @@ class InkEditorController extends ChangeNotifier {
   void down(InkPoint p, {bool erasing = false}) {
     if (erasing || mode == InkMode.eraser) {
       _beforeErase = _ink;
+      _lastErase = null;
       _eraseAt(p);
       return;
     }
     final highlighter = mode == InkMode.highlighter;
+    _points
+      ..clear()
+      ..add(p);
     _current = InkStroke(
-      points: [p],
+      points: _points,
       color: highlighter ? _highlighterColor : color,
       width: highlighter ? _highlighterWidth : width,
       tool: highlighter ? InkTool.highlighter : InkTool.pen,
@@ -96,11 +107,13 @@ class InkEditorController extends ChangeNotifier {
     }
     final s = _current;
     if (s == null) return;
-    final last = s.points.last;
+    final last = _points.last;
     // Points trop proches : inutiles et coûteux.
     if ((p.x - last.x).abs() + (p.y - last.y).abs() < 0.8) return;
+    _points.add(p);
+    // Nouvel objet (le dessin se rafraîchit), même liste de points.
     _current = InkStroke(
-      points: [...s.points, p],
+      points: _points,
       color: s.color,
       width: s.width,
       tool: s.tool,
@@ -124,7 +137,14 @@ class InkEditorController extends ChangeNotifier {
     _current = null;
     if (s == null) return false;
     _push(_ink);
-    _ink = _ink.add(s);
+    _ink = _ink.add(
+      InkStroke(
+        points: List.unmodifiable(_points),
+        color: s.color,
+        width: s.width,
+        tool: s.tool,
+      ),
+    );
     notifyListeners();
     return true;
   }
@@ -139,7 +159,23 @@ class InkEditorController extends ChangeNotifier {
   }
 
   void _eraseAt(InkPoint p) {
-    final after = _ink.erase(p.x, p.y, _eraserRadius);
+    // Gomme rapide : on efface aussi entre la position précédente et la
+    // nouvelle, par pas d'un demi-rayon.
+    final from = _lastErase ?? p;
+    _lastErase = p;
+    final distance = math.sqrt(
+      (p.x - from.x) * (p.x - from.x) + (p.y - from.y) * (p.y - from.y),
+    );
+    final steps = math.max(1, (distance / (_eraserRadius / 2)).ceil());
+    var after = _ink;
+    for (var k = 1; k <= steps; k++) {
+      final t = k / steps;
+      after = after.erase(
+        from.x + t * (p.x - from.x),
+        from.y + t * (p.y - from.y),
+        _eraserRadius,
+      );
+    }
     if (after.strokes.length != _ink.strokes.length) {
       _ink = after;
       notifyListeners();
@@ -180,10 +216,7 @@ Future<void> openInkEditor(BuildContext context, Note note) async {
   await Navigator.of(
     context,
   ).push(MaterialPageRoute<void>(builder: (_) => InkEditorPage(note: note)));
-  final after = await store.note(note.id);
-  if (after != null && after.isBlank && after.region == null) {
-    await store.deleteNote(note.id);
-  }
+  await store.deleteNoteIfBlank(note.id);
 }
 
 /// Écriture manuscrite d'une note, en plein écran : stylet (Apple Pencil),
@@ -222,26 +255,53 @@ class _InkEditorPageState extends State<InkEditorPage> {
   @override
   void dispose() {
     _save?.cancel();
-    if (_dirty) _flush();
+    if (_dirty) _flush().ignore();
     _controller.dispose();
     _scroll.dispose();
     super.dispose();
   }
 
   void _changed() {
-    if (!_dirty) setState(() => _dirty = true);
+    _setDirty(true);
     _save?.cancel();
     _save = Timer(const Duration(milliseconds: 800), _flush);
   }
 
+  /// Enregistrement en cours (on attend sa fin avant de quitter).
+  Future<void>? _saving;
+
+  /// Enregistre l'écriture ; la page reste « modifiée » tant que
+  /// l'enregistrement n'a pas réussi.
   Future<void> _flush() async {
     _save?.cancel();
-    if (mounted) {
-      setState(() => _dirty = false);
-    } else {
-      _dirty = false;
+    final previous = _saving;
+    if (previous != null) await previous;
+    final ink = _controller.ink;
+    final saving = _store.updateNote(widget.note.id, ink: ink);
+    _saving = saving;
+    try {
+      await saving;
+      // Rien de nouveau entre-temps : tout est enregistré.
+      if (identical(ink, _controller.ink)) _setDirty(false);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Écriture non enregistrée : $e')),
+        );
+      }
+      rethrow;
+    } finally {
+      if (identical(_saving, saving)) _saving = null;
     }
-    await _store.updateNote(widget.note.id, ink: _controller.ink);
+  }
+
+  void _setDirty(bool dirty) {
+    if (_dirty == dirty) return;
+    if (mounted) {
+      setState(() => _dirty = dirty);
+    } else {
+      _dirty = dirty;
+    }
   }
 
   bool _draws(PointerDeviceKind kind) => switch (kind) {
@@ -272,10 +332,14 @@ class _InkEditorPageState extends State<InkEditorPage> {
         final c = _controller;
         // On enregistre avant de quitter : l'appelant relit la note aussitôt.
         return PopScope(
-          canPop: !_dirty,
+          canPop: !_dirty && _saving == null,
           onPopInvokedWithResult: (didPop, _) async {
             if (didPop) return;
-            await _flush();
+            try {
+              await _flush();
+            } catch (_) {
+              return; // Échec signalé : on reste sur la page.
+            }
             if (context.mounted) Navigator.of(context).pop();
           },
           child: Scaffold(

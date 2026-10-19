@@ -31,6 +31,7 @@ void main() {
   test('trait mal formé refusé', () {
     expect(
       () => InkDrawing.fromJson({
+        'v': 1,
         'strokes': [
           {
             'c': 0,
@@ -60,5 +61,45 @@ void main() {
       ]).bottom,
       93,
     );
+  });
+
+  test('lecture : version, bornes, traits vides', () {
+    Map<String, Object?> one(Map<String, Object?> stroke) => {
+      'v': 1,
+      'strokes': [stroke],
+    };
+    expect(() => InkDrawing.fromJson({'strokes': []}), throwsFormatException);
+    expect(() => InkDrawing.fromJson({'v': 1}), throwsFormatException);
+    expect(
+      () => InkDrawing.fromJson(
+        one({
+          'c': 0,
+          'w': -1,
+          'p': [1, 2, 0.5],
+        }),
+      ),
+      throwsFormatException,
+    );
+    expect(
+      () => InkDrawing.fromJson(
+        one({
+          'c': 0,
+          'w': 2,
+          'p': [1, 2, 3],
+        }),
+      ),
+      throwsFormatException,
+    );
+    expect(
+      () => InkDrawing.fromJson(
+        one({
+          'c': 0,
+          'w': 2,
+          'p': [1, 1e9, 0.5],
+        }),
+      ),
+      throwsFormatException,
+    );
+    expect(InkDrawing.fromJson(one({'c': 0, 'w': 2, 'p': []})).isEmpty, isTrue);
   });
 }

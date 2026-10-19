@@ -145,10 +145,12 @@ class _ItemNotesSectionState extends State<ItemNotesSection> {
   }
 
   Future<void> _newHandwritten() async {
-    final note = await AppScope.of(
-      context,
-    ).store.createNote(itemId: widget.item.id);
-    if (!mounted) return;
+    final store = AppScope.of(context).store;
+    final note = await store.createNote(itemId: widget.item.id);
+    if (!mounted) {
+      await store.deleteNoteIfBlank(note.id);
+      return;
+    }
     await openInkEditor(context, note);
   }
 
