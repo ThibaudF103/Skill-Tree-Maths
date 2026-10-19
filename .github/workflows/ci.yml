@@ -150,12 +150,25 @@ jobs:
       - id: check
         env:
           IOS_P12_BASE64: ${{ secrets.IOS_P12_BASE64 }}
+          IOS_P12_PASSWORD: ${{ secrets.IOS_P12_PASSWORD }}
+          IOS_PROFILE_BASE64: ${{ secrets.IOS_PROFILE_BASE64 }}
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
         run: |
-          if [ -n "$IOS_P12_BASE64" ] && [ -n "$ASC_KEY_ID" ]; then
+          manquants=""
+          for s in IOS_P12_BASE64 IOS_P12_PASSWORD IOS_PROFILE_BASE64 \
+                   ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8; do
+            [ -n "${!s}" ] || manquants="$manquants $s"
+          done
+          if [ -z "$manquants" ]; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
+          elif [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            # Envoi demandé à la main : l'échec doit se voir.
+            echo "::error::Secrets Apple absents ou vides :$manquants (voir docs/TESTFLIGHT.md, étape 7)."
+            exit 1
           else
-            echo "::notice::Secrets Apple absents : pas d'envoi à TestFlight (voir docs/TESTFLIGHT.md)."
+            echo "::notice::Secrets Apple absents ou vides :$manquants : pas d'envoi à TestFlight (voir docs/TESTFLIGHT.md)."
           fi
 
   # Appli iPad envoyée à TestFlight à chaque fusion dans main (ou à la
