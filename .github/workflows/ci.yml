@@ -247,9 +247,9 @@ jobs:
       - name: Compilation de l'appli signée
         if: steps.secrets.outputs.ready
         working-directory: app
-        env:
-          FLUTTER_XCODE_DEVELOPMENT_TEAM: ${{ env.APPLE_TEAM_ID }}
         run: |
+          # APPLE_TEAM_ID vient de GITHUB_ENV (étape précédente).
+          export FLUTTER_XCODE_DEVELOPMENT_TEAM="$APPLE_TEAM_ID"
           cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
