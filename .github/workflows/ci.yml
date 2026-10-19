@@ -179,8 +179,6 @@ jobs:
     if: needs.apple.outputs.ready == 'true'
     runs-on: macos-latest
     env:
-      # Team ID Apple : public (il figure dans toute appli signée).
-      APPLE_TEAM_ID: B37Y3K6Z76
       ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
       ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
     steps:
@@ -234,6 +232,9 @@ jobs:
             echo "::error::Le profil s'appelle « $nom » au lieu de « Verger App Store » (docs/TESTFLIGHT.md, étape 5)."
             exit 1
           fi
+          # Team ID : celui du profil (public, il figure dans toute appli
+          # signée), pour les étapes suivantes.
+          echo "APPLE_TEAM_ID=$(lire TeamIdentifier:0)" >> "$GITHUB_ENV"
           uuid="$(lire UUID)"
           for profils in "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles" \
                          "$HOME/Library/MobileDevice/Provisioning Profiles"; do

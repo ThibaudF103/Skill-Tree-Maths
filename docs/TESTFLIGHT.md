@@ -12,7 +12,8 @@ Identifiant de l'appli (*bundle ID*) : `io.github.thibaudf103.verger`.
 1. S'inscrire au programme sur <https://developer.apple.com/programs/enroll/>
    (99 € par an, en tant que particulier). La validation peut prendre
    jusqu'à 48 heures.
-2. Team ID : `B37Y3K6Z76`, déjà inscrit dans la CI (`.github/workflows/ci.yml`).
+2. Team ID : rien à faire, la CI le lit dans le profil de provisionnement
+   (étape 5).
 
 ## 2. Identifiant de l'appli
 
