@@ -12,6 +12,11 @@ set -euo pipefail
 export MSYS_NO_PATHCONV=1 # Git Bash : ne pas convertir « /CN=… » en chemin
 dossier="${VERGER_CERT_DIR:-$HOME/verger-ios}"
 mkdir -p "$dossier"
+# Fichier donné en argument, lu avant de changer de dossier (chemin relatif).
+fichier_arg="${2:-}"
+if [ -n "$fichier_arg" ] && [ "${fichier_arg#/}" = "$fichier_arg" ]; then
+  fichier_arg="$PWD/$fichier_arg"
+fi
 cd "$dossier"
 
 case "${1:-}" in
@@ -23,8 +28,14 @@ case "${1:-}" in
     echo "→ À téléverser sur developer.apple.com (certificat « Apple Distribution »)."
     ;;
   p12)
-    cer="${2:?Chemin du fichier .cer téléchargé chez Apple}"
-    openssl x509 -inform DER -in "$cer" -out distribution.pem
+    cer="${fichier_arg:?Chemin du fichier .cer téléchargé chez Apple}"
+    # openssl est un programme Windows sous Git Bash : il ne comprend pas les
+    # chemins « /c/Users/… ». On copie le certificat ici (cp, lui, les
+    # comprend) et openssl ne lit qu'un nom de fichier local.
+    if [ "$cer" != "$dossier/distribution.cer" ]; then
+      cp "$cer" distribution.cer
+    fi
+    openssl x509 -inform DER -in distribution.cer -out distribution.pem
     mdp="$(openssl rand -hex 12)"
     # -legacy : format accepté par le trousseau macOS (openssl 3).
     if ! openssl pkcs12 -export -legacy -inkey verger.key -in distribution.pem \
@@ -38,7 +49,7 @@ case "${1:-}" in
     echo "Secret IOS_P12_BASE64   : lancez « $0 base64 $dossier/verger.p12 »"
     ;;
   base64)
-    fichier="${2:?Fichier à encoder}"
+    fichier="${fichier_arg:?Fichier à encoder}"
     base64 -w0 "$fichier" 2>/dev/null || base64 "$fichier" | tr -d '\n'
     echo
     ;;
