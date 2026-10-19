@@ -14,9 +14,10 @@ dossier="${VERGER_CERT_DIR:-$HOME/verger-ios}"
 mkdir -p "$dossier"
 # Fichier donné en argument, lu avant de changer de dossier (chemin relatif).
 fichier_arg="${2:-}"
-if [ -n "$fichier_arg" ] && [ "${fichier_arg#/}" = "$fichier_arg" ]; then
-  fichier_arg="$PWD/$fichier_arg"
-fi
+case "$fichier_arg" in
+  '' | /* | [A-Za-z]:*) ;; # absent, absolu, ou « C:/… » / « C:\… »
+  *) fichier_arg="$PWD/$fichier_arg" ;;
+esac
 cd "$dossier"
 
 case "${1:-}" in
@@ -31,9 +32,11 @@ case "${1:-}" in
     cer="${fichier_arg:?Chemin du fichier .cer téléchargé chez Apple}"
     # openssl est un programme Windows sous Git Bash : il ne comprend pas les
     # chemins « /c/Users/… ». On copie le certificat ici (cp, lui, les
-    # comprend) et openssl ne lit qu'un nom de fichier local.
-    if [ "$cer" != "$dossier/distribution.cer" ]; then
-      cp "$cer" distribution.cer
+    # comprend) et openssl ne lit qu'un nom de fichier local. Copie complète
+    # puis renommage : jamais de distribution.cer tronqué.
+    if ! [ "$cer" -ef distribution.cer ]; then
+      cp "$cer" distribution.cer.tmp
+      mv distribution.cer.tmp distribution.cer
     fi
     openssl x509 -inform DER -in distribution.cer -out distribution.pem
     mdp="$(openssl rand -hex 12)"
