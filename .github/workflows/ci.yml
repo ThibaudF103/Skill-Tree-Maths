@@ -219,9 +219,27 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple: -k "$motdepasse" "$keychain"
           security list-keychain -d user -s "$keychain"
 
-          profils="$HOME/Library/MobileDevice/Provisioning Profiles"
-          mkdir -p "$profils"
-          echo "$IOS_PROFILE_BASE64" | base64 --decode > "$profils/verger.mobileprovision"
+          # Profil : nommé par son UUID, dans le dossier de Xcode 16 et plus
+          # comme dans l'ancien. Son nom, son équipe et son App ID sont
+          # affichés (rien de secret) pour diagnostiquer une erreur de profil.
+          profil="$RUNNER_TEMP/verger.mobileprovision"
+          echo "$IOS_PROFILE_BASE64" | base64 --decode > "$profil"
+          security cms -D -i "$profil" > "$RUNNER_TEMP/profil.plist"
+          lire() { /usr/libexec/PlistBuddy -c "Print :$1" "$RUNNER_TEMP/profil.plist"; }
+          nom="$(lire Name)"
+          echo "Profil : « $nom », équipe $(lire TeamIdentifier:0)," \
+            "App ID $(lire Entitlements:application-identifier)," \
+            "expire le $(lire ExpirationDate)"
+          if [ "$nom" != "Verger App Store" ]; then
+            echo "::error::Le profil s'appelle « $nom » au lieu de « Verger App Store » (docs/TESTFLIGHT.md, étape 5)."
+            exit 1
+          fi
+          uuid="$(lire UUID)"
+          for profils in "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles" \
+                         "$HOME/Library/MobileDevice/Provisioning Profiles"; do
+            mkdir -p "$profils"
+            cp "$profil" "$profils/$uuid.mobileprovision"
+          done
 
           mkdir -p "$HOME/.appstoreconnect/private_keys"
           printf '%s\n' "$ASC_KEY_P8" > "$HOME/.appstoreconnect/private_keys/AuthKey_$ASC_KEY_ID.p8"
