@@ -115,6 +115,11 @@ de 90 jours ; chaque fusion en produit une nouvelle.
 
 ## En cas d'échec
 
+- **Job « Secrets Apple » en échec** : son message liste les secrets
+  absents ou vides. Vérifier leur nom exact dans *Settings → Secrets and
+  variables → Actions*, onglet *Secrets*, section *Repository secrets*
+  (pas *Environment secrets* ni *Variables*). Pour `IOS_P12_BASE64`,
+  copier toute la longue ligne affichée par la commande `base64`.
 - **Profil ou certificat introuvable** : vérifier le nom exact du profil
   (`Verger App Store`) et que le profil utilise bien le certificat de
   l'étape 4.
