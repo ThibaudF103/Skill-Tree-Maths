@@ -10,6 +10,7 @@ import '../items/item_editor.dart';
 import '../items/item_tile.dart';
 import '../review/reviews_page.dart';
 import '../skills/skill_graph_page.dart';
+import '../worksheets/worksheet_dialog.dart';
 import 'node_contents.dart';
 import 'node_picker.dart';
 import 'reorder.dart';
@@ -241,6 +242,12 @@ class _NodeMenu extends StatelessWidget {
             openSkillGraph(context, node.id);
           case 'share':
             await exportTreePack(context, node);
+          case 'worksheets':
+            await printWorksheets(
+              context,
+              title: node.title,
+              items: data.subtreeItems(node.id),
+            );
           case 'review':
             final ids = await loadReviewQueue(
               context,
@@ -287,6 +294,10 @@ class _NodeMenu extends StatelessWidget {
         const PopupMenuItem(
           value: 'skills',
           child: Text('Arbre de compétences'),
+        ),
+        const PopupMenuItem(
+          value: 'worksheets',
+          child: Text('Fiches d\'exercices par élève (PDF)…'),
         ),
         const PopupMenuDivider(),
         const PopupMenuItem(

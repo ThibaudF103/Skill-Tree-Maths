@@ -8,6 +8,7 @@ export 'src/exercises/exercise_template.dart';
 export 'src/exercises/expression.dart';
 export 'src/exercises/math_value.dart';
 export 'src/exercises/seeded_random.dart';
+export 'src/exercises/worksheet.dart';
 export 'src/domain/ids.dart';
 export 'src/domain/ink.dart';
 export 'src/domain/item_kind.dart';

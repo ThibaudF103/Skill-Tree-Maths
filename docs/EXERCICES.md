@@ -88,3 +88,23 @@ Pythagore, valeur approchée :
  "questions": [{"prompt": "Hypoténuse (cm, au centième) :",
                 "answer": "sqrt(a^2 + b^2)", "tolerance": 0.01}]}
 ```
+
+## Fiches par élève
+
+Dans le menu d'une branche ou d'un arbre, « Fiches d'exercices par élève
+(PDF) » crée une fiche par élève (un nom par ligne) avec les exercices
+corrigés automatiquement de la branche :
+
+- chaque élève a ses propres valeurs et, si l'on demande moins d'exercices
+  qu'il n'y en a, son propre tirage parmi eux (toujours dans l'ordre de la
+  branche) ;
+- une case par réponse numérique, une case à cocher par choix de QCM (A, B,
+  C…) ;
+- un QR code porte le nom de l'élève, la graine de la fiche, les exercices
+  et une empreinte de leurs modèles : il suffit à retrouver chaque énoncé
+  et sa réponse, pour la correction par lecture des copies à venir (un
+  modèle modifié depuis l'impression se repère à l'empreinte) ;
+- le corrigé (réponses de chaque élève) peut être ajouté en fin de document.
+
+Limite connue : une formule centrée (`$$…$$`) plus large que la page est
+coupée sur la fiche.
