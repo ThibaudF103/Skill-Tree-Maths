@@ -80,9 +80,8 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
     if (source == null) return null;
     try {
       return ExerciseTemplate.parse(source).generate(_random.nextInt(1 << 30));
-    } on FormatException {
-      return null;
-    } on EvalError {
+    } catch (_) {
+      // Modèle devenu invalide : carte classique plutôt que session bloquée.
       return null;
     }
   }

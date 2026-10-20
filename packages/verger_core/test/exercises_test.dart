@@ -184,6 +184,61 @@ void main() {
       expect(zero.check(), contains('Division par zéro'));
     });
 
+    test('retours de relecture', () {
+      // Calcul impossible dans « let » : tirage écarté, pas d'échec.
+      final guarded = ExerciseTemplate.parse(r'''
+{"v": 1, "params": {"b": {"int": [-2, 2]}}, "let": {"x": "1/b"},
+ "when": ["b != 0"], "statement": "", "questions": [{"answer": "x"}]}''');
+      expect(guarded.check(), isNull);
+      // Rang « correct » non entier : refusé.
+      final rank = ExerciseTemplate.parse(r'''
+{"v": 1, "statement": "", "questions": [
+  {"choices": ["A", "B"], "correct": "3/2"}]}''');
+      expect(rank.check(), contains('entier'));
+      // Intervalle autour d'une valeur.
+      final interval = ExerciseTemplate.parse(r'''
+{"v": 1, "params": {"a": {"int": [1, 1]}},
+ "statement": "x ∈ [[[a]] ; 5]", "questions": [{"answer": "a"}]}''');
+      expect(interval.generate(0).statement, 'x ∈ [1 ; 5]');
+      // Valeur approchée sans tolérance : la réponse affichée est acceptée.
+      final approx = ExerciseTemplate.parse(r'''
+{"v": 1, "statement": "", "questions": [{"answer": "sqrt(2)"}]}''');
+      final q = approx.generate(0).questions.single as NumberQuestion;
+      expect(q.expectedText, '1,4142');
+      expect(q.check(q.expectedText), isTrue);
+      expect(q.check('1,41'), isFalse);
+      // Avec tolérance, une valeur exacte s'affiche telle quelle.
+      final exactTol = ExerciseTemplate.parse(r'''
+{"v": 1, "statement": "", "questions": [{"answer": "5", "tolerance": 0.1}]}''');
+      expect(
+        (exactTol.generate(0).questions.single as NumberQuestion).expectedText,
+        '5',
+      );
+      // Saisies absurdes : illisibles, sans plantage ni blocage.
+      final one = ExerciseTemplate.parse(r'''
+{"v": 1, "statement": "", "questions": [{"answer": "1"}]}''');
+      final q1 = one.generate(0).questions.single as NumberQuestion;
+      expect(q1.check('sqrt((10^64)^7)'), isFalse);
+      expect(q1.check('(((9^64)^64)^64)^64'), isNull);
+      expect(q1.check('${'(' * 20000}1${')' * 20000}'), isNull);
+      expect(q1.check('1.2.3'), isNull);
+      expect(q1.check('1,2,3'), isNull);
+    });
+
+    test('calculs limites', () {
+      expect(
+        ev('1/(1/(10^64)^6)').exact!.numerator.bitLength,
+        greaterThan(1000),
+      );
+      expect(ev('sqrt((10^64)^7)').isExact, isTrue); // carré parfait
+      // Trop grand pour une valeur approchée : erreur de calcul, sans plantage.
+      expect(() => ev('sqrt(2(10^64)^7)'), throwsA(isA<EvalError>()));
+      expect(ev('sqrt(2(10^64))').isExact, isFalse);
+      expect(ev('sqrt(10^128)').exact, Rational(BigInt.from(10).pow(64)));
+      expect(ev('3/2sqrt(4)').exact, Rational(BigInt.from(3), BigInt.from(4)));
+      expect(ev('6/2(1+2)').asInt, 1);
+    });
+
     test('note tirée des résultats', () {
       expect(ratingForResults([true, true]), Rating.good);
       expect(ratingForResults([true, false]), Rating.hard);

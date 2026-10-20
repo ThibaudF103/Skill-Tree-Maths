@@ -43,7 +43,9 @@ d'imprimer une fiche par élève puis de la corriger.
 **Expressions** : nombres, `+ - * / ^`, parenthèses, `abs`, `sqrt`, `min`,
 `max`, `si(condition, alors, sinon)`, comparaisons (`== != < <= > >=`),
 `&&`, `||`. Le calcul est exact sur les fractions ; une racine non entière
-devient une valeur approchée.
+devient une valeur approchée. La multiplication peut être sous-entendue
+(`2x`, `3(a+1)`) et passe alors avant `*` et `/` : `3/2sqrt(2)` vaut
+3/(2√2).
 
 **Valeurs dans un texte** : `[[expression]]`, ou `[[expression|options]]` :
 
@@ -58,9 +60,11 @@ devient une valeur approchée.
 
 - Réponse numérique : `"answer"` (expression). L'élève peut écrire `-3/4`,
   `-0,75`, `sqrt(2)/2`… La réponse exacte est due ; `"tolerance": 0.01`
-  accepte un écart (valeurs approchées).
+  accepte un écart. Sans tolérance, une valeur approchée (racine non
+  entière) est acceptée à 4 décimales.
 - QCM : `"choices"`, mélangés à l'affichage. La bonne réponse est la
-  première, ou celle de rang `"correct"` (1 = le premier choix écrit).
+  première, ou celle de rang `"correct"` (1 = le premier choix écrit) ; ce
+  rang doit être un entier, sinon le modèle est refusé.
 
 ## Exemples
 

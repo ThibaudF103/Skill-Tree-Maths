@@ -193,24 +193,32 @@ final class ExerciseTemplate {
   /// par zéro…) ou si les conditions ne sont jamais remplies.
   ExerciseInstance generate(int seed) {
     final rng = SeededRandom(seed);
+    EvalError? last;
     for (var attempt = 0; attempt < 200; attempt++) {
       final env = <String, MathValue>{};
       for (final p in _params) {
         env[p.name] = p.draw(rng);
       }
-      for (final (name, e) in _lets) {
-        env[name] = e.evaluate(env);
+      // Un calcul impossible (division par zéro…) écarte le tirage, comme
+      // une condition non remplie : « when » peut l'exclure après coup.
+      try {
+        for (final (name, e) in _lets) {
+          env[name] = e.evaluate(env);
+        }
+        if (!_conditions.every((c) => c.evaluate(env).isTrue)) continue;
+        return ExerciseInstance._(
+          seed: seed,
+          statement: _statement.render(env),
+          questions: [for (final q in _questions) q.instantiate(env, rng)],
+        );
+      } on EvalError catch (e) {
+        last = e;
       }
-      if (!_conditions.every((c) => c.evaluate(env).isTrue)) continue;
-      return ExerciseInstance._(
-        seed: seed,
-        statement: _statement.render(env),
-        questions: [for (final q in _questions) q.instantiate(env, rng)],
-      );
     }
-    throw const EvalError(
-      'Conditions jamais remplies : élargir les paramètres ou les conditions',
-    );
+    throw last ??
+        const EvalError(
+          'Conditions jamais remplies : élargir les paramètres ou les conditions',
+        );
   }
 
   /// Vérifie le modèle sur plusieurs tirages : le premier problème trouvé,
@@ -221,6 +229,8 @@ final class ExerciseTemplate {
         generate(seed);
       } on EvalError catch (e) {
         return 'Tirage $seed : ${e.message}';
+      } catch (e) {
+        return 'Tirage $seed : calcul impossible ($e)';
       }
     }
     return null;
@@ -254,13 +264,13 @@ final class NumberQuestion extends ExerciseQuestion {
 
   final MathValue expected;
 
-  /// Écart accepté ; `null` : réponse exacte (à l'arrondi près pour une
-  /// valeur approchée).
+  /// Écart accepté ; `null` : réponse exacte (pour une valeur approchée, à
+  /// 5·10⁻⁵ près, comme la valeur affichée à 4 décimales).
   final double? tolerance;
 
-  /// Réponse attendue, écrite simplement.
-  String get expectedText =>
-      formatValue(expected, tolerance == null ? '' : '4');
+  /// Réponse attendue, écrite simplement : exacte si elle l'est, sinon à
+  /// 4 décimales.
+  String get expectedText => formatValue(expected, expected.isExact ? '' : '4');
 
   /// Vrai si [input] est juste ; `null` s'il n'est pas lisible.
   bool? check(String input) {
@@ -268,10 +278,10 @@ final class NumberQuestion extends ExerciseQuestion {
     try {
       final e = MathExpression.parse(input, decimalComma: true);
       if (e.variables.isNotEmpty) return null;
-      return e.evaluate().sameAs(expected, tolerance: tolerance);
-    } on FormatException {
-      return null;
-    } on EvalError {
+      final tol = tolerance ?? (expected.isExact ? null : 5e-5);
+      return e.evaluate().sameAs(expected, tolerance: tol);
+    } catch (_) {
+      // Saisie illisible ou incalculable, quelle qu'en soit la raison.
       return null;
     }
   }
@@ -411,7 +421,8 @@ final class _Text {
   ) {
     final parts = <Object>[];
     var last = 0;
-    for (final m in RegExp(r'\[\[(.+?)\]\]').allMatches(source)) {
+    // « [[[a]] ; 5] » : intervalle autour d'une valeur.
+    for (final m in RegExp(r'\[\[(?!\[)(.+?)\]\]').allMatches(source)) {
       parts.add(source.substring(last, m.start));
       final inner = m[1]!;
       // Options après le dernier « | » qui n'appartient pas à un « || ».
@@ -477,7 +488,11 @@ final class _Question {
         tolerance: _tolerance,
       );
     }
-    final rank = _answer?.evaluate(env).asInt ?? 1;
+    final correct = _answer;
+    final rank = correct == null ? 1 : correct.evaluate(env).asInt;
+    if (rank == null) {
+      throw const EvalError('« correct » doit être un nombre entier');
+    }
     if (rank < 1 || rank > choices.length) {
       throw EvalError(
         'Bonne réponse n° $rank : il n\'y a que ${choices.length} choix',

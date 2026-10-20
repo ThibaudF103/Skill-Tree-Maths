@@ -75,6 +75,10 @@ List<_Token> _tokenize(String source, {required bool decimalComma}) {
         }
         i++;
       }
+      // « 1.2.3 » : faute de frappe, pas un produit implicite.
+      if (i < s.length && (s[i] == '.' || (decimalComma && s[i] == ','))) {
+        throw FormatException('Nombre mal écrit', source, i);
+      }
       tokens.add((kind: _Kind.number, text: buf.toString(), at: start));
       continue;
     }
@@ -150,8 +154,22 @@ final class _Parser {
 
   static MathValue _bool(bool b) => MathValue.of(b ? 1 : 0);
 
-  Evaluator _or() =>
-      _binary(_and, {'||': (a, b) => _bool(a.isTrue || b.isTrue)});
+  /// Profondeur d'imbrication (parenthèses, signes) : bornée, une saisie
+  /// absurde ne fait pas déborder la pile.
+  var _depth = 0;
+
+  void _enter() {
+    if (++_depth > 100) _fail('Expression trop imbriquée');
+  }
+
+  Evaluator _or() {
+    _enter();
+    try {
+      return _binary(_and, {'||': (a, b) => _bool(a.isTrue || b.isTrue)});
+    } finally {
+      _depth--;
+    }
+  }
 
   Evaluator _and() =>
       _binary(_comparison, {'&&': (a, b) => _bool(a.isTrue && b.isTrue)});
@@ -168,34 +186,40 @@ final class _Parser {
   Evaluator _sum() =>
       _binary(_product, {'+': (a, b) => a + b, '-': (a, b) => a - b});
 
-  /// Produit, y compris sous-entendu : `2x`, `3(a+1)`, `(a)(b)`.
+  /// Produit et quotient explicites, entre produits sous-entendus.
   Evaluator _product() {
-    var left = _unary();
-    while (true) {
-      if (_isOp('*') || _isOp('/')) {
-        final div = _next().text == '/';
-        final l = left, r = _unary();
-        left = div ? (env) => l(env) / r(env) : (env) => l(env) * r(env);
-      } else if (_peek.kind == _Kind.name ||
-          _peek.kind == _Kind.open ||
-          _peek.kind == _Kind.number) {
-        final l = left, r = _power();
-        left = (env) => l(env) * r(env);
-      } else {
-        return left;
-      }
+    var left = _implicit();
+    while (_isOp('*') || _isOp('/')) {
+      final div = _next().text == '/';
+      final l = left, r = _implicit();
+      left = div ? (env) => l(env) / r(env) : (env) => l(env) * r(env);
     }
+    return left;
+  }
+
+  /// Produit sous-entendu, prioritaire sur `*` et `/` : `2x`, `3(a+1)` ;
+  /// `3/2sqrt(2)` vaut 3/(2√2).
+  Evaluator _implicit() {
+    var left = _unary();
+    while (_peek.kind == _Kind.name ||
+        _peek.kind == _Kind.open ||
+        _peek.kind == _Kind.number) {
+      final l = left, r = _power();
+      left = (env) => l(env) * r(env);
+    }
+    return left;
   }
 
   Evaluator _unary() {
-    if (_isOp('-')) {
-      _next();
-      final e = _unary();
-      return (env) => -e(env);
-    }
-    if (_isOp('+')) {
-      _next();
-      return _unary();
+    if (_isOp('-') || _isOp('+')) {
+      final minus = _next().text == '-';
+      _enter();
+      try {
+        final e = _unary();
+        return minus ? (env) => -e(env) : e;
+      } finally {
+        _depth--;
+      }
     }
     return _power();
   }

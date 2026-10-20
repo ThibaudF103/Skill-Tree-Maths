@@ -133,7 +133,10 @@ final class MathValue {
   MathValue operator -(MathValue o) => _op(o, (a, b) => a - b, (a, b) => a - b);
   MathValue operator *(MathValue o) => _op(o, (a, b) => a * b, (a, b) => a * b);
   MathValue operator /(MathValue o) {
-    if (o.toDouble() == 0) throw const EvalError('Division par zéro');
+    // Un exact minuscule n'est pas nul, même si son flottant l'est.
+    if (o.exact?.isZero ?? o.approx == 0) {
+      throw const EvalError('Division par zéro');
+    }
     return _op(o, (a, b) => a / b, (a, b) => a / b);
   }
 
@@ -146,7 +149,14 @@ final class MathValue {
 
   MathValue pow(MathValue e) {
     final base = exact, n = e.asInt;
-    if (base != null && n != null && n.abs() <= 64) {
+    // Calcul exact tant que le résultat reste de taille raisonnable (sinon
+    // une puissance de puissance figerait l'appli).
+    const maxBits = 10000;
+    if (base != null &&
+        n != null &&
+        n.abs() <= maxBits &&
+        base.numerator.bitLength * n.abs() <= maxBits &&
+        base.denominator.bitLength * n.abs() <= maxBits) {
       if (base.isZero && n < 0) throw const EvalError('Division par zéro');
       return MathValue.exact(base.pow(n));
     }
@@ -188,17 +198,16 @@ final class MathValue {
 
 double _max(double a, double b) => a > b ? a : b;
 
+/// Partie entière de la racine carrée (méthode de Newton sur les entiers,
+/// à partir d'une valeur au-dessus de la racine).
 BigInt _isqrt(BigInt n) {
   if (n < BigInt.two) return n;
-  var x = BigInt.from(_sqrt(n.toDouble()));
-  // Ajustement : la racine flottante peut être décalée d'une unité.
-  while (x * x > n) {
-    x -= BigInt.one;
+  var x = BigInt.one << (n.bitLength ~/ 2 + 1);
+  while (true) {
+    final y = (x + n ~/ x) >> 1;
+    if (y >= x) return x;
+    x = y;
   }
-  while ((x + BigInt.one) * (x + BigInt.one) <= n) {
-    x += BigInt.one;
-  }
-  return x;
 }
 
 double _sqrt(double x) => x <= 0 ? 0 : math.sqrt(x);

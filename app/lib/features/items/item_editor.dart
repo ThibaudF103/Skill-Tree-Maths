@@ -440,6 +440,8 @@ String? autoExerciseProblem(String source) {
     return ExerciseTemplate.parse(source).check();
   } on FormatException catch (e) {
     return e.message;
+  } catch (e) {
+    return 'Modèle incalculable ($e)';
   }
 }
 
@@ -521,9 +523,9 @@ class _AutoExerciseFieldState extends State<_AutoExerciseField> {
             final ExerciseInstance instance;
             try {
               instance = ExerciseTemplate.parse(c.text).generate(_seed);
-            } on EvalError catch (e) {
+            } catch (e) {
               return Text(
-                'Tirage $_seed : ${e.message}',
+                'Tirage $_seed : ${e is EvalError ? e.message : e}',
                 style: TextStyle(color: theme.colorScheme.error),
               );
             }
