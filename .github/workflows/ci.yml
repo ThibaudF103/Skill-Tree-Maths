@@ -249,14 +249,16 @@ jobs:
           corps="$(printf '%s' "$ASC_KEY_P8" | sed 's/-----[^-]*-----//g' | tr -cd 'A-Za-z0-9+/=')"
           cle="$HOME/.appstoreconnect/private_keys/AuthKey_$ASC_KEY_ID.p8"
           mkdir -p "$(dirname "$cle")"
+          type="PRIVATE KEY"
           {
-            echo "-----BEGIN PRIVATE KEY-----"
+            echo "-----BEGIN $type-----"
             printf '%s' "$corps" | fold -w 64
             echo
-            echo "-----END PRIVATE KEY-----"
+            echo "-----END $type-----"
           } > "$cle"
-          if ! openssl pkey -in "$cle" -noout 2>/dev/null; then
-            echo "::error::ASC_KEY_P8 n'est pas une clé privée valide (${#corps} caractères base64 lus, environ 200 attendus). Recopier tout le fichier AuthKey_….p8 dans le secret (docs/TESTFLIGHT.md, étape 7)."
+          # Clé App Store Connect : EC sur la courbe P-256 (prime256v1).
+          if ! openssl pkey -in "$cle" -noout -text 2>/dev/null | grep -q prime256v1; then
+            echo "::error::ASC_KEY_P8 n'est pas une clé App Store Connect valide (${#corps} caractères base64 lus, environ 200 attendus). Recopier tout le fichier AuthKey_….p8 dans le secret (docs/TESTFLIGHT.md, étape 7)."
             exit 1
           fi
       - name: Compilation de l'appli signée
