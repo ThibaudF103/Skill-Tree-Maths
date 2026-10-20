@@ -154,15 +154,38 @@ void main() {
     expect(tester.widget<FilledButton>(add).onPressed, isNull);
     await tap(find.byTooltip('Retirer la valeur'));
 
-    await tap(add);
-    final item = (await tester.runAsync(store.allItems))!.single;
-    final template = ExerciseTemplate.parse(item.autoExercise!);
-    final q = template.generate(0).questions;
+    // Le JSON écrit par le formulaire.
+    await tap(find.text('JSON'));
+    final written = tester
+        .widget<TextField>(find.widgetWithText(TextField, 'Modèle (JSON)'))
+        .controller!
+        .text;
+    final q = ExerciseTemplate.parse(written).generate(0).questions;
     expect(
       (q[1] as ChoiceQuestion).choices[(q[1] as ChoiceQuestion).correct],
       'impair',
     );
-    expect(ExerciseDraft.tryParse(item.autoExercise!)!.params.single.max, '5');
+    expect(ExerciseDraft.tryParse(written)!.params.single.max, '5');
+    await tap(find.text('Formulaire'));
+
+    // Tout effacer puis tout retirer : plus de modèle, enregistrable.
+    await type(field('Énoncé'), '');
+    await type(field('Énoncé'), r'Calculer $[[n]] \times 3$.');
+    await tap(find.text('Retirer le modèle'));
+    expect(find.text('Retirer le modèle'), findsNothing);
+    expect(tester.widget<FilledButton>(add).onPressed, isNotNull);
+    await tap(find.text('Ajouter un paramètre'));
+    await type(field('Nom'), 'x');
+    await type(field('Nom'), '');
+    await tap(find.byTooltip('Retirer le paramètre'));
+    expect(find.text('Retirer le modèle'), findsNothing);
+
+    // Puis le modèle de nouveau.
+    await tap(find.text('Partir d\'un exemple'));
+    expect(find.text('Retirer le modèle'), findsOneWidget);
+    await tap(add);
+    final item = (await tester.runAsync(store.allItems))!.single;
+    expect(item.autoExercise, contains('Résoudre'));
     await unmountTestApp(tester);
   });
 }

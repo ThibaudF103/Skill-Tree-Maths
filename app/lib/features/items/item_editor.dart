@@ -534,12 +534,30 @@ class _AutoExerciseFieldState extends State<_AutoExerciseField> {
             }),
           ),
         ),
-        const SizedBox(height: 8),
+        if (draft != null)
+          ListenableBuilder(
+            listenable: c,
+            builder: (context, _) => Align(
+              alignment: Alignment.centerLeft,
+              child: c.text.trim().isEmpty
+                  ? const SizedBox(height: 8)
+                  : TextButton.icon(
+                      onPressed: () => setState(() {
+                        c.clear();
+                        _showForm();
+                      }),
+                      icon: const Icon(Icons.delete_outline),
+                      label: const Text('Retirer le modèle'),
+                    ),
+            ),
+          )
+        else
+          const SizedBox(height: 8),
         if (draft != null)
           ExerciseForm(
             key: ObjectKey(draft),
             draft: draft,
-            onChanged: () => c.text = draft.encode(),
+            onChanged: () => c.text = draft.isBlank ? '' : draft.encode(),
           )
         else ...[
           if (_jsonOnly)
