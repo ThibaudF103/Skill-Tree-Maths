@@ -90,7 +90,34 @@ void main() {
     expect(image.width, lessThanOrEqualTo(300));
     expect(image.height, greaterThan(0));
     expect(image.png.sublist(1, 4), utf8.encode('PNG'));
+
+    // Formule fautive : dessinée (texte brut), sans erreur.
+    final bad = (await tester.runAsync(
+      () => rasterizeMath(r'Calculer $\frac{1}{$', width: 300),
+    ))!;
+    expect(bad.height, greaterThan(0));
   });
+
+  test(
+    'PDF : un texte plus haut qu\'une page est réduit, pas refusé',
+    () async {
+      final sheets = planWorksheets(
+        students: ['Alice'],
+        sources: worksheetSources([item('a', _model)]),
+        perSheet: 1,
+        session: 's',
+      );
+      final bytes = await buildWorksheetPdf(
+        sheets,
+        title: 'Calcul',
+        date: '20/10/2026',
+        answerKey: false,
+        raster: (source, {required width, fontSize = 11, bold = false}) async =>
+            (png: _png, width: 400.0, height: 5000.0),
+      );
+      expect(latin1.decode(bytes.sublist(0, 5)), '%PDF-');
+    },
+  );
 
   testWidgets('dialogue : élèves, exercices par fiche, enregistrement', (
     tester,

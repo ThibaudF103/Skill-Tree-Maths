@@ -100,7 +100,11 @@ corrigés automatiquement de la branche :
   branche) ;
 - une case par réponse numérique, une case à cocher par choix de QCM (A, B,
   C…) ;
-- un QR code porte le nom de l'élève, la graine de la fiche et les
-  exercices : il suffit à retrouver chaque énoncé et sa réponse, pour la
-  correction par lecture des copies à venir ;
+- un QR code porte le nom de l'élève, la graine de la fiche, les exercices
+  et une empreinte de leurs modèles : il suffit à retrouver chaque énoncé
+  et sa réponse, pour la correction par lecture des copies à venir (un
+  modèle modifié depuis l'impression se repère à l'empreinte) ;
 - le corrigé (réponses de chaque élève) peut être ajouté en fin de document.
+
+Limite connue : une formule centrée (`$$…$$`) plus large que la page est
+coupée sur la fiche.

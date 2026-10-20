@@ -22,11 +22,15 @@ final class WorksheetExercise {
     required this.itemId,
     required this.title,
     required this.instance,
+    required this.templateSource,
   });
 
   final String itemId;
   final String title;
   final ExerciseInstance instance;
+
+  /// Modèle d'où l'exercice est tiré.
+  final String templateSource;
 }
 
 /// Fiche d'un élève : ses exercices, et le code qui permet de la corriger
@@ -46,6 +50,9 @@ final class Worksheet {
     student: student,
     seed: seed,
     itemIds: [for (final e in exercises) e.itemId],
+    templatesHash: worksheetTemplatesHash([
+      for (final e in exercises) e.templateSource,
+    ]),
   );
 }
 
@@ -55,16 +62,27 @@ final class WorksheetCode {
     required this.student,
     required this.seed,
     required this.itemIds,
+    required this.templatesHash,
   });
 
   final String student;
   final int seed;
   final List<String> itemIds;
 
+  /// Empreinte des modèles à l'impression : un modèle modifié depuis ne
+  /// redonne plus les mêmes énoncés (voir [worksheetTemplatesHash]).
+  final int templatesHash;
+
   static const _type = 'verger-fiche';
 
-  String encode() =>
-      jsonEncode({'v': 1, 't': _type, 'n': student, 'g': seed, 'i': itemIds});
+  String encode() => jsonEncode({
+    'v': 1,
+    't': _type,
+    'n': student,
+    'g': seed,
+    'i': itemIds,
+    'h': templatesHash,
+  });
 
   /// Code lu sur une fiche ; `null` s'il n'en vient pas.
   static WorksheetCode? decode(String text) {
@@ -75,19 +93,29 @@ final class WorksheetCode {
           json['t'] != _type) {
         return null;
       }
-      final (n, g, i) = (json['n'], json['g'], json['i']);
+      final (n, g, i, h) = (json['n'], json['g'], json['i'], json['h']);
       if (n is! String ||
           g is! int ||
+          h is! int ||
           i is! List ||
           i.any((x) => x is! String)) {
         return null;
       }
-      return WorksheetCode(student: n, seed: g, itemIds: i.cast<String>());
+      return WorksheetCode(
+        student: n,
+        seed: g,
+        itemIds: i.cast<String>(),
+        templatesHash: h,
+      );
     } on FormatException {
       return null;
     }
   }
 }
+
+/// Empreinte des modèles d'une fiche, dans l'ordre de ses exercices.
+int worksheetTemplatesHash(List<String> sources) =>
+    SeededRandom.hashString(sources.join('\u0000'));
 
 /// Graine de l'exercice [itemId] sur la fiche de graine [sheetSeed] : la
 /// correction retrouve ainsi l'énoncé de l'élève.
@@ -134,6 +162,7 @@ Worksheet _sheet(
           itemId: s.itemId,
           title: s.title,
           instance: s.template.generate(worksheetExerciseSeed(seed, s.itemId)),
+          templateSource: s.template.source,
         ),
     ],
   );

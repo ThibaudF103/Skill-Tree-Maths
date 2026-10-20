@@ -87,10 +87,18 @@ Future<void> printWorksheets(
     );
     return;
   }
-  final uri = await save(
-    '${request.title.replaceAll(RegExp(r'[\\/:*?"<>|]'), '-')}.pdf',
-    bytes,
-  );
+  final Object? uri;
+  try {
+    uri = await save(
+      '${request.title.replaceAll(RegExp(r'[\\/:*?"<>|]'), '-')}.pdf',
+      bytes,
+    );
+  } catch (e) {
+    messenger.showSnackBar(
+      SnackBar(content: Text('Enregistrement impossible : $e')),
+    );
+    return;
+  }
   if (uri != null) {
     messenger.showSnackBar(
       SnackBar(

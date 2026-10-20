@@ -9,6 +9,10 @@ import 'math_raster.dart';
 const _margin = 36.0;
 const _contentWidth = 595.28 - 2 * _margin; // A4
 
+/// Hauteur d'une image de texte, au plus : une page A4 moins les marges et
+/// l'en-tête.
+const _maxImageHeight = 841.89 - 2 * _margin - 140;
+
 /// Lettre d'un choix de QCM sur la fiche : A, B, C…
 String choiceLetter(int index) => String.fromCharCode(0x41 + index);
 
@@ -25,7 +29,8 @@ Future<Uint8List> buildWorksheetPdf(
   required bool answerKey,
   required MathRasterizer raster,
 }) async {
-  final cache = <String, RasterImage>{};
+  // Une image par texte distinct, intégrée une seule fois au document.
+  final cache = <String, (pw.ImageProvider, double, double)>{};
   Future<pw.Widget> text(
     String source, {
     double width = _contentWidth,
@@ -34,18 +39,28 @@ Future<Uint8List> buildWorksheetPdf(
   }) async {
     if (source.trim().isEmpty) return pw.SizedBox();
     final key = '$width|$fontSize|$bold|$source';
-    final image = cache[key] ??= await raster(
-      source,
-      width: width,
-      fontSize: fontSize,
-      bold: bold,
-    );
-    if (image.width <= 0 || image.height <= 0) return pw.SizedBox();
-    return pw.Image(
-      pw.MemoryImage(image.png),
-      width: image.width,
-      height: image.height,
-    );
+    var entry = cache[key];
+    if (entry == null) {
+      final image = await raster(
+        source,
+        width: width,
+        fontSize: fontSize,
+        bold: bold,
+      );
+      if (image.width <= 0 || image.height <= 0) return pw.SizedBox();
+      // Une image ne se coupe pas d'une page à l'autre : un texte plus
+      // haut qu'une page est réduit pour y tenir.
+      final k = image.height > _maxImageHeight
+          ? _maxImageHeight / image.height
+          : 1.0;
+      entry = cache[key] = (
+        pw.MemoryImage(image.png),
+        image.width * k,
+        image.height * k,
+      );
+    }
+    final (provider, w, h) = entry;
+    return pw.Image(provider, width: w, height: h);
   }
 
   final doc = pw.Document(title: title, creator: 'Verger');
@@ -61,15 +76,15 @@ Future<Uint8List> buildWorksheetPdf(
               children: [
                 await text(sheet.student, fontSize: 16, bold: true),
                 pw.SizedBox(height: 4),
-                await text('$title — $date', width: _contentWidth - 90),
+                await text('$title — $date', width: _contentWidth - 120),
               ],
             ),
           ),
           pw.BarcodeWidget(
             barcode: pw.Barcode.qrCode(),
             data: sheet.code.encode(),
-            width: 72,
-            height: 72,
+            width: 100,
+            height: 100,
           ),
         ],
       ),

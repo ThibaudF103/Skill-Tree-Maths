@@ -26,7 +26,7 @@ Future<RasterImage> rasterizeMath(
   required double width,
   double fontSize = 11,
   bool bold = false,
-  double pixelRatio = 3,
+  double pixelRatio = 2.5,
 }) async {
   final boundary = RenderRepaintBoundary();
   final view = WidgetsBinding.instance.platformDispatcher.views.first;
@@ -39,7 +39,8 @@ Future<RasterImage> rasterizeMath(
   );
   final pipeline = PipelineOwner()..rootNode = renderView;
   renderView.prepareInitialFrame();
-  final buildOwner = BuildOwner(focusManager: FocusManager());
+  final focusManager = FocusManager();
+  final buildOwner = BuildOwner(focusManager: focusManager);
   final style = TextStyle(
     color: Colors.black,
     fontSize: fontSize,
@@ -56,29 +57,52 @@ Future<RasterImage> rasterizeMath(
           data: ThemeData.light(),
           child: DefaultTextStyle(
             style: style,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: width),
-              child: MathText(source, style: style),
+            // Une formule fautive s'affiche avec une bulle d'aide, qui
+            // demande un Overlay.
+            child: Overlay(
+              initialEntries: [
+                OverlayEntry(
+                  builder: (_) => Align(
+                    alignment: Alignment.topLeft,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: width),
+                      child: MathText(source, style: style),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
       ),
     ),
   ).attachToRenderTree(buildOwner);
-  buildOwner
-    ..buildScope(root)
-    ..finalizeTree();
-  pipeline
-    ..flushLayout()
-    ..flushCompositingBits()
-    ..flushPaint();
-  final size = boundary.size;
-  final image = await boundary.toImage(pixelRatio: pixelRatio);
-  final data = await image.toByteData(format: ui.ImageByteFormat.png);
-  image.dispose();
-  return (
-    png: data!.buffer.asUint8List(),
-    width: size.width,
-    height: size.height,
-  );
+  try {
+    buildOwner
+      ..buildScope(root)
+      ..finalizeTree();
+    pipeline
+      ..flushLayout()
+      ..flushCompositingBits()
+      ..flushPaint();
+    final size = boundary.size;
+    final image = await boundary.toImage(pixelRatio: pixelRatio);
+    final data = await image.toByteData(format: ui.ImageByteFormat.png);
+    image.dispose();
+    return (
+      png: data!.buffer.asUint8List(),
+      width: size.width,
+      height: size.height,
+    );
+  } finally {
+    // Démonte l'arbre hors écran.
+    RenderObjectToWidgetAdapter<RenderBox>(
+      container: boundary,
+    ).attachToRenderTree(buildOwner, root);
+    buildOwner.finalizeTree();
+    pipeline
+      ..rootNode = null
+      ..dispose();
+    focusManager.dispose();
+  }
 }

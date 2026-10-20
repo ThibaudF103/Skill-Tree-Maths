@@ -66,6 +66,14 @@ void main() {
     final code = WorksheetCode.decode(sheet.code.encode())!;
     expect(code.student, 'Zoé « Z »');
     expect(code.itemIds, sheet.exercises.map((e) => e.itemId));
+    expect(
+      code.templatesHash,
+      worksheetTemplatesHash([
+        for (final id in code.itemIds)
+          sources.firstWhere((s) => s.itemId == id).template.source,
+      ]),
+    );
+    expect(code.templatesHash, isNot(worksheetTemplatesHash(['autre'])));
     for (final (i, id) in code.itemIds.indexed) {
       final again = sources
           .firstWhere((s) => s.itemId == id)
@@ -79,7 +87,8 @@ void main() {
     for (final text in [
       'https://exemple.fr',
       '{"v": 1, "t": "autre"}',
-      '{"v": 1, "t": "verger-fiche", "n": "A", "g": "1", "i": []}',
+      '{"v": 1, "t": "verger-fiche", "n": "A", "g": "1", "i": [], "h": 1}',
+      '{"v": 1, "t": "verger-fiche", "n": "A", "g": 1, "i": []}',
       '[1]',
     ]) {
       expect(WorksheetCode.decode(text), isNull, reason: text);
