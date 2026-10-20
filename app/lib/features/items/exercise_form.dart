@@ -311,6 +311,8 @@ class _ExerciseFormState extends State<ExerciseForm> {
                       written == null
                           ? 'Bonne réponse calculée : ${q.correct} '
                                 '(cocher un choix la remplace)'
+                          : written == 0
+                          ? 'Cocher la bonne réponse'
                           : 'Bonne réponse : choix $written, qui n\'existe '
                                 'pas (cocher un choix)',
                       style: TextStyle(
@@ -334,10 +336,12 @@ class _ExerciseFormState extends State<ExerciseForm> {
   /// Retire le choix [j] ; la bonne réponse, si c'est un rang, suit.
   void _removeChoice(DraftQuestion q, int j) {
     q.choices.removeAt(j);
-    final rank = int.tryParse(q.correct.trim());
+    final rank = q.correct.trim().isEmpty ? 1 : int.tryParse(q.correct.trim());
     if (rank == null) return;
     if (rank == j + 1) {
-      q.correct = '';
+      // Bonne réponse retirée : à cocher de nouveau (le rang 0 bloque
+      // l'enregistrement, le premier choix ne la remplace pas en silence).
+      q.correct = '0';
     } else if (rank > j + 1) {
       q.correct = '${rank - 1}';
     }

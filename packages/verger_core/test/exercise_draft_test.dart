@@ -109,6 +109,7 @@ void main() {
       '{"v": 1, "params": {"a": {"not": [1]}}}',
       '{"v": 1, "questions": [{"answer": "1", "correct": 1}]}',
       '{"v": 1, "statement": 3}',
+      '{"v": 1, "statement": null}',
     ]) {
       expect(ExerciseDraft.tryParse(source), isNull, reason: source);
     }
