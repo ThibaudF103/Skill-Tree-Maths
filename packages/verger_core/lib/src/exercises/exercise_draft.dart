@@ -63,7 +63,11 @@ final class ExerciseDraft {
         for (final c in _list(root['when'] ?? const []))
           DraftCondition(_text(c)),
       ],
-      statement: _string(root['statement'] ?? ''),
+      // Absent : énoncé vide ; présent, il doit être un texte (`null` est
+      // refusé à la lecture, il ne doit pas devenir vide en silence).
+      statement: root.containsKey('statement')
+          ? _string(root['statement'])
+          : '',
       questions: [
         for (final q in _list(root['questions'] ?? const []))
           DraftQuestion._fromJson(q),

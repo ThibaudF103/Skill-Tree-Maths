@@ -145,7 +145,19 @@ void main() {
     await tap(find.text('QCM').last);
     await type(field('Choix 1'), 'pair');
     await type(field('Choix 2'), 'impair');
+    // Bonne réponse retirée : à cocher de nouveau, pas de choix par défaut.
+    await tap(find.text('Ajouter un choix'));
     await tap(find.byType(Radio<int>).last);
+    await tap(find.byTooltip('Retirer le choix').last);
+    expect(find.text('Cocher la bonne réponse'), findsOneWidget);
+    expect(
+      tester
+          .widget<FilledButton>(find.widgetWithText(FilledButton, 'Ajouter'))
+          .onPressed,
+      isNull,
+    );
+    await tap(find.byType(Radio<int>).last);
+    expect(find.text('Cocher la bonne réponse'), findsNothing);
 
     await tap(find.text('Ajouter une valeur'));
     await type(field('Nom').last, 'n');
