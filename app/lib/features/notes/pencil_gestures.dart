@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
@@ -24,15 +26,33 @@ abstract final class PencilGestures {
   static const _channel = MethodChannel('verger/pencil');
   static final _listeners = <ValueChanged<PencilGesture>>[];
   static bool _attached = false;
+  static bool _attaching = false;
 
   static void addListener(ValueChanged<PencilGesture> listener) {
     _listeners.add(listener);
-    if (_attached || kIsWeb || defaultTargetPlatform != TargetPlatform.iOS) {
+    if (_attached ||
+        _attaching ||
+        kIsWeb ||
+        defaultTargetPlatform != TargetPlatform.iOS) {
       return;
     }
-    _attached = true;
+    unawaited(_attach());
+  }
+
+  /// Branche l'interaction native ; en cas d'échec (vue pas encore prête),
+  /// le prochain auditeur réessaie.
+  static Future<void> _attach() async {
+    _attaching = true;
     _channel.setMethodCallHandler(_handle);
-    _channel.invokeMethod<void>('attach').ignore();
+    try {
+      _attached = await _channel.invokeMethod<bool>('attach') ?? false;
+    } on PlatformException {
+      _attached = false;
+    } on MissingPluginException {
+      _attached = false;
+    } finally {
+      _attaching = false;
+    }
   }
 
   static void removeListener(ValueChanged<PencilGesture> listener) =>
@@ -55,11 +75,10 @@ abstract final class PencilGestures {
     ));
   }
 
-  /// Transmet [gesture] aux auditeurs (aussi utilisé par les tests).
+  /// Transmet [gesture] au dernier auditeur inscrit : l'éditeur ouvert en
+  /// dernier, celui qui est à l'écran (aussi utilisé par les tests).
   @visibleForTesting
   static void dispatch(PencilGesture gesture) {
-    for (final listener in List.of(_listeners)) {
-      listener(gesture);
-    }
+    if (_listeners.isNotEmpty) _listeners.last(gesture);
   }
 }

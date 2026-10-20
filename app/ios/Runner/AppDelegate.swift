@@ -39,18 +39,20 @@ final class PencilBridge: NSObject, UIPencilInteractionDelegate {
         result(FlutterMethodNotImplemented)
         return
       }
-      self?.attach()
-      result(nil)
+      result(self?.attach() ?? false)
     }
   }
 
-  /// Installe l'interaction sur la vue Flutter (une seule fois).
-  private func attach() {
-    guard interaction == nil, let view = registrar?.viewController?.view else { return }
+  /// Installe l'interaction sur la vue Flutter (une seule fois) ; faux si
+  /// la vue n'est pas encore prête (Flutter réessaiera).
+  private func attach() -> Bool {
+    if interaction != nil { return true }
+    guard let view = registrar?.viewController?.view else { return false }
     let pencilInteraction = UIPencilInteraction()
     pencilInteraction.delegate = self
     view.addInteraction(pencilInteraction)
     interaction = pencilInteraction
+    return true
   }
 
   /// [location] : position du stylet au-dessus de l'écran, dans la vue

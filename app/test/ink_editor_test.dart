@@ -93,6 +93,10 @@ void main() {
       // Le stylet file vers la droite : le trait affiché le devance.
       expect(c.predicted!.x, greaterThan(50));
       expect(c.predicted!.x, lessThanOrEqualTo(50 + 30));
+      // Stylet immobile : le trait s'arrête à sa pointe.
+      c.dropPrediction();
+      expect(c.predicted, isNull);
+      expect(live, 7);
       c.up();
       expect(page, 1);
       expect(c.predicted, isNull);
@@ -130,7 +134,7 @@ void main() {
     final canvas = find.byWidgetPredicate(
       (w) => w is CustomPaint && w.painter is InkPainter,
     );
-    final origin = tester.getTopLeft(canvas);
+    final origin = tester.getTopLeft(canvas.first);
 
     // Le doigt n'écrit pas.
     final finger = await tester.startGesture(
@@ -222,6 +226,14 @@ void main() {
     PencilGestures.dispatch((action: PencilAction.palette, at: null));
     await tester.pump();
     expect(find.byTooltip('Surligneur'), findsOneWidget);
+
+    // Geste « gomme » palette ouverte : la palette se referme.
+    PencilGestures.dispatch((action: PencilAction.palette, at: null));
+    await tester.pump();
+    PencilGestures.dispatch((action: PencilAction.eraser, at: null));
+    await tester.pump();
+    expect(find.byTooltip('Surligneur'), findsOneWidget);
+    expect(selected('Gomme'), isTrue);
 
     await tester.pageBack();
     await settle(tester);

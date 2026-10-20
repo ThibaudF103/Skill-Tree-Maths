@@ -175,6 +175,15 @@ class InkEditorController extends ChangeNotifier {
     _liveChanged();
   }
 
+  /// Le stylet ne bouge plus (plus d'événements) : le trait affiché
+  /// s'arrête à sa pointe.
+  void dropPrediction() {
+    if (_predicted == null) return;
+    _predicted = null;
+    _velocity = (x: 0.0, y: 0.0);
+    _liveChanged();
+  }
+
   /// Vitesse lissée du stylet, prolongée sur [_predictionHorizonMs].
   void _predict(InkPoint p, Duration? time) {
     final last = _lastSample;
@@ -343,6 +352,9 @@ class _InkEditorPageState extends State<InkEditorPage> {
 
   /// Appareil du trait en cours.
   int? _pointer;
+
+  /// Sans nouvel événement du stylet, la prédiction tombe.
+  Timer? _still;
   late VergerStore _store;
 
   /// Palette ouverte par un geste du stylet, à cette position (dans
@@ -365,8 +377,10 @@ class _InkEditorPageState extends State<InkEditorPage> {
   void _pencil(PencilGesture gesture) {
     switch (gesture.action) {
       case PencilAction.eraser:
+        _closePalette();
         _controller.toggleEraser();
       case PencilAction.previous:
+        _closePalette();
         _controller.switchPrevious();
       case PencilAction.palette:
         final box = _body.currentContext?.findRenderObject() as RenderBox?;
@@ -388,6 +402,7 @@ class _InkEditorPageState extends State<InkEditorPage> {
   @override
   void dispose() {
     PencilGestures.removeListener(_pencil);
+    _still?.cancel();
     _save?.cancel();
     if (_dirty) _flush().ignore();
     _controller.dispose();
@@ -594,16 +609,23 @@ class _InkEditorPageState extends State<InkEditorPage> {
                       onPointerMove: (e) {
                         if (e.pointer == _pointer) {
                           c.move(_point(e, scale), time: e.timeStamp);
+                          _still?.cancel();
+                          _still = Timer(
+                            const Duration(milliseconds: 40),
+                            c.dropPrediction,
+                          );
                         }
                       },
                       onPointerUp: (e) {
                         if (e.pointer != _pointer) return;
                         _pointer = null;
+                        _still?.cancel();
                         if (c.up()) _changed();
                       },
                       onPointerCancel: (e) {
                         if (e.pointer != _pointer) return;
                         _pointer = null;
+                        _still?.cancel();
                         c.cancel();
                       },
                       child: Container(
@@ -616,10 +638,12 @@ class _InkEditorPageState extends State<InkEditorPage> {
                         child: Stack(
                           fit: StackFit.expand,
                           children: [
+                            // Même ordre que l'écriture enregistrée :
+                            // surligneur sous le stylo.
                             RepaintBoundary(
                               child: CustomPaint(
                                 painter: InkPainter(
-                                  ink: c.ink,
+                                  ink: InkDrawing.empty,
                                   scale: scale,
                                   lines: scheme.outlineVariant.withValues(
                                     alpha: 0.5,
@@ -629,7 +653,21 @@ class _InkEditorPageState extends State<InkEditorPage> {
                             ),
                             RepaintBoundary(
                               child: CustomPaint(
-                                painter: _LivePainter(c, scale),
+                                painter: _LivePainter(
+                                  c,
+                                  scale,
+                                  InkTool.highlighter,
+                                ),
+                              ),
+                            ),
+                            RepaintBoundary(
+                              child: CustomPaint(
+                                painter: InkPainter(ink: c.ink, scale: scale),
+                              ),
+                            ),
+                            RepaintBoundary(
+                              child: CustomPaint(
+                                painter: _LivePainter(c, scale, InkTool.pen),
                               ),
                             ),
                           ],
@@ -647,36 +685,44 @@ class _InkEditorPageState extends State<InkEditorPage> {
   );
 }
 
-/// Trait en cours et son prolongement prévu, redessinés à chaque point
-/// sans toucher au reste de la page.
+/// Trait en cours de l'outil [tool], redessiné à chaque point sans
+/// toucher au reste de la page ; au stylo, prolongé jusqu'au point prévu.
 class _LivePainter extends CustomPainter {
-  _LivePainter(this.controller, this.scale) : super(repaint: controller.live);
+  _LivePainter(this.controller, this.scale, this.tool)
+    : super(repaint: controller.live);
 
   final InkEditorController controller;
   final double scale;
+  final InkTool tool;
 
   @override
   void paint(Canvas canvas, Size size) {
     final s = controller.current;
-    if (s == null) return;
-    final predicted = controller.predicted;
+    if (s == null || s.tool != tool) return;
     InkPainter(
       ink: InkDrawing.empty,
       scale: scale,
-      current: predicted == null
-          ? s
-          : InkStroke(
-              points: [...s.points, predicted],
-              color: s.color,
-              width: s.width,
-              tool: s.tool,
-            ),
+      current: s,
     ).paint(canvas, size);
+    // Prolongement : un segment depuis le dernier point (où le trait
+    // lissé se termine), à l'épaisseur du stylo (cf. InkPainter). Pas au
+    // surligneur : la transparence doublerait à la jonction.
+    final predicted = controller.predicted;
+    if (predicted == null || tool != InkTool.pen) return;
+    final last = s.points.last;
+    canvas.drawLine(
+      Offset(last.x * scale, last.y * scale),
+      Offset(predicted.x * scale, predicted.y * scale),
+      Paint()
+        ..color = Color(s.color)
+        ..strokeCap = StrokeCap.round
+        ..strokeWidth = s.width * scale * (0.5 + last.pressure),
+    );
   }
 
   @override
   bool shouldRepaint(_LivePainter old) =>
-      old.controller != controller || old.scale != scale;
+      old.controller != controller || old.scale != scale || old.tool != tool;
 }
 
 /// Palette d'outils flottante, ouverte par un geste du stylet près de la
@@ -700,10 +746,13 @@ class _Palette extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     double clamp(double v, double max) => v.clamp(8.0, math.max(8.0, max));
+    // Fenêtre étroite (écran partagé) : la palette rétrécit, ses outils
+    // passent à la ligne.
+    final width = math.min(_width, area.width - 16);
     return Positioned(
-      left: clamp(at.dx - _width / 2, area.width - _width - 8),
+      left: clamp(at.dx - width / 2, area.width - width - 8),
       top: clamp(at.dy + 24, area.height - _height - 8),
-      width: _width,
+      width: width,
       child: Material(
         elevation: 6,
         borderRadius: BorderRadius.circular(16),
