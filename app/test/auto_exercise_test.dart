@@ -96,43 +96,15 @@ void main() {
   testWidgets('éditeur : exemple, aperçu, modèle invalide refusé', (
     tester,
   ) async {
-    final store = await pumpTestApp(
-      tester,
-      seed: (s) async {
-        final tree = await s.createNode(title: 'Calcul');
-        await s.setLastNode(tree.id);
-      },
-    );
-    await tester.pumpWidget(
-      AppScope(
-        store: store,
-        scheduler: const SchedulerSettings().build(),
-        reloadSettings: () async {},
-        child: MaterialApp(
-          home: Scaffold(
-            body: Builder(
-              builder: (context) => TextButton(
-                onPressed: () =>
-                    showItemEditor(context, family: ItemFamily.exercise),
-                child: const Text('Nouvel exercice'),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-    await settle(tester);
-    await tester.tap(find.text('Nouvel exercice'));
-    await settle(tester);
-    await tester.enterText(find.byType(TextField).first, 'Équation');
-    await tester.tap(find.text('Corrigé automatiquement (facultatif)'));
-    await settle(tester);
-    await tester.tap(find.text('Partir d\'un exemple'));
-    await settle(tester);
+    final store = await openEditor(tester);
+    await tapVisible(tester, find.text('Partir d\'un exemple'));
     expect(find.text('Aperçu d\'un tirage'), findsOneWidget);
     final add = find.widgetWithText(FilledButton, 'Ajouter');
     expect(tester.widget<FilledButton>(add).onPressed, isNotNull);
 
+    // L'exemple se lit dans le formulaire.
+    expect(find.widgetWithText(TextFormField, 'a'), findsOneWidget);
+    await tapVisible(tester, find.text('JSON'));
     final json = find.widgetWithText(TextField, 'Modèle (JSON)');
     await tester.enterText(json, '{"v": 1, "statement": "[[z]]"}');
     await settle(tester);
@@ -147,4 +119,95 @@ void main() {
     expect(item.autoExercise, model);
     await unmountTestApp(tester);
   });
+
+  testWidgets('formulaire : modèle écrit sans JSON, QCM, nom en double', (
+    tester,
+  ) async {
+    final store = await openEditor(tester);
+    Finder field(String label) => find.widgetWithText(TextFormField, label);
+    Future<void> tap(Finder finder) => tapVisible(tester, finder);
+
+    Future<void> type(Finder finder, String text) async {
+      await tester.ensureVisible(finder);
+      await tester.enterText(finder, text);
+      await settle(tester);
+    }
+
+    await tap(find.text('Ajouter un paramètre'));
+    await type(field('Nom'), 'n');
+    await type(field('Min'), '2');
+    await type(field('Max'), '5');
+    await type(field('Énoncé'), r'Calculer $[[n]] \times 3$.');
+    await type(field('Réponse (expression)'), '3n');
+    expect(find.text('Aperçu d\'un tirage'), findsOneWidget);
+
+    await tap(find.text('Ajouter une question'));
+    await tap(find.text('QCM').last);
+    await type(field('Choix 1'), 'pair');
+    await type(field('Choix 2'), 'impair');
+    await tap(find.byType(Radio<int>).last);
+
+    await tap(find.text('Ajouter une valeur'));
+    await type(field('Nom').last, 'n');
+    expect(find.text('« n » est défini deux fois'), findsOneWidget);
+    final add = find.widgetWithText(FilledButton, 'Ajouter');
+    expect(tester.widget<FilledButton>(add).onPressed, isNull);
+    await tap(find.byTooltip('Retirer la valeur'));
+
+    await tap(add);
+    final item = (await tester.runAsync(store.allItems))!.single;
+    final template = ExerciseTemplate.parse(item.autoExercise!);
+    final q = template.generate(0).questions;
+    expect(
+      (q[1] as ChoiceQuestion).choices[(q[1] as ChoiceQuestion).correct],
+      'impair',
+    );
+    expect(ExerciseDraft.tryParse(item.autoExercise!)!.params.single.max, '5');
+    await unmountTestApp(tester);
+  });
+}
+
+/// Fait défiler jusqu'à [finder], puis le touche.
+Future<void> tapVisible(WidgetTester tester, Finder finder) async {
+  await tester.ensureVisible(finder);
+  await settle(tester);
+  await tester.tap(finder);
+  await settle(tester);
+}
+
+/// Ouvre l'éditeur d'un nouvel exercice, rubrique « Corrigé
+/// automatiquement » déployée, titre saisi.
+Future<VergerStore> openEditor(WidgetTester tester) async {
+  final store = await pumpTestApp(
+    tester,
+    seed: (s) async {
+      final tree = await s.createNode(title: 'Calcul');
+      await s.setLastNode(tree.id);
+    },
+  );
+  await tester.pumpWidget(
+    AppScope(
+      store: store,
+      scheduler: const SchedulerSettings().build(),
+      reloadSettings: () async {},
+      child: MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () =>
+                  showItemEditor(context, family: ItemFamily.exercise),
+              child: const Text('Nouvel exercice'),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  await settle(tester);
+  await tester.tap(find.text('Nouvel exercice'));
+  await settle(tester);
+  await tester.enterText(find.byType(TextField).first, 'Parité');
+  await tester.tap(find.text('Corrigé automatiquement (facultatif)'));
+  await settle(tester);
+  return store;
 }

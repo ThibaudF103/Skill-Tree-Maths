@@ -3,6 +3,7 @@ library;
 
 export 'src/documents/page_remap.dart';
 export 'src/domain/anchor.dart';
+export 'src/exercises/exercise_draft.dart';
 export 'src/exercises/exercise_template.dart';
 export 'src/exercises/expression.dart';
 export 'src/exercises/math_value.dart';
