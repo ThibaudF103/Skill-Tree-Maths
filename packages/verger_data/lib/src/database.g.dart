@@ -543,6 +543,17 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
         type: DriftSqlType.string,
         requiredDuringInsert: false,
       ).withConverter<ExerciseLevel?>($ItemsTable.$converterleveln);
+  static const VerificationMeta _autoExerciseMeta = const VerificationMeta(
+    'autoExercise',
+  );
+  @override
+  late final GeneratedColumn<String> autoExercise = GeneratedColumn<String>(
+    'auto_exercise',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _sortIndexMeta = const VerificationMeta(
     'sortIndex',
   );
@@ -680,6 +691,7 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
     title,
     body,
     level,
+    autoExercise,
     sortIndex,
     suspended,
     createdAt,
@@ -730,6 +742,15 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
       context.handle(
         _bodyMeta,
         body.isAcceptableOrUnknown(data['body']!, _bodyMeta),
+      );
+    }
+    if (data.containsKey('auto_exercise')) {
+      context.handle(
+        _autoExerciseMeta,
+        autoExercise.isAcceptableOrUnknown(
+          data['auto_exercise']!,
+          _autoExerciseMeta,
+        ),
       );
     }
     if (data.containsKey('sort_index')) {
@@ -839,6 +860,10 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
           data['${effectivePrefix}level'],
         ),
       ),
+      autoExercise: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}auto_exercise'],
+      ),
       sortIndex: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}sort_index'],
@@ -914,6 +939,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
   final String title;
   final String? body;
   final ExerciseLevel? level;
+  final String? autoExercise;
   final int sortIndex;
   final bool suspended;
   final DateTime createdAt;
@@ -933,6 +959,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     required this.title,
     this.body,
     this.level,
+    this.autoExercise,
     required this.sortIndex,
     required this.suspended,
     required this.createdAt,
@@ -962,6 +989,9 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
       map['level'] = Variable<String>(
         $ItemsTable.$converterleveln.toSql(level),
       );
+    }
+    if (!nullToAbsent || autoExercise != null) {
+      map['auto_exercise'] = Variable<String>(autoExercise);
     }
     map['sort_index'] = Variable<int>(sortIndex);
     map['suspended'] = Variable<bool>(suspended);
@@ -1000,6 +1030,9 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
       level: level == null && nullToAbsent
           ? const Value.absent()
           : Value(level),
+      autoExercise: autoExercise == null && nullToAbsent
+          ? const Value.absent()
+          : Value(autoExercise),
       sortIndex: Value(sortIndex),
       suspended: Value(suspended),
       createdAt: Value(createdAt),
@@ -1037,6 +1070,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
       level: $ItemsTable.$converterleveln.fromJson(
         serializer.fromJson<String?>(json['level']),
       ),
+      autoExercise: serializer.fromJson<String?>(json['autoExercise']),
       sortIndex: serializer.fromJson<int>(json['sortIndex']),
       suspended: serializer.fromJson<bool>(json['suspended']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
@@ -1067,6 +1101,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
       'level': serializer.toJson<String?>(
         $ItemsTable.$converterleveln.toJson(level),
       ),
+      'autoExercise': serializer.toJson<String?>(autoExercise),
       'sortIndex': serializer.toJson<int>(sortIndex),
       'suspended': serializer.toJson<bool>(suspended),
       'createdAt': serializer.toJson<DateTime>(createdAt),
@@ -1091,6 +1126,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     String? title,
     Value<String?> body = const Value.absent(),
     Value<ExerciseLevel?> level = const Value.absent(),
+    Value<String?> autoExercise = const Value.absent(),
     int? sortIndex,
     bool? suspended,
     DateTime? createdAt,
@@ -1110,6 +1146,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     title: title ?? this.title,
     body: body.present ? body.value : this.body,
     level: level.present ? level.value : this.level,
+    autoExercise: autoExercise.present ? autoExercise.value : this.autoExercise,
     sortIndex: sortIndex ?? this.sortIndex,
     suspended: suspended ?? this.suspended,
     createdAt: createdAt ?? this.createdAt,
@@ -1131,6 +1168,9 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
       title: data.title.present ? data.title.value : this.title,
       body: data.body.present ? data.body.value : this.body,
       level: data.level.present ? data.level.value : this.level,
+      autoExercise: data.autoExercise.present
+          ? data.autoExercise.value
+          : this.autoExercise,
       sortIndex: data.sortIndex.present ? data.sortIndex.value : this.sortIndex,
       suspended: data.suspended.present ? data.suspended.value : this.suspended,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
@@ -1159,6 +1199,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
           ..write('title: $title, ')
           ..write('body: $body, ')
           ..write('level: $level, ')
+          ..write('autoExercise: $autoExercise, ')
           ..write('sortIndex: $sortIndex, ')
           ..write('suspended: $suspended, ')
           ..write('createdAt: $createdAt, ')
@@ -1183,6 +1224,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     title,
     body,
     level,
+    autoExercise,
     sortIndex,
     suspended,
     createdAt,
@@ -1206,6 +1248,7 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
           other.title == this.title &&
           other.body == this.body &&
           other.level == this.level &&
+          other.autoExercise == this.autoExercise &&
           other.sortIndex == this.sortIndex &&
           other.suspended == this.suspended &&
           other.createdAt == this.createdAt &&
@@ -1227,6 +1270,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
   final Value<String> title;
   final Value<String?> body;
   final Value<ExerciseLevel?> level;
+  final Value<String?> autoExercise;
   final Value<int> sortIndex;
   final Value<bool> suspended;
   final Value<DateTime> createdAt;
@@ -1247,6 +1291,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     this.title = const Value.absent(),
     this.body = const Value.absent(),
     this.level = const Value.absent(),
+    this.autoExercise = const Value.absent(),
     this.sortIndex = const Value.absent(),
     this.suspended = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -1268,6 +1313,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     required String title,
     this.body = const Value.absent(),
     this.level = const Value.absent(),
+    this.autoExercise = const Value.absent(),
     this.sortIndex = const Value.absent(),
     this.suspended = const Value.absent(),
     required DateTime createdAt,
@@ -1295,6 +1341,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     Expression<String>? title,
     Expression<String>? body,
     Expression<String>? level,
+    Expression<String>? autoExercise,
     Expression<int>? sortIndex,
     Expression<bool>? suspended,
     Expression<DateTime>? createdAt,
@@ -1316,6 +1363,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
       if (title != null) 'title': title,
       if (body != null) 'body': body,
       if (level != null) 'level': level,
+      if (autoExercise != null) 'auto_exercise': autoExercise,
       if (sortIndex != null) 'sort_index': sortIndex,
       if (suspended != null) 'suspended': suspended,
       if (createdAt != null) 'created_at': createdAt,
@@ -1339,6 +1387,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     Value<String>? title,
     Value<String?>? body,
     Value<ExerciseLevel?>? level,
+    Value<String?>? autoExercise,
     Value<int>? sortIndex,
     Value<bool>? suspended,
     Value<DateTime>? createdAt,
@@ -1360,6 +1409,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
       title: title ?? this.title,
       body: body ?? this.body,
       level: level ?? this.level,
+      autoExercise: autoExercise ?? this.autoExercise,
       sortIndex: sortIndex ?? this.sortIndex,
       suspended: suspended ?? this.suspended,
       createdAt: createdAt ?? this.createdAt,
@@ -1400,6 +1450,9 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
       map['level'] = Variable<String>(
         $ItemsTable.$converterleveln.toSql(level.value),
       );
+    }
+    if (autoExercise.present) {
+      map['auto_exercise'] = Variable<String>(autoExercise.value);
     }
     if (sortIndex.present) {
       map['sort_index'] = Variable<int>(sortIndex.value);
@@ -1454,6 +1507,7 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
           ..write('title: $title, ')
           ..write('body: $body, ')
           ..write('level: $level, ')
+          ..write('autoExercise: $autoExercise, ')
           ..write('sortIndex: $sortIndex, ')
           ..write('suspended: $suspended, ')
           ..write('createdAt: $createdAt, ')
@@ -6032,6 +6086,7 @@ typedef $$ItemsTableCreateCompanionBuilder =
       required String title,
       Value<String?> body,
       Value<ExerciseLevel?> level,
+      Value<String?> autoExercise,
       Value<int> sortIndex,
       Value<bool> suspended,
       required DateTime createdAt,
@@ -6054,6 +6109,7 @@ typedef $$ItemsTableUpdateCompanionBuilder =
       Value<String> title,
       Value<String?> body,
       Value<ExerciseLevel?> level,
+      Value<String?> autoExercise,
       Value<int> sortIndex,
       Value<bool> suspended,
       Value<DateTime> createdAt,
@@ -6181,6 +6237,11 @@ class $$ItemsTableFilterComposer
   get level => $composableBuilder(
     column: $table.level,
     builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<String> get autoExercise => $composableBuilder(
+    column: $table.autoExercise,
+    builder: (column) => ColumnFilters(column),
   );
 
   ColumnFilters<int> get sortIndex => $composableBuilder(
@@ -6377,6 +6438,11 @@ class $$ItemsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get autoExercise => $composableBuilder(
+    column: $table.autoExercise,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get sortIndex => $composableBuilder(
     column: $table.sortIndex,
     builder: (column) => ColumnOrderings(column),
@@ -6484,6 +6550,11 @@ class $$ItemsTableAnnotationComposer
 
   GeneratedColumnWithTypeConverter<ExerciseLevel?, String> get level =>
       $composableBuilder(column: $table.level, builder: (column) => column);
+
+  GeneratedColumn<String> get autoExercise => $composableBuilder(
+    column: $table.autoExercise,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get sortIndex =>
       $composableBuilder(column: $table.sortIndex, builder: (column) => column);
@@ -6663,6 +6734,7 @@ class $$ItemsTableTableManager
                 Value<String> title = const Value.absent(),
                 Value<String?> body = const Value.absent(),
                 Value<ExerciseLevel?> level = const Value.absent(),
+                Value<String?> autoExercise = const Value.absent(),
                 Value<int> sortIndex = const Value.absent(),
                 Value<bool> suspended = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
@@ -6683,6 +6755,7 @@ class $$ItemsTableTableManager
                 title: title,
                 body: body,
                 level: level,
+                autoExercise: autoExercise,
                 sortIndex: sortIndex,
                 suspended: suspended,
                 createdAt: createdAt,
@@ -6705,6 +6778,7 @@ class $$ItemsTableTableManager
                 required String title,
                 Value<String?> body = const Value.absent(),
                 Value<ExerciseLevel?> level = const Value.absent(),
+                Value<String?> autoExercise = const Value.absent(),
                 Value<int> sortIndex = const Value.absent(),
                 Value<bool> suspended = const Value.absent(),
                 required DateTime createdAt,
@@ -6725,6 +6799,7 @@ class $$ItemsTableTableManager
                 title: title,
                 body: body,
                 level: level,
+                autoExercise: autoExercise,
                 sortIndex: sortIndex,
                 suspended: suspended,
                 createdAt: createdAt,

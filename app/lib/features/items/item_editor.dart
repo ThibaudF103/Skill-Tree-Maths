@@ -77,6 +77,9 @@ class ItemEditor extends StatefulWidget {
 class _ItemEditorState extends State<ItemEditor> {
   late final TextEditingController _title;
   late final TextEditingController _body;
+
+  /// Modèle d'exercice corrigé automatiquement (JSON), facultatif.
+  late final TextEditingController _auto;
   late ItemKind _kind;
   var _initial = _InitialLevel.none;
   ExerciseLevel? _exerciseLevel;
@@ -96,6 +99,7 @@ class _ItemEditorState extends State<ItemEditor> {
       text: item?.title ?? widget.initialTitle ?? '',
     );
     _body = TextEditingController(text: item?.body ?? widget.initialBody ?? '');
+    _auto = TextEditingController(text: item?.autoExercise ?? '');
     _kind =
         item?.kind ??
         switch (widget.family) {
@@ -146,13 +150,16 @@ class _ItemEditorState extends State<ItemEditor> {
   void dispose() {
     _title.dispose();
     _body.dispose();
+    _auto.dispose();
     super.dispose();
   }
 
   Future<void> _save() async {
     final title = _title.text.trim();
     final node = _node;
-    if (title.isEmpty || node == null || _saving) return;
+    if (title.isEmpty || node == null || _saving || _autoProblem != null) {
+      return;
+    }
     setState(() => _saving = true);
     final scope = AppScope.of(context);
     final item = widget.item;
@@ -164,6 +171,7 @@ class _ItemEditorState extends State<ItemEditor> {
         body: () => _body.text,
         kind: _kind,
         level: () => _exerciseLevel,
+        autoExercise: () => _auto.text,
         nodeId: node.id != item.nodeId ? node.id : null,
       );
     } else {
@@ -173,6 +181,7 @@ class _ItemEditorState extends State<ItemEditor> {
         title: title,
         body: _body.text,
         level: _exerciseLevel,
+        autoExercise: _auto.text,
       );
       await scope.store.setLastNode(node.id);
       final rating = _initial.rating;
@@ -267,6 +276,8 @@ class _ItemEditorState extends State<ItemEditor> {
                   ],
                 ),
                 _hint(theme, 'Difficulté facultative'),
+                const SizedBox(height: 8),
+                _AutoExerciseField(controller: _auto),
               ],
               const SizedBox(height: 16),
               TextField(
@@ -342,9 +353,13 @@ class _ItemEditorState extends State<ItemEditor> {
           child: const Text('Annuler'),
         ),
         ListenableBuilder(
-          listenable: _title,
+          listenable: Listenable.merge([_title, _auto]),
           builder: (context, _) => FilledButton(
-            onPressed: _title.text.trim().isEmpty || _node == null || _saving
+            onPressed:
+                _title.text.trim().isEmpty ||
+                    _node == null ||
+                    _saving ||
+                    _autoProblem != null
                 ? null
                 : _save,
             child: Text(_editing ? 'Enregistrer' : 'Ajouter'),
@@ -353,6 +368,12 @@ class _ItemEditorState extends State<ItemEditor> {
       ],
     );
   }
+
+  /// Modèle d'exercice invalide (un exercice seulement) : on ne peut pas
+  /// enregistrer.
+  String? get _autoProblem => _kind.family == ItemFamily.exercise
+      ? autoExerciseProblem(_auto.text)
+      : null;
 
   Widget _hint(ThemeData theme, String text) => Padding(
     padding: const EdgeInsets.only(top: 4),
@@ -407,6 +428,147 @@ class _ItemEditorState extends State<ItemEditor> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Problème d'un modèle d'exercice (lecture ou calcul), `null` s'il est
+/// vide ou valide.
+String? autoExerciseProblem(String source) {
+  if (source.trim().isEmpty) return null;
+  try {
+    return ExerciseTemplate.parse(source).check();
+  } on FormatException catch (e) {
+    return e.message;
+  }
+}
+
+/// Exemple de modèle, proposé à l'écriture d'un premier exercice.
+const _autoExample = r"""{
+  "v": 1,
+  "params": {
+    "a": {"int": [2, 9]},
+    "b": {"int": [-9, 9], "not": [0]},
+    "c": {"int": [-9, 9]}
+  },
+  "let": {"x": "(c - b) / a"},
+  "statement": "Résoudre l'équation $[[a]]x [[b|+]] = [[c]]$.",
+  "questions": [
+    {"prompt": "$x =$", "answer": "x"},
+    {"prompt": "Signe de la solution :",
+     "choices": ["positive", "négative", "nulle"],
+     "correct": "si(x > 0, 1, si(x < 0, 2, 3))"}
+  ]
+}""";
+
+/// Modèle d'exercice corrigé automatiquement : saisie JSON, contrôle et
+/// aperçu d'un tirage.
+class _AutoExerciseField extends StatefulWidget {
+  const _AutoExerciseField({required this.controller});
+
+  final TextEditingController controller;
+
+  @override
+  State<_AutoExerciseField> createState() => _AutoExerciseFieldState();
+}
+
+class _AutoExerciseFieldState extends State<_AutoExerciseField> {
+  var _seed = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final c = widget.controller;
+    return ExpansionTile(
+      tilePadding: EdgeInsets.zero,
+      childrenPadding: const EdgeInsets.only(bottom: 8),
+      initiallyExpanded: c.text.trim().isNotEmpty,
+      title: const Text('Corrigé automatiquement (facultatif)'),
+      subtitle: const Text('Énoncé tiré au hasard, réponses vérifiées'),
+      children: [
+        TextField(
+          controller: c,
+          minLines: 6,
+          maxLines: 16,
+          style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+          decoration: const InputDecoration(
+            labelText: 'Modèle (JSON)',
+            border: OutlineInputBorder(),
+            alignLabelWithHint: true,
+          ),
+        ),
+        const SizedBox(height: 8),
+        ListenableBuilder(
+          listenable: c,
+          builder: (context, _) {
+            if (c.text.trim().isEmpty) {
+              return Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () => c.text = _autoExample,
+                  icon: const Icon(Icons.auto_awesome_outlined),
+                  label: const Text('Partir d\'un exemple'),
+                ),
+              );
+            }
+            final problem = autoExerciseProblem(c.text);
+            if (problem != null) {
+              return Text(
+                problem,
+                style: TextStyle(color: theme.colorScheme.error),
+              );
+            }
+            final ExerciseInstance instance;
+            try {
+              instance = ExerciseTemplate.parse(c.text).generate(_seed);
+            } on EvalError catch (e) {
+              return Text(
+                'Tirage $_seed : ${e.message}',
+                style: TextStyle(color: theme.colorScheme.error),
+              );
+            }
+            return Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Aperçu d\'un tirage',
+                          style: theme.textTheme.labelLarge,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => setState(() => _seed++),
+                        child: const Text('Autre tirage'),
+                      ),
+                    ],
+                  ),
+                  if (instance.statement.trim().isNotEmpty)
+                    MathText(instance.statement),
+                  for (final q in instance.questions)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: MathText(switch (q) {
+                        NumberQuestion() => '${q.prompt} → ${q.expectedText}',
+                        ChoiceQuestion() =>
+                          '${q.prompt} → ${q.choices[q.correct]} '
+                              '(parmi ${q.choices.join(', ')})',
+                      }),
+                    ),
+                ],
+              ),
+            );
+          },
+        ),
+      ],
     );
   }
 }

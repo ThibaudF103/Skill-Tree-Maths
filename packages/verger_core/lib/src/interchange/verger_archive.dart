@@ -51,7 +51,8 @@ final class VergerArchive {
   /// 3 : prérequis entre connaissances.
   /// 4 : écriture manuscrite des notes (une version plus ancienne de
   /// l'appli refuse l'archive plutôt que de la perdre).
-  static const currentVersion = 4;
+  /// 5 : exercices corrigés automatiquement.
+  static const currentVersion = 5;
 
   final List<KnowledgeNode> nodes;
   final List<KnowledgeItem> items;
@@ -119,6 +120,7 @@ final class VergerArchive {
             level: i['level'] == null
                 ? null
                 : ExerciseLevel.values.byName(i['level'] as String),
+            autoExercise: i['autoExercise'] as String?,
             sortIndex: (i['sortIndex'] as num?)?.toInt() ?? 0,
             suspended: i['suspended'] as bool? ?? false,
             createdAt: i['createdAt'] == null
@@ -397,6 +399,7 @@ final class VergerArchive {
           'title': i.title,
           'body': ?i.body,
           'level': ?i.level?.name,
+          'autoExercise': ?i.autoExercise,
           'sortIndex': i.sortIndex,
           'suspended': i.suspended,
           'createdAt': i.createdAt.toUtc().toIso8601String(),

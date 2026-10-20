@@ -188,6 +188,7 @@ class VergerStore {
     required String title,
     String? body,
     ExerciseLevel? level,
+    String? autoExercise,
   }) => _db.transaction(() async {
     final now = _now();
     final item = KnowledgeItem(
@@ -197,6 +198,9 @@ class VergerStore {
       title: title.trim(),
       body: _blankToNull(body),
       level: kind.family == ItemFamily.exercise ? level : null,
+      autoExercise: kind.family == ItemFamily.exercise
+          ? _blankToNull(autoExercise)
+          : null,
       sortIndex: await _nextItemIndex(nodeId),
       createdAt: now,
       updatedAt: now,
@@ -219,13 +223,14 @@ class VergerStore {
 
   /// Modifie le contenu d'une connaissance (jamais son état de révision).
   /// Changée de nœud, elle se place après les connaissances de celui-ci ;
-  /// la difficulté ne concerne que les exercices.
+  /// la difficulté et l'exercice corrigé ne concernent que les exercices.
   Future<void> updateItem(
     String id, {
     String? title,
     String? Function()? body,
     ItemKind? kind,
     ExerciseLevel? Function()? level,
+    String? Function()? autoExercise,
     String? nodeId,
     bool? suspended,
   }) => _db.transaction(() async {
@@ -238,12 +243,18 @@ class VergerStore {
         : level == null
         ? const Value<ExerciseLevel?>.absent()
         : Value(level());
+    final newAuto = family != ItemFamily.exercise
+        ? const Value<String?>(null)
+        : autoExercise == null
+        ? const Value<String?>.absent()
+        : Value(_blankToNull(autoExercise()));
     await (_db.update(_db.items)..where((i) => i.id.equals(id))).write(
       ItemsCompanion(
         title: title == null ? const Value.absent() : Value(title.trim()),
         body: body == null ? const Value.absent() : Value(_blankToNull(body())),
         kind: Value.absentIfNull(kind),
         level: newLevel,
+        autoExercise: newAuto,
         nodeId: moved ? Value(nodeId) : const Value.absent(),
         sortIndex: moved
             ? Value(await _nextItemIndex(nodeId))
@@ -946,6 +957,7 @@ class VergerStore {
                 title: item.title,
                 body: item.body,
                 level: item.level,
+                autoExercise: item.autoExercise,
                 sortIndex: item.sortIndex,
                 createdAt: created,
                 updatedAt: created,
@@ -1006,6 +1018,7 @@ class VergerStore {
             title: i.title,
             body: i.body,
             level: i.level,
+            autoExercise: i.autoExercise,
             sortIndex: i.sortIndex,
             createdAt: i.createdAt,
             updatedAt: i.updatedAt,
@@ -1425,6 +1438,7 @@ class VergerStore {
     title: row.title,
     body: row.body,
     level: row.level,
+    autoExercise: row.autoExercise,
     sortIndex: row.sortIndex,
     suspended: row.suspended,
     createdAt: row.createdAt.toUtc(),
@@ -1449,6 +1463,7 @@ class VergerStore {
         title: Value(item.title),
         body: Value(item.body),
         level: Value(item.level),
+        autoExercise: Value(item.autoExercise),
         sortIndex: Value(item.sortIndex),
         suspended: Value(item.suspended),
         createdAt: Value(item.createdAt),

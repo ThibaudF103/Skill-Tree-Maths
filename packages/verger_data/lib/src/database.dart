@@ -33,6 +33,7 @@ class Items extends Table {
   TextColumn get title => text()();
   TextColumn get body => text().nullable()();
   TextColumn get level => textEnum<ExerciseLevel>().nullable()();
+  TextColumn get autoExercise => text().nullable()();
   IntColumn get sortIndex => integer().withDefault(const Constant(0))();
   BoolColumn get suspended => boolean().withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime()();
@@ -239,7 +240,7 @@ class VergerDatabase extends _$VergerDatabase {
   VergerDatabase(super.executor);
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -315,6 +316,10 @@ class VergerDatabase extends _$VergerDatabase {
       from7To8: (m, schema) async {
         // v8 : écriture manuscrite des notes.
         await m.addColumn(schema.notes, schema.notes.ink);
+      },
+      from8To9: (m, schema) async {
+        // v9 : exercices corrigés automatiquement.
+        await m.addColumn(schema.items, schema.items.autoExercise);
       },
     ),
     beforeOpen: (details) async {
