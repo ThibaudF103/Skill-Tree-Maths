@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:verger_core/verger_core.dart';
 import 'package:verger_data/verger_data.dart';
@@ -12,7 +13,7 @@ import '../../ui/math_text.dart';
 import '../documents/pickers.dart';
 import '../items/item_detail_page.dart';
 import '../items/item_editor.dart';
-import 'ink_editor_page.dart';
+import 'ink_editor.dart';
 import 'ink_view.dart';
 
 /// Panneau de notes d'un PDF : liste des notes (par page) ou édition d'une
@@ -194,8 +195,9 @@ class _NoteList extends StatelessWidget {
   }
 }
 
-/// Édition d'une note : texte avec enregistrement automatique, aperçu LaTeX,
-/// zone du PDF, lien vers une connaissance.
+/// Édition d'une note, au clavier (texte et LaTeX, avec aperçu) ou au
+/// stylet (écriture manuscrite) : une même note peut mêler les deux.
+/// Enregistrement automatique, zone du PDF, lien vers une connaissance.
 class NoteEditor extends StatefulWidget {
   const NoteEditor({
     super.key,
@@ -210,17 +212,44 @@ class NoteEditor extends StatefulWidget {
   final void Function(int page, NormalizedRect? region)? onGoTo;
   final VoidCallback onDeleted;
 
+  /// Oublie le dernier mode de saisie choisi (tests).
+  @visibleForTesting
+  static void forgetMode() => _NoteEditorState._lastHandwriting = null;
+
   @override
   State<NoteEditor> createState() => _NoteEditorState();
 }
 
 class _NoteEditorState extends State<NoteEditor> {
   late final _text = TextEditingController(text: widget.note.body);
+  late final _ink = InkEditorController(widget.note.ink ?? InkDrawing.empty);
 
-  /// Dernier texte enregistré (la note reçue peut être ancienne).
+  /// Dernier texte et dernière écriture enregistrés (la note reçue peut
+  /// être ancienne).
   late String _saved = widget.note.body;
+  late InkDrawing _savedInk = _ink.ink;
   Timer? _save;
   late VergerStore _store;
+
+  /// Saisie au stylet (sinon au clavier). Une note qui n'a que de
+  /// l'écriture s'ouvre au stylet, une note qui n'a que du texte au
+  /// clavier ; sinon, le dernier mode choisi (d'abord le stylet sur iPad).
+  late bool _handwriting = _initialMode();
+  static bool? _lastHandwriting;
+
+  bool _initialMode() {
+    final hasText = widget.note.body.trim().isNotEmpty;
+    final hasInk = !_ink.ink.isEmpty;
+    if (hasInk != hasText) return hasInk;
+    return _lastHandwriting ?? defaultTargetPlatform == TargetPlatform.iOS;
+  }
+
+  void _setMode(bool handwriting) {
+    if (handwriting == _handwriting) return;
+    if (handwriting) FocusScope.of(context).unfocus();
+    _lastHandwriting = handwriting;
+    setState(() => _handwriting = handwriting);
+  }
 
   @override
   void didChangeDependencies() {
@@ -239,35 +268,36 @@ class _NoteEditorState extends State<NoteEditor> {
     _save = Timer(const Duration(milliseconds: 600), _flush);
   }
 
+  /// Enregistre ce qui a changé (texte, écriture) ; les valeurs sont lues
+  /// tout de suite, avant toute attente.
   Future<void> _flush() async {
     _save?.cancel();
     _save = null;
     final text = _text.text;
-    if (text != _saved) {
-      _saved = text;
-      await _store.updateNote(widget.note.id, body: text);
-    }
+    final ink = _ink.ink;
+    final body = text != _saved ? text : null;
+    final changedInk = identical(ink, _savedInk) ? null : ink;
+    if (body == null && changedInk == null) return;
+    _saved = text;
+    _savedInk = ink;
+    await _store.updateNote(widget.note.id, body: body, ink: changedInk);
   }
 
   @override
   void dispose() {
-    // Une note sans texte, sans écriture ni zone n'a rien à garder : on ne
-    // laisse pas de notes vides derrière soi. L'écriture est relue en base
-    // (la note reçue peut dater d'avant le passage à l'éditeur manuscrit).
-    if (_text.text.trim().isEmpty && widget.note.region == null) {
-      // Le texte vidé est d'abord enregistré, puis la note supprimée si
-      // elle est restée vide (sans écriture manuscrite) : en une requête,
-      // sans risque d'effacer une modification faite entre-temps.
-      _save?.cancel();
-      final store = _store, id = widget.note.id;
-      final cleared = _text.text != _saved
-          ? store.updateNote(id, body: _text.text)
-          : Future<void>.value();
-      cleared.then((_) => store.deleteNoteIfBlank(id));
-    } else if (_save != null) {
-      _flush();
-    }
+    // Ce qui reste est enregistré ; puis une note sans texte, sans écriture
+    // ni zone est supprimée (on ne laisse pas de notes vides derrière soi) :
+    // en une requête qui relit la note en base, sans risque d'effacer une
+    // modification faite entre-temps.
+    final store = _store, id = widget.note.id;
+    final blank =
+        _text.text.trim().isEmpty &&
+        _ink.ink.isEmpty &&
+        widget.note.region == null;
+    final saved = _flush();
+    if (blank) saved.then((_) => store.deleteNoteIfBlank(id));
     _text.dispose();
+    _ink.dispose();
     super.dispose();
   }
 
@@ -342,6 +372,41 @@ class _NoteEditorState extends State<NoteEditor> {
 
   @override
   Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment(
+                  value: false,
+                  icon: Icon(Icons.keyboard_outlined),
+                  label: Text('Clavier'),
+                ),
+                ButtonSegment(
+                  value: true,
+                  icon: Icon(Icons.draw_outlined),
+                  label: Text('Stylet'),
+                ),
+              ],
+              selected: {_handwriting},
+              onSelectionChanged: (v) => _setMode(v.single),
+            ),
+          ),
+        ),
+        Expanded(
+          child: _handwriting
+              ? InkEditor(controller: _ink, onChanged: _scheduleSave)
+              : _keyboard(context),
+        ),
+      ],
+    );
+  }
+
+  Widget _keyboard(BuildContext context) {
     final theme = Theme.of(context);
     final note = widget.note;
     return ListView(
@@ -391,8 +456,29 @@ class _NoteEditorState extends State<NoteEditor> {
                 )
               : const SizedBox.shrink(),
         ),
-        const SizedBox(height: 16),
-        _Handwriting(note: note, beforeOpen: _flush),
+        // L'écriture manuscrite de la note : la toucher passe au stylet.
+        ListenableBuilder(
+          listenable: _ink,
+          builder: (context, _) => _ink.ink.isEmpty
+              ? const SizedBox.shrink()
+              : Padding(
+                  padding: const EdgeInsets.only(top: 16),
+                  child: InkWell(
+                    onTap: () => _setMode(true),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: theme.colorScheme.outlineVariant,
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: InkView(ink: _ink.ink),
+                    ),
+                  ),
+                ),
+        ),
         const SizedBox(height: 16),
         if (note.itemId != null)
           _LinkedItem(itemId: note.itemId!, noteId: note.id)
@@ -423,64 +509,6 @@ class _NoteEditorState extends State<NoteEditor> {
           ),
         ),
       ],
-    );
-  }
-}
-
-/// Écriture manuscrite de la note : aperçu et accès à l'éditeur.
-class _Handwriting extends StatelessWidget {
-  const _Handwriting({required this.note, required this.beforeOpen});
-
-  final Note note;
-  final Future<void> Function() beforeOpen;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final ink = note.ink;
-    Future<void> open() async {
-      await beforeOpen();
-      if (!context.mounted) return;
-      // La note relue en base : l'écriture la plus récente.
-      final latest = await AppScope.of(context).store.note(note.id);
-      if (latest == null || !context.mounted) return;
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => InkEditorPage(note: latest)),
-      );
-    }
-
-    if (ink == null || ink.isEmpty) {
-      return Align(
-        alignment: Alignment.centerLeft,
-        child: OutlinedButton.icon(
-          onPressed: open,
-          icon: const Icon(Icons.draw_outlined),
-          label: const Text('Écrire à la main'),
-        ),
-      );
-    }
-    return InkWell(
-      onTap: open,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          border: Border.all(color: theme.colorScheme.outlineVariant),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            InkView(ink: ink),
-            Text(
-              'Toucher pour modifier l\'écriture',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.outline,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

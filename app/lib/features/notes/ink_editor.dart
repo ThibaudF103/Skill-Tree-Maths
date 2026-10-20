@@ -1,12 +1,9 @@
-import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:verger_core/verger_core.dart';
-import 'package:verger_data/verger_data.dart';
 
-import '../../app/app_scope.dart';
 import 'ink_view.dart';
 import 'pencil_gestures.dart';
 
@@ -33,12 +30,6 @@ const _eraserRadius = 10.0;
 
 enum InkMode { pen, highlighter, eraser }
 
-/// Prolongement du trait affiché au-delà du dernier point reçu, pour
-/// compenser la latence de l'écran : durée prévue et longueur maximale (en
-/// unités de page).
-const _predictionHorizonMs = 16.0;
-const _predictionMax = 30.0;
-
 /// État de l'éditeur : écriture, outil, annuler / rétablir. Séparé de
 /// l'affichage pour être testé sans écran.
 ///
@@ -50,8 +41,7 @@ class InkEditorController extends ChangeNotifier {
 
   final _live = ValueNotifier(0);
 
-  /// Prévient à chaque changement du trait en cours ([current],
-  /// [predicted]).
+  /// Prévient à chaque changement du trait en cours ([current]).
   Listenable get live => _live;
   void _liveChanged() => _live.value++;
 
@@ -73,16 +63,6 @@ class InkEditorController extends ChangeNotifier {
 
   InkStroke? _current;
   InkStroke? get current => _current;
-
-  /// Point où le stylet devrait être maintenant, d'après sa vitesse :
-  /// affiché au bout du trait en cours, jamais enregistré.
-  InkPoint? _predicted;
-  InkPoint? get predicted => _predicted;
-
-  /// Dernier point reçu, son instant et la vitesse lissée du stylet (unités
-  /// de page par milliseconde).
-  ({InkPoint point, Duration time})? _lastSample;
-  var _velocity = (x: 0.0, y: 0.0);
 
   /// Points du trait en cours, complétés sur place (pas de copie à chaque
   /// déplacement du stylet).
@@ -143,27 +123,19 @@ class InkEditorController extends ChangeNotifier {
       width: highlighter ? _highlighterWidth : width,
       tool: highlighter ? InkTool.highlighter : InkTool.pen,
     );
-    _predicted = null;
-    _lastSample = null;
-    _velocity = (x: 0.0, y: 0.0);
     _liveChanged();
   }
 
-  /// [time] : instant de l'événement, pour prévoir où va le stylet.
-  void move(InkPoint p, {Duration? time}) {
+  void move(InkPoint p) {
     if (_beforeErase != null) {
       _eraseAt(p);
       return;
     }
     final s = _current;
     if (s == null) return;
-    _predict(p, time);
     final last = _points.last;
     // Points trop proches : inutiles et coûteux.
-    if ((p.x - last.x).abs() + (p.y - last.y).abs() < 0.8) {
-      _liveChanged();
-      return;
-    }
+    if ((p.x - last.x).abs() + (p.y - last.y).abs() < 0.8) return;
     _points.add(p);
     // Nouvel objet (le dessin se rafraîchit), même liste de points.
     _current = InkStroke(
@@ -173,49 +145,6 @@ class InkEditorController extends ChangeNotifier {
       tool: s.tool,
     );
     _liveChanged();
-  }
-
-  /// Le stylet ne bouge plus (plus d'événements) : le trait affiché
-  /// s'arrête à sa pointe.
-  void dropPrediction() {
-    if (_predicted == null) return;
-    _predicted = null;
-    _velocity = (x: 0.0, y: 0.0);
-    _liveChanged();
-  }
-
-  /// Vitesse lissée du stylet, prolongée sur [_predictionHorizonMs].
-  void _predict(InkPoint p, Duration? time) {
-    final last = _lastSample;
-    if (time == null) {
-      _predicted = null;
-      return;
-    }
-    _lastSample = (point: p, time: time);
-    if (last == null) return;
-    final dt = (time - last.time).inMicroseconds / 1000;
-    if (dt <= 0 || dt > 50) {
-      // Pause ou événements groupés : pas de vitesse fiable.
-      _velocity = (x: 0.0, y: 0.0);
-      _predicted = null;
-      return;
-    }
-    _velocity = (
-      x: 0.5 * _velocity.x + 0.5 * (p.x - last.point.x) / dt,
-      y: 0.5 * _velocity.y + 0.5 * (p.y - last.point.y) / dt,
-    );
-    var dx = _velocity.x * _predictionHorizonMs;
-    var dy = _velocity.y * _predictionHorizonMs;
-    final length = math.sqrt(dx * dx + dy * dy);
-    if (length < 0.5) {
-      _predicted = null;
-      return;
-    }
-    if (length > _predictionMax) {
-      dx *= _predictionMax / length;
-      dy *= _predictionMax / length;
-    }
-    _predicted = (x: p.x + dx, y: p.y + dy, pressure: p.pressure);
   }
 
   /// Fin du trait ; vrai si l'écriture a changé.
@@ -232,7 +161,6 @@ class InkEditorController extends ChangeNotifier {
     }
     final s = _current;
     _current = null;
-    _predicted = null;
     if (s == null) return false;
     _liveChanged();
     _push(_ink);
@@ -251,7 +179,6 @@ class InkEditorController extends ChangeNotifier {
   /// Trait abandonné (geste annulé par le système).
   void cancel() {
     _current = null;
-    _predicted = null;
     _liveChanged();
     final before = _beforeErase;
     if (before != null) _ink = before;
@@ -316,36 +243,29 @@ class InkEditorController extends ChangeNotifier {
   }
 }
 
-/// Ouvre l'écriture manuscrite de [note] ; au retour, une note restée
-/// sans texte, sans écriture ni zone est supprimée.
-Future<void> openInkEditor(BuildContext context, Note note) async {
-  final store = AppScope.of(context).store;
-  await Navigator.of(
-    context,
-  ).push(MaterialPageRoute<void>(builder: (_) => InkEditorPage(note: note)));
-  await store.deleteNoteIfBlank(note.id);
-}
-
-/// Écriture manuscrite d'une note, en plein écran : stylet (Apple Pencil),
-/// souris ou, sur demande, doigt. Avec un stylet, le doigt fait défiler la
-/// page : la paume posée n'écrit pas. Les gestes de l'Apple Pencil
+/// Écriture manuscrite : barre d'outils et page. Stylet (Apple Pencil),
+/// souris ou, sur demande, doigt ; avec un stylet, le doigt fait défiler
+/// la page et la paume posée n'écrit pas. Les gestes de l'Apple Pencil
 /// (toucher deux fois, presser) prennent la gomme ou ouvrent la palette.
-class InkEditorPage extends StatefulWidget {
-  const InkEditorPage({super.key, required this.note});
+///
+/// L'écriture vit dans [controller] ; chaque modification est signalée par
+/// [onChanged], l'enregistrement revient à l'appelant.
+class InkEditor extends StatefulWidget {
+  const InkEditor({
+    super.key,
+    required this.controller,
+    required this.onChanged,
+  });
 
-  final Note note;
+  final InkEditorController controller;
+  final VoidCallback onChanged;
 
   @override
-  State<InkEditorPage> createState() => _InkEditorPageState();
+  State<InkEditor> createState() => _InkEditorState();
 }
 
-class _InkEditorPageState extends State<InkEditorPage> {
-  late final _controller = InkEditorController(
-    widget.note.ink ?? InkDrawing.empty,
-  );
+class _InkEditorState extends State<InkEditor> {
   final _scroll = ScrollController();
-  Timer? _save;
-  bool _dirty = false;
 
   /// Le doigt écrit (sinon il fait défiler la page).
   bool _fingerDraws = false;
@@ -353,25 +273,17 @@ class _InkEditorPageState extends State<InkEditorPage> {
   /// Appareil du trait en cours.
   int? _pointer;
 
-  /// Sans nouvel événement du stylet, la prédiction tombe.
-  Timer? _still;
-  late VergerStore _store;
-
   /// Palette ouverte par un geste du stylet, à cette position (dans
   /// [_body]) ; `null` : fermée.
   Offset? _palette;
   final _body = GlobalKey();
 
+  InkEditorController get _controller => widget.controller;
+
   @override
   void initState() {
     super.initState();
     PencilGestures.addListener(_pencil);
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _store = AppScope.of(context).store;
   }
 
   void _pencil(PencilGesture gesture) {
@@ -402,56 +314,11 @@ class _InkEditorPageState extends State<InkEditorPage> {
   @override
   void dispose() {
     PencilGestures.removeListener(_pencil);
-    _still?.cancel();
-    _save?.cancel();
-    if (_dirty) _flush().ignore();
-    _controller.dispose();
     _scroll.dispose();
     super.dispose();
   }
 
-  void _changed() {
-    _setDirty(true);
-    _save?.cancel();
-    _save = Timer(const Duration(milliseconds: 800), _flush);
-  }
-
-  /// Enregistrement en cours (on attend sa fin avant de quitter).
-  Future<void>? _saving;
-
-  /// Enregistre l'écriture ; la page reste « modifiée » tant que
-  /// l'enregistrement n'a pas réussi.
-  Future<void> _flush() async {
-    _save?.cancel();
-    final previous = _saving;
-    if (previous != null) await previous;
-    final ink = _controller.ink;
-    final saving = _store.updateNote(widget.note.id, ink: ink);
-    _saving = saving;
-    try {
-      await saving;
-      // Rien de nouveau entre-temps : tout est enregistré.
-      if (identical(ink, _controller.ink)) _setDirty(false);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Écriture non enregistrée : $e')),
-        );
-      }
-      rethrow;
-    } finally {
-      if (identical(_saving, saving)) _saving = null;
-    }
-  }
-
-  void _setDirty(bool dirty) {
-    if (_dirty == dirty) return;
-    if (mounted) {
-      setState(() => _dirty = dirty);
-    } else {
-      _dirty = dirty;
-    }
-  }
+  void _changed() => widget.onChanged();
 
   bool _draws(PointerDeviceKind kind) => switch (kind) {
     PointerDeviceKind.stylus || PointerDeviceKind.invertedStylus => true,
@@ -477,92 +344,70 @@ class _InkEditorPageState extends State<InkEditorPage> {
     final scheme = Theme.of(context).colorScheme;
     return ListenableBuilder(
       listenable: _controller,
-      builder: (context, _) {
-        final c = _controller;
-        // On enregistre avant de quitter : l'appelant relit la note aussitôt.
-        return PopScope(
-          canPop: !_dirty && _saving == null,
-          onPopInvokedWithResult: (didPop, _) async {
-            if (didPop) return;
-            try {
-              await _flush();
-            } catch (_) {
-              return; // Échec signalé : on reste sur la page.
-            }
-            if (context.mounted) Navigator.of(context).pop();
-          },
-          child: Scaffold(
-            appBar: AppBar(
-              title: const Text('Écriture manuscrite'),
-              actions: [
-                IconButton(
-                  tooltip: 'Annuler',
-                  onPressed: c.canUndo
-                      ? () {
-                          c.undo();
-                          _changed();
-                        }
-                      : null,
-                  icon: const Icon(Icons.undo),
-                ),
-                IconButton(
-                  tooltip: 'Rétablir',
-                  onPressed: c.canRedo
-                      ? () {
-                          c.redo();
-                          _changed();
-                        }
-                      : null,
-                  icon: const Icon(Icons.redo),
-                ),
-                PopupMenuButton<String>(
-                  tooltip: 'Plus',
-                  onSelected: (v) {
-                    if (v == 'clear') {
-                      c.clear();
-                      _changed();
-                    } else if (v == 'finger') {
-                      setState(() => _fingerDraws = !_fingerDraws);
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    CheckedPopupMenuItem(
-                      value: 'finger',
-                      checked: _fingerDraws,
-                      child: const Text('Écrire au doigt'),
-                    ),
-                    const PopupMenuItem(
-                      value: 'clear',
-                      child: Text('Tout effacer'),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            body: LayoutBuilder(
-              key: _body,
-              builder: (context, body) => Stack(
-                children: [
-                  Positioned.fill(child: _page(c, scheme)),
-                  if (_palette case final at?)
-                    _Palette(
-                      at: at,
-                      area: body.biggest,
-                      controller: c,
-                      onPicked: _closePalette,
-                    ),
-                ],
+      builder: (context, _) => LayoutBuilder(
+        key: _body,
+        builder: (context, body) => Stack(
+          children: [
+            Positioned.fill(child: _page(_controller, scheme)),
+            if (_palette case final at?)
+              _Palette(
+                at: at,
+                area: body.biggest,
+                controller: _controller,
+                onPicked: _closePalette,
               ),
-            ),
-          ),
-        );
-      },
+          ],
+        ),
+      ),
     );
   }
 
+  /// Annuler, rétablir, écrire au doigt, tout effacer.
+  List<Widget> _actions(InkEditorController c) => [
+    IconButton(
+      tooltip: 'Annuler',
+      onPressed: c.canUndo
+          ? () {
+              c.undo();
+              _changed();
+            }
+          : null,
+      icon: const Icon(Icons.undo),
+    ),
+    IconButton(
+      tooltip: 'Rétablir',
+      onPressed: c.canRedo
+          ? () {
+              c.redo();
+              _changed();
+            }
+          : null,
+      icon: const Icon(Icons.redo),
+    ),
+    PopupMenuButton<String>(
+      tooltip: 'Plus',
+      onSelected: (v) {
+        if (v == 'clear') {
+          c.clear();
+          _changed();
+        } else if (v == 'finger') {
+          setState(() => _fingerDraws = !_fingerDraws);
+        }
+      },
+      itemBuilder: (context) => [
+        CheckedPopupMenuItem(
+          value: 'finger',
+          checked: _fingerDraws,
+          child: const Text('Écrire au doigt'),
+        ),
+        const PopupMenuItem(value: 'clear', child: Text('Tout effacer')),
+      ],
+    ),
+  ];
+
   Widget _page(InkEditorController c, ColorScheme scheme) => Column(
     children: [
-      _Toolbar(controller: c),
+      _Toolbar(controller: c, actions: _actions(c)),
       const Divider(height: 1),
       Expanded(
         child: LayoutBuilder(
@@ -607,25 +452,16 @@ class _InkEditorPageState extends State<InkEditorPage> {
                         );
                       },
                       onPointerMove: (e) {
-                        if (e.pointer == _pointer) {
-                          c.move(_point(e, scale), time: e.timeStamp);
-                          _still?.cancel();
-                          _still = Timer(
-                            const Duration(milliseconds: 40),
-                            c.dropPrediction,
-                          );
-                        }
+                        if (e.pointer == _pointer) c.move(_point(e, scale));
                       },
                       onPointerUp: (e) {
                         if (e.pointer != _pointer) return;
                         _pointer = null;
-                        _still?.cancel();
                         if (c.up()) _changed();
                       },
                       onPointerCancel: (e) {
                         if (e.pointer != _pointer) return;
                         _pointer = null;
-                        _still?.cancel();
                         c.cancel();
                       },
                       child: Container(
@@ -686,7 +522,7 @@ class _InkEditorPageState extends State<InkEditorPage> {
 }
 
 /// Trait en cours de l'outil [tool], redessiné à chaque point sans
-/// toucher au reste de la page ; au stylo, prolongé jusqu'au point prévu.
+/// toucher au reste de la page.
 class _LivePainter extends CustomPainter {
   _LivePainter(this.controller, this.scale, this.tool)
     : super(repaint: controller.live);
@@ -704,20 +540,6 @@ class _LivePainter extends CustomPainter {
       scale: scale,
       current: s,
     ).paint(canvas, size);
-    // Prolongement : un segment depuis le dernier point (où le trait
-    // lissé se termine), à l'épaisseur du stylo (cf. InkPainter). Pas au
-    // surligneur : la transparence doublerait à la jonction.
-    final predicted = controller.predicted;
-    if (predicted == null || tool != InkTool.pen) return;
-    final last = s.points.last;
-    canvas.drawLine(
-      Offset(last.x * scale, last.y * scale),
-      Offset(predicted.x * scale, predicted.y * scale),
-      Paint()
-        ..color = Color(s.color)
-        ..strokeCap = StrokeCap.round
-        ..strokeWidth = s.width * scale * (0.5 + last.pressure),
-    );
   }
 
   @override
@@ -770,9 +592,16 @@ class _Palette extends StatelessWidget {
 }
 
 class _Toolbar extends StatelessWidget {
-  const _Toolbar({required this.controller, this.onPicked});
+  const _Toolbar({
+    required this.controller,
+    this.onPicked,
+    this.actions = const [],
+  });
 
   final InkEditorController controller;
+
+  /// Boutons ajoutés en fin de barre (barre principale, pas la palette).
+  final List<Widget> actions;
 
   /// Appelé après chaque choix (palette flottante : elle se referme).
   final VoidCallback? onPicked;
@@ -839,6 +668,8 @@ class _Toolbar extends StatelessWidget {
                 onPicked?.call();
               },
             ),
+          if (actions.isNotEmpty) const SizedBox(width: 12),
+          ...actions,
         ],
       ),
     );

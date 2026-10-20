@@ -1,8 +1,9 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:verger/features/notes/ink_editor_page.dart';
+import 'package:verger/features/notes/ink_editor.dart';
 import 'package:verger/features/notes/ink_view.dart';
+import 'package:verger/features/notes/notes_panel.dart';
 import 'package:verger/features/notes/pencil_gestures.dart';
 import 'package:verger_core/verger_core.dart';
 import 'package:verger_data/verger_data.dart';
@@ -20,7 +21,18 @@ Future<void> seed(VergerStore store) async {
   );
 }
 
+/// Nouvelle note sur « Théorème de Rolle », passée au stylet.
+Future<void> openHandwriting(WidgetTester tester) async {
+  await tester.ensureVisible(find.text('Nouvelle note'));
+  await tester.tap(find.text('Nouvelle note'));
+  await settle(tester);
+  await tester.tap(find.text('Stylet'));
+  await settle(tester);
+}
+
 void main() {
+  setUp(NoteEditor.forgetMode);
+
   group('contrôleur', () {
     test('tracer, annuler, rétablir', () {
       final c = InkEditorController(InkDrawing.empty);
@@ -86,21 +98,12 @@ void main() {
       c.live.addListener(() => live++);
       c.down(pt(0, 0));
       for (var i = 1; i <= 5; i++) {
-        c.move(pt(i * 10, 0), time: Duration(milliseconds: i * 8));
+        c.move(pt(i * 10, 0));
       }
       expect(page, 0);
       expect(live, 6);
-      // Le stylet file vers la droite : le trait affiché le devance.
-      expect(c.predicted!.x, greaterThan(50));
-      expect(c.predicted!.x, lessThanOrEqualTo(50 + 30));
-      // Stylet immobile : le trait s'arrête à sa pointe.
-      c.dropPrediction();
-      expect(c.predicted, isNull);
-      expect(live, 7);
       c.up();
       expect(page, 1);
-      expect(c.predicted, isNull);
-      // Le point prévu n'est jamais enregistré.
       expect(c.ink.strokes.single.points.last.x, 50);
     });
 
@@ -126,10 +129,7 @@ void main() {
     await settle(tester);
     await tester.tap(find.text('Théorème de Rolle'));
     await settle(tester);
-    await tester.ensureVisible(find.text('Note manuscrite'));
-    await tester.tap(find.text('Note manuscrite'));
-    await settle(tester);
-    expect(find.text('Écriture manuscrite'), findsOneWidget);
+    await openHandwriting(tester);
 
     final canvas = find.byWidgetPredicate(
       (w) => w is CustomPaint && w.painter is InkPainter,
@@ -186,9 +186,7 @@ void main() {
     await settle(tester);
     await tester.tap(find.text('Théorème de Rolle'));
     await settle(tester);
-    await tester.ensureVisible(find.text('Note manuscrite'));
-    await tester.tap(find.text('Note manuscrite'));
-    await settle(tester);
+    await openHandwriting(tester);
 
     bool selected(String tool) => tester
         .widgetList<IconButton>(
@@ -240,15 +238,53 @@ void main() {
     await unmountTestApp(tester);
   });
 
+  testWidgets('une même note : texte au clavier puis écriture au stylet', (
+    tester,
+  ) async {
+    final store = await pumpTestApp(tester, seed: seed);
+    await tester.tap(find.text('Arbres'));
+    await settle(tester);
+    await tester.tap(find.text('Théorème de Rolle'));
+    await settle(tester);
+    await tester.ensureVisible(find.text('Nouvelle note'));
+    await tester.tap(find.text('Nouvelle note'));
+    await settle(tester);
+    await tester.enterText(find.byType(TextField), 'Par Rolle');
+    await tester.tap(find.text('Stylet'));
+    await settle(tester);
+    final canvas = find.byWidgetPredicate(
+      (w) => w is CustomPaint && w.painter is InkPainter,
+    );
+    final pen = await tester.startGesture(
+      tester.getTopLeft(canvas.first) + const Offset(40, 80),
+      kind: PointerDeviceKind.stylus,
+    );
+    for (var i = 1; i <= 10; i++) {
+      await pen.moveBy(const Offset(10, 3));
+    }
+    await pen.up();
+    await tester.pump();
+    // Retour au clavier : le texte est là, l'écriture en aperçu.
+    await tester.tap(find.text('Clavier'));
+    await settle(tester);
+    expect(find.text('Par Rolle'), findsWidgets);
+    expect(find.byType(InkView), findsOneWidget);
+
+    await tester.pageBack();
+    await settle(tester);
+    final note = (await tester.runAsync(store.notes))!.single;
+    expect(note.body, 'Par Rolle');
+    expect(note.ink!.strokes, hasLength(1));
+    await unmountTestApp(tester);
+  });
+
   testWidgets('note manuscrite laissée vide : supprimée', (tester) async {
     final store = await pumpTestApp(tester, seed: seed);
     await tester.tap(find.text('Arbres'));
     await settle(tester);
     await tester.tap(find.text('Théorème de Rolle'));
     await settle(tester);
-    await tester.ensureVisible(find.text('Note manuscrite'));
-    await tester.tap(find.text('Note manuscrite'));
-    await settle(tester);
+    await openHandwriting(tester);
     await tester.pageBack();
     await settle(tester);
     expect((await tester.runAsync(store.notes))!, isEmpty);
