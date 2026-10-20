@@ -265,4 +265,33 @@ void main() {
     expect((await store.note('n1'))!.ink!.strokes, hasLength(1));
     await store.close();
   });
+
+  test(
+    'v8 → v9 : connaissances conservées, exercice corrigé disponible',
+    () async {
+      final schema = await verifier.schemaAt(8);
+      final db = schema.rawDatabase;
+      db.execute(
+        "INSERT INTO nodes (id, parent_id, title, sort_index, curriculum_key, "
+        "origin, created_at) VALUES ('t', NULL, 'Arbre', 0, NULL, 'user', "
+        "'2026-03-02T09:00:00.000Z')",
+      );
+      db.execute(
+        "INSERT INTO items (id, node_id, kind, title, body, level, sort_index, "
+        "suspended, created_at, updated_at, phase, step, stability, difficulty, "
+        "due, last_review, reps, lapses) VALUES ('e', 't', 'exercise', 'Ex', "
+        "NULL, NULL, 0, 0, '2026-03-02T09:00:00.000Z', "
+        "'2026-03-02T09:00:00.000Z', 'newItem', NULL, NULL, NULL, NULL, NULL, "
+        "0, 0)",
+      );
+
+      final store = VergerStore(VergerDatabase(schema.newConnection()));
+      final old = (await store.item('e'))!;
+      expect(old.title, 'Ex');
+      expect(old.autoExercise, equals(null));
+      await store.updateItem('e', autoExercise: () => '{"v": 1}');
+      expect((await store.item('e'))!.autoExercise, '{"v": 1}');
+      await store.close();
+    },
+  );
 }

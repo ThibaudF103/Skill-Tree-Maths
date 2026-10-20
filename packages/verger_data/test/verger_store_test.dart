@@ -156,6 +156,37 @@ void main() {
       expect((await store.item(def.id))!.sortIndex, 1); // après « L »
     });
 
+    test(
+      'exercice corrigé automatiquement : seulement pour un exercice',
+      () async {
+        final n = await store.createNode(title: 'N');
+        const model =
+            '{"v": 1, "statement": "", "questions": [{"answer": "1"}]}';
+        final ex = await store.createItem(
+          nodeId: n.id,
+          kind: ItemKind.exercise,
+          title: 'Ex',
+          autoExercise: model,
+        );
+        expect(ex.autoExercise, model);
+        expect((await store.item(ex.id))!.autoExercise, model);
+        final def = await store.createItem(
+          nodeId: n.id,
+          kind: ItemKind.definition,
+          title: 'Déf',
+          autoExercise: model, // ignoré : pas un exercice
+        );
+        expect((await store.item(def.id))!.autoExercise, isNull);
+        await store.updateItem(ex.id, autoExercise: () => '  ');
+        expect((await store.item(ex.id))!.autoExercise, isNull);
+        await store.updateItem(ex.id, autoExercise: () => model);
+        await store.updateItem(ex.id, title: 'Ex 2'); // non touché
+        expect((await store.item(ex.id))!.autoExercise, model);
+        await store.updateItem(ex.id, kind: ItemKind.theorem);
+        expect((await store.item(ex.id))!.autoExercise, isNull);
+      },
+    );
+
     test('réorganisation : ordre manuel et changement de nœud', () async {
       final n1 = await store.createNode(title: 'N1');
       final n2 = await store.createNode(title: 'N2');

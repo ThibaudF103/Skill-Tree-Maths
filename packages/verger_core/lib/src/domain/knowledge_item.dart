@@ -12,6 +12,7 @@ final class KnowledgeItem {
     required this.updatedAt,
     this.body,
     this.level,
+    this.autoExercise,
     this.sortIndex = 0,
     this.suspended = false,
     this.scheduling = SchedulingState.initial,
@@ -27,6 +28,11 @@ final class KnowledgeItem {
 
   /// Difficulté d'un exercice, facultative (nulle pour les autres types).
   final ExerciseLevel? level;
+
+  /// Modèle d'exercice paramétré corrigé automatiquement (source JSON, voir
+  /// `ExerciseTemplate`), facultatif : la révision tire alors un énoncé
+  /// et note d'après les réponses.
+  final String? autoExercise;
 
   /// Position parmi les connaissances du même nœud.
   final int sortIndex;

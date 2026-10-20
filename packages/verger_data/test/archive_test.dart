@@ -10,6 +10,8 @@ import 'package:verger_data/verger_data.dart';
 VergerStore memoryStore() =>
     VergerStore(VergerDatabase(NativeDatabase.memory()));
 
+const autoModel = '{"v": 1, "statement": "", "questions": [{"answer": "1"}]}';
+
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
   final scheduler = const SchedulerSettings().build();
@@ -44,6 +46,12 @@ void main() {
       kind: ItemKind.definition,
       title: 'Groupe',
     );
+    await store.createItem(
+      nodeId: tree.id,
+      kind: ItemKind.exercise,
+      title: 'Équation',
+      autoExercise: autoModel,
+    );
     await store.saveSchedulerSettings(
       const SchedulerSettings(desiredRetention: 0.92),
     );
@@ -70,8 +78,8 @@ void main() {
     final itemsA = await source.allItems();
     final itemsB = await target.allItems();
     expect(
-      itemsB.map((i) => (i.id, i.title, i.body, i.scheduling)),
-      itemsA.map((i) => (i.id, i.title, i.body, i.scheduling)),
+      itemsB.map((i) => (i.id, i.title, i.body, i.autoExercise, i.scheduling)),
+      itemsA.map((i) => (i.id, i.title, i.body, i.autoExercise, i.scheduling)),
     );
     final theorem = itemsA.firstWhere((i) => i.title == 'Cayley-Hamilton');
     final historyA = await source.history(theorem.id);
@@ -110,7 +118,12 @@ void main() {
       expect(nodes.where((n) => sourceIds.contains(n.id)), isEmpty);
 
       final items = await target.allItems();
-      expect(items.map((i) => i.title), ['Cayley-Hamilton', 'Groupe']);
+      expect(items.map((i) => i.title), [
+        'Cayley-Hamilton',
+        'Groupe',
+        'Équation',
+      ]);
+      expect(items.last.autoExercise, autoModel);
       expect(
         items.every((i) => i.scheduling == SchedulingState.initial),
         isTrue,

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:verger_core/verger_core.dart';
@@ -11,9 +13,11 @@ import '../items/anchors_section.dart';
 import '../notes/note_page.dart';
 
 /// Session de révision façon cartes : on lit le titre, on tente de se
-/// souvenir, on révèle le contenu, puis on s'évalue.
+/// souvenir, on révèle le contenu, puis on s'évalue. Un exercice corrigé
+/// automatiquement tire un énoncé, corrige les réponses et propose la note.
 ///
-/// Raccourcis clavier : Espace / Entrée pour révéler, 1 à 4 pour noter.
+/// Raccourcis clavier : Espace / Entrée pour révéler, 1 à 4 pour noter ;
+/// après correction, Entrée applique la note proposée.
 class ReviewSessionPage extends StatefulWidget {
   const ReviewSessionPage({super.key, required this.itemIds});
 
@@ -45,6 +49,16 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
   var _revealed = false;
   var _busy = false;
 
+  /// Exercice tiré pour la carte affichée (corrigé automatiquement).
+  ExerciseInstance? _exercise;
+  List<TextEditingController> _answers = const [];
+  List<int?> _picked = const [];
+
+  /// Correction : juste, faux, ou `null` (sans réponse lisible) ; `null`
+  /// avant la vérification.
+  List<bool?>? _checks;
+  final _random = math.Random();
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -54,7 +68,22 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
   @override
   void dispose() {
     _focus.dispose();
+    for (final c in _answers) {
+      c.dispose();
+    }
     super.dispose();
+  }
+
+  /// Tire l'exercice de [item] s'il en a un valide (sinon carte classique).
+  ExerciseInstance? _draw(KnowledgeItem? item) {
+    final source = item?.autoExercise;
+    if (source == null) return null;
+    try {
+      return ExerciseTemplate.parse(source).generate(_random.nextInt(1 << 30));
+    } catch (_) {
+      // Modèle devenu invalide : carte classique plutôt que session bloquée.
+      return null;
+    }
   }
 
   VergerStore get _store => AppScope.of(context).store;
@@ -86,7 +115,18 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
         ? const <Note>[]
         : await _store.notes(itemId: item.id);
     if (!mounted) return;
+    final exercise = _draw(i < _ids.length ? item : null);
+    for (final c in _answers) {
+      c.dispose();
+    }
     setState(() {
+      _exercise = exercise;
+      _answers = [
+        for (final _ in exercise?.questions ?? const [])
+          TextEditingController(),
+      ];
+      _picked = List.filled(exercise?.questions.length ?? 0, null);
+      _checks = null;
       _index = i;
       _item = i < _ids.length ? item : null;
       _history = history;
@@ -228,9 +268,41 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
     if (_item != null && !_revealed) setState(() => _revealed = true);
   }
 
+  /// Corrige l'exercice ; tout lu → correction affichée et note proposée.
+  void _check() {
+    final exercise = _exercise;
+    if (exercise == null || _revealed) return;
+    final checks = [
+      for (final (i, q) in exercise.questions.indexed)
+        switch (q) {
+          NumberQuestion() => q.check(_answers[i].text),
+          ChoiceQuestion() => _picked[i] == null ? null : q.check(_picked[i]!),
+        },
+    ];
+    setState(() {
+      _checks = checks;
+      if (!checks.contains(null)) _revealed = true;
+    });
+    if (_revealed) _focus.requestFocus();
+  }
+
+  /// Note proposée par la correction (après vérification).
+  Rating? get _suggested {
+    final checks = _checks;
+    if (_exercise == null || !_revealed || checks == null) return null;
+    return ratingForResults(checks.cast<bool>());
+  }
+
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
     final key = event.logicalKey;
+    final suggested = _suggested;
+    if (suggested != null && key == LogicalKeyboardKey.enter) {
+      _rate(suggested);
+      return KeyEventResult.handled;
+    }
+    // Exercice à corriger : les touches vont aux réponses.
+    if (_exercise != null && !_revealed) return KeyEventResult.ignored;
     if (!_revealed &&
         (key == LogicalKeyboardKey.space || key == LogicalKeyboardKey.enter)) {
       _reveal();
@@ -345,7 +417,20 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
                       AnchorSnapshot(anchor: anchor, maxHeight: 360),
                     ],
                     const SizedBox(height: 32),
-                    if (!_revealed)
+                    if (_exercise case final exercise?) ...[
+                      _ExerciseView(
+                        exercise: exercise,
+                        answers: _answers,
+                        picked: _picked,
+                        checks: _checks,
+                        locked: _revealed,
+                        onPick: (q, choice) =>
+                            setState(() => _picked[q] = choice),
+                        onSubmit: _check,
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                    if (!_revealed && _exercise == null)
                       Text(
                         item.kind.family == ItemFamily.exercise
                             ? 'Refaites l\'exercice, puis révélez.'
@@ -354,7 +439,7 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
                           color: theme.colorScheme.outline,
                         ),
                       )
-                    else ...[
+                    else if (_revealed) ...[
                       // Verso : la rédaction manuscrite.
                       for (final anchor in _anchors.where(
                         (a) => a.role == AnchorRole.work,
@@ -392,9 +477,8 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
                             ),
                           ),
                         )
-                      else if (!_anchors.any(
-                            (a) => a.role == AnchorRole.work,
-                          ) &&
+                      else if (_exercise == null &&
+                          !_anchors.any((a) => a.role == AnchorRole.work) &&
                           _notes.every((n) => n.isBlank))
                         Text(
                           'Pas de contenu enregistré : comparez avec vos notes.',
@@ -430,6 +514,7 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
                             child: _RatingButton(
                               rating: rating,
                               interval: preview[rating]!.due!.difference(now),
+                              suggested: rating == _suggested,
                               onPressed: _busy ? null : () => _rate(rating),
                             ),
                           ),
@@ -439,10 +524,15 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
                   : SizedBox(
                       width: double.infinity,
                       height: 56,
-                      child: FilledButton(
-                        onPressed: _reveal,
-                        child: const Text('Révéler'),
-                      ),
+                      child: _exercise != null
+                          ? FilledButton(
+                              onPressed: _check,
+                              child: const Text('Vérifier'),
+                            )
+                          : FilledButton(
+                              onPressed: _reveal,
+                              child: const Text('Révéler'),
+                            ),
                     ),
             ),
           ),
@@ -457,11 +547,15 @@ class _RatingButton extends StatelessWidget {
     required this.rating,
     required this.interval,
     required this.onPressed,
+    this.suggested = false,
   });
 
   final Rating rating;
   final Duration interval;
   final VoidCallback? onPressed;
+
+  /// Note proposée par la correction automatique : mise en avant.
+  final bool suggested;
 
   static const _colors = {
     Rating.again: Color(0xFFC8553D),
@@ -476,8 +570,9 @@ class _RatingButton extends StatelessWidget {
     return OutlinedButton(
       style: OutlinedButton.styleFrom(
         minimumSize: const Size.fromHeight(64),
-        foregroundColor: color,
-        side: BorderSide(color: color.withValues(alpha: 0.6)),
+        foregroundColor: suggested ? Colors.white : color,
+        backgroundColor: suggested ? color : null,
+        side: BorderSide(color: color.withValues(alpha: suggested ? 1 : 0.6)),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
       onPressed: onPressed,
@@ -598,6 +693,132 @@ class _Summary extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Énoncé tiré et questions d'un exercice corrigé automatiquement ; après
+/// vérification, chaque réponse est marquée juste ou fausse.
+class _ExerciseView extends StatelessWidget {
+  const _ExerciseView({
+    required this.exercise,
+    required this.answers,
+    required this.picked,
+    required this.checks,
+    required this.locked,
+    required this.onPick,
+    required this.onSubmit,
+  });
+
+  final ExerciseInstance exercise;
+  final List<TextEditingController> answers;
+  final List<int?> picked;
+  final List<bool?>? checks;
+  final bool locked;
+  final void Function(int question, int choice) onPick;
+  final VoidCallback onSubmit;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    const good = Color(0xFF5B7F5E), bad = Color(0xFFC8553D);
+    Widget mark(bool? ok) => Icon(
+      ok == true ? Icons.check_circle : Icons.cancel,
+      color: ok == true ? good : bad,
+    );
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (exercise.statement.trim().isNotEmpty) ...[
+            MathText(exercise.statement, style: theme.textTheme.bodyLarge),
+            const SizedBox(height: 16),
+          ],
+          for (final (i, q) in exercise.questions.indexed) ...[
+            if (i > 0) const SizedBox(height: 16),
+            if (q.prompt.trim().isNotEmpty) ...[
+              MathText(q.prompt, style: theme.textTheme.bodyLarge),
+              const SizedBox(height: 8),
+            ],
+            switch (q) {
+              NumberQuestion() => Row(
+                children: [
+                  SizedBox(
+                    width: 220,
+                    child: TextField(
+                      controller: answers[i],
+                      enabled: !locked,
+                      textInputAction: i == exercise.questions.length - 1
+                          ? TextInputAction.done
+                          : TextInputAction.next,
+                      onSubmitted: (_) {
+                        if (i == exercise.questions.length - 1) onSubmit();
+                      },
+                      decoration: InputDecoration(
+                        border: const OutlineInputBorder(),
+                        isDense: true,
+                        hintText: 'ex. -3/4, 0,5, sqrt(2)',
+                        errorText: checks != null && checks![i] == null
+                            ? 'Réponse illisible ou manquante'
+                            : null,
+                      ),
+                    ),
+                  ),
+                  if (locked) ...[
+                    const SizedBox(width: 12),
+                    mark(checks![i]),
+                    if (checks![i] != true) ...[
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          'Réponse : ${q.expectedText}',
+                          style: theme.textTheme.bodyLarge,
+                        ),
+                      ),
+                    ],
+                  ],
+                ],
+              ),
+              ChoiceQuestion() => Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final (j, choice) in q.choices.indexed)
+                        ChoiceChip(
+                          label: MathText(choice),
+                          selected: picked[i] == j,
+                          side: locked && j == q.correct
+                              ? const BorderSide(color: good, width: 2)
+                              : null,
+                          onSelected: locked ? null : (_) => onPick(i, j),
+                        ),
+                    ],
+                  ),
+                  if (locked) ...[
+                    const SizedBox(height: 8),
+                    mark(checks![i]),
+                  ] else if (checks != null && checks![i] == null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Choisissez une réponse',
+                      style: TextStyle(color: theme.colorScheme.error),
+                    ),
+                  ],
+                ],
+              ),
+            },
+          ],
+        ],
       ),
     );
   }

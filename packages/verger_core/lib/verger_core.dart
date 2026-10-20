@@ -3,6 +3,10 @@ library;
 
 export 'src/documents/page_remap.dart';
 export 'src/domain/anchor.dart';
+export 'src/exercises/exercise_template.dart';
+export 'src/exercises/expression.dart';
+export 'src/exercises/math_value.dart';
+export 'src/exercises/seeded_random.dart';
 export 'src/domain/ids.dart';
 export 'src/domain/ink.dart';
 export 'src/domain/item_kind.dart';
