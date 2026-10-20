@@ -7,6 +7,7 @@ import '../../ui/labels.dart';
 import '../../ui/latex_input.dart';
 import '../../ui/math_text.dart';
 import '../trees/node_picker.dart';
+import 'exercise_form.dart';
 
 /// Évaluation facultative à la création : compte comme première révision.
 enum _InitialLevel {
@@ -477,10 +478,36 @@ class _AutoExerciseField extends StatefulWidget {
 class _AutoExerciseFieldState extends State<_AutoExerciseField> {
   var _seed = 0;
 
+  /// Brouillon montré par le formulaire ; `null` : saisie en JSON.
+  ExerciseDraft? _draft;
+
+  /// Le modèle ne se montre pas dans le formulaire.
+  var _jsonOnly = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _showForm();
+  }
+
+  void _showForm() {
+    final text = widget.controller.text;
+    _draft = text.trim().isEmpty
+        ? ExerciseDraft()
+        : ExerciseDraft.tryParse(text);
+    _jsonOnly = _draft == null;
+  }
+
+  void _useExample() {
+    widget.controller.text = _autoExample;
+    if (_draft != null) setState(_showForm);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final c = widget.controller;
+    final draft = _draft;
     return ExpansionTile(
       tilePadding: EdgeInsets.zero,
       childrenPadding: const EdgeInsets.only(bottom: 8),
@@ -488,17 +515,72 @@ class _AutoExerciseFieldState extends State<_AutoExerciseField> {
       title: const Text('Corrigé automatiquement (facultatif)'),
       subtitle: const Text('Énoncé tiré au hasard, réponses vérifiées'),
       children: [
-        TextField(
-          controller: c,
-          minLines: 6,
-          maxLines: 16,
-          style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
-          decoration: const InputDecoration(
-            labelText: 'Modèle (JSON)',
-            border: OutlineInputBorder(),
-            alignLabelWithHint: true,
+        Align(
+          alignment: Alignment.centerLeft,
+          child: SegmentedButton<bool>(
+            showSelectedIcon: false,
+            segments: const [
+              ButtonSegment(value: true, label: Text('Formulaire')),
+              ButtonSegment(value: false, label: Text('JSON')),
+            ],
+            selected: {draft != null},
+            onSelectionChanged: (s) => setState(() {
+              if (s.first) {
+                _showForm();
+              } else {
+                _draft = null;
+                _jsonOnly = false;
+              }
+            }),
           ),
         ),
+        if (draft != null)
+          ListenableBuilder(
+            listenable: c,
+            builder: (context, _) => Align(
+              alignment: Alignment.centerLeft,
+              child: c.text.trim().isEmpty
+                  ? const SizedBox(height: 8)
+                  : TextButton.icon(
+                      onPressed: () => setState(() {
+                        c.clear();
+                        _showForm();
+                      }),
+                      icon: const Icon(Icons.delete_outline),
+                      label: const Text('Retirer le modèle'),
+                    ),
+            ),
+          )
+        else
+          const SizedBox(height: 8),
+        if (draft != null)
+          ExerciseForm(
+            key: ObjectKey(draft),
+            draft: draft,
+            onChanged: () => c.text = draft.isBlank ? '' : draft.encode(),
+          )
+        else ...[
+          if (_jsonOnly)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                'Ce modèle ne se lit pas dans le formulaire : '
+                'il s\'édite en JSON.',
+                style: TextStyle(color: theme.colorScheme.error),
+              ),
+            ),
+          TextField(
+            controller: c,
+            minLines: 6,
+            maxLines: 16,
+            style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+            decoration: const InputDecoration(
+              labelText: 'Modèle (JSON)',
+              border: OutlineInputBorder(),
+              alignLabelWithHint: true,
+            ),
+          ),
+        ],
         const SizedBox(height: 8),
         ListenableBuilder(
           listenable: c,
@@ -507,13 +589,16 @@ class _AutoExerciseFieldState extends State<_AutoExerciseField> {
               return Align(
                 alignment: Alignment.centerLeft,
                 child: TextButton.icon(
-                  onPressed: () => c.text = _autoExample,
+                  onPressed: _useExample,
                   icon: const Icon(Icons.auto_awesome_outlined),
                   label: const Text('Partir d\'un exemple'),
                 ),
               );
             }
-            final problem = autoExerciseProblem(c.text);
+            final duplicate = draft?.duplicateName;
+            final problem = duplicate != null
+                ? '« $duplicate » est défini deux fois'
+                : autoExerciseProblem(c.text);
             if (problem != null) {
               return Text(
                 problem,
