@@ -6,7 +6,6 @@ import '../../ui/labels.dart';
 import '../../ui/math_text.dart';
 import '../documents/document_viewer_page.dart';
 import '../video/video_page.dart';
-import 'ink_editor_page.dart';
 import 'ink_view.dart';
 import 'notes_panel.dart';
 
@@ -144,16 +143,6 @@ class _ItemNotesSectionState extends State<ItemNotesSection> {
     ).push(MaterialPageRoute<void>(builder: (_) => NotePage(noteId: note.id)));
   }
 
-  Future<void> _newHandwritten() async {
-    final store = AppScope.of(context).store;
-    final note = await store.createNote(itemId: widget.item.id);
-    if (!mounted) {
-      await store.deleteNoteIfBlank(note.id);
-      return;
-    }
-    await openInkEditor(context, note);
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -193,21 +182,10 @@ class _ItemNotesSectionState extends State<ItemNotesSection> {
                   ),
                 ),
               ),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                OutlinedButton.icon(
-                  onPressed: _newNote,
-                  icon: const Icon(Icons.edit_note),
-                  label: const Text('Nouvelle note'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: _newHandwritten,
-                  icon: const Icon(Icons.draw_outlined),
-                  label: const Text('Note manuscrite'),
-                ),
-              ],
+            OutlinedButton.icon(
+              onPressed: _newNote,
+              icon: const Icon(Icons.edit_note),
+              label: const Text('Nouvelle note'),
             ),
           ],
         );
