@@ -55,6 +55,18 @@ class InkEditorController extends ChangeNotifier {
 
   InkMode mode = InkMode.pen;
 
+  /// Le doigt écrit (sinon il fait défiler la page).
+  bool fingerDraws = false;
+
+  /// Position dans la page : gardée, comme [fingerDraws], quand l'éditeur
+  /// est retiré puis remis (passage au clavier et retour).
+  final scroll = ScrollController();
+
+  void toggleFingerDraws() {
+    fingerDraws = !fingerDraws;
+    notifyListeners();
+  }
+
   /// Outil d'avant le dernier changement (geste « outil précédent » ou
   /// sortie de la gomme).
   InkMode _previous = InkMode.pen;
@@ -239,6 +251,7 @@ class InkEditorController extends ChangeNotifier {
   @override
   void dispose() {
     _live.dispose();
+    scroll.dispose();
     super.dispose();
   }
 }
@@ -265,11 +278,6 @@ class InkEditor extends StatefulWidget {
 }
 
 class _InkEditorState extends State<InkEditor> {
-  final _scroll = ScrollController();
-
-  /// Le doigt écrit (sinon il fait défiler la page).
-  bool _fingerDraws = false;
-
   /// Appareil du trait en cours.
   int? _pointer;
 
@@ -314,7 +322,6 @@ class _InkEditorState extends State<InkEditor> {
   @override
   void dispose() {
     PencilGestures.removeListener(_pencil);
-    _scroll.dispose();
     super.dispose();
   }
 
@@ -323,7 +330,7 @@ class _InkEditorState extends State<InkEditor> {
   bool _draws(PointerDeviceKind kind) => switch (kind) {
     PointerDeviceKind.stylus || PointerDeviceKind.invertedStylus => true,
     PointerDeviceKind.mouse => true,
-    PointerDeviceKind.touch => _fingerDraws,
+    PointerDeviceKind.touch => _controller.fingerDraws,
     _ => false,
   };
 
@@ -391,13 +398,13 @@ class _InkEditorState extends State<InkEditor> {
           c.clear();
           _changed();
         } else if (v == 'finger') {
-          setState(() => _fingerDraws = !_fingerDraws);
+          c.toggleFingerDraws();
         }
       },
       itemBuilder: (context) => [
         CheckedPopupMenuItem(
           value: 'finger',
-          checked: _fingerDraws,
+          checked: c.fingerDraws,
           child: const Text('Écrire au doigt'),
         ),
         const PopupMenuItem(value: 'clear', child: Text('Tout effacer')),
@@ -422,7 +429,7 @@ class _InkEditorState extends State<InkEditor> {
             return ScrollConfiguration(
               // Le stylet et la souris écrivent, le doigt défile.
               behavior: ScrollConfiguration.of(context).copyWith(
-                dragDevices: _fingerDraws
+                dragDevices: c.fingerDraws
                     ? const {}
                     : const {
                         PointerDeviceKind.touch,
@@ -430,10 +437,10 @@ class _InkEditorState extends State<InkEditor> {
                       },
               ),
               child: Scrollbar(
-                controller: _scroll,
-                thumbVisibility: _fingerDraws,
+                controller: c.scroll,
+                thumbVisibility: c.fingerDraws,
                 child: SingleChildScrollView(
-                  controller: _scroll,
+                  controller: c.scroll,
                   child: Center(
                     child: Listener(
                       onPointerDown: (e) {

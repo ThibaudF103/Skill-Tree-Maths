@@ -233,7 +233,8 @@ class _NoteEditorState extends State<NoteEditor> {
 
   /// Saisie au stylet (sinon au clavier). Une note qui n'a que de
   /// l'écriture s'ouvre au stylet, une note qui n'a que du texte au
-  /// clavier ; sinon, le dernier mode choisi (d'abord le stylet sur iPad).
+  /// clavier ; sinon, le dernier mode choisi (d'abord le stylet sur iPad,
+  /// pas sur iPhone).
   late bool _handwriting = _initialMode();
   static bool? _lastHandwriting;
 
@@ -241,7 +242,9 @@ class _NoteEditorState extends State<NoteEditor> {
     final hasText = widget.note.body.trim().isNotEmpty;
     final hasInk = !_ink.ink.isEmpty;
     if (hasInk != hasText) return hasInk;
-    return _lastHandwriting ?? defaultTargetPlatform == TargetPlatform.iOS;
+    return _lastHandwriting ??
+        (defaultTargetPlatform == TargetPlatform.iOS &&
+            MediaQuery.sizeOf(context).shortestSide >= 600);
   }
 
   void _setMode(bool handwriting) {
@@ -278,9 +281,19 @@ class _NoteEditorState extends State<NoteEditor> {
     final body = text != _saved ? text : null;
     final changedInk = identical(ink, _savedInk) ? null : ink;
     if (body == null && changedInk == null) return;
+    try {
+      await _store.updateNote(widget.note.id, body: body, ink: changedInk);
+    } catch (e) {
+      // Rien n'est marqué enregistré : le prochain enregistrement réessaie.
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Note non enregistrée : $e')));
+      }
+      return;
+    }
     _saved = text;
     _savedInk = ink;
-    await _store.updateNote(widget.note.id, body: body, ink: changedInk);
   }
 
   @override
