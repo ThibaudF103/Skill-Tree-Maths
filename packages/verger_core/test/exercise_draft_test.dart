@@ -76,6 +76,16 @@ void main() {
     expect(ExerciseDraft.tryParse(draft.encode())!.params.single.min, 'un');
   });
 
+  test('brouillon vide : pas de modèle', () {
+    final draft = ExerciseDraft();
+    expect(draft.isBlank, isTrue);
+    draft.questions.single.choices.first.text = 'oui';
+    expect(draft.isBlank, isFalse);
+    draft.questions.single.choices.first.text = ' ';
+    draft.params.add(DraftParam());
+    expect(draft.isBlank, isFalse);
+  });
+
   test('nom en double : signalé, modèle refusé', () {
     final draft = ExerciseDraft(
       params: [DraftParam(name: 'a', min: '1', max: '2')],

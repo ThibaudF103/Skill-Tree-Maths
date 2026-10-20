@@ -80,7 +80,11 @@ class _ExerciseFormState extends State<ExerciseForm> {
             ),
           ),
           for (final row in rows)
-            Padding(padding: const EdgeInsets.only(top: 8), child: row),
+            Padding(
+              key: row.key,
+              padding: const EdgeInsets.only(top: 8),
+              child: row,
+            ),
           TextButton.icon(
             onPressed: () => _edit(add),
             icon: const Icon(Icons.add),
@@ -211,7 +215,13 @@ class _ExerciseFormState extends State<ExerciseForm> {
 
   Widget _question(int index, DraftQuestion q) {
     final theme = Theme.of(context);
-    final rank = q.correct.trim().isEmpty ? 1 : int.tryParse(q.correct.trim());
+    final written = q.correct.trim().isEmpty
+        ? 1
+        : int.tryParse(q.correct.trim());
+    // Rang hors des choix : montré comme une expression, pour être vu.
+    final rank = written != null && written >= 1 && written <= q.choices.length
+        ? written
+        : null;
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
@@ -298,9 +308,15 @@ class _ExerciseFormState extends State<ExerciseForm> {
                     ),
                   if (rank == null)
                     Text(
-                      'Bonne réponse calculée : ${q.correct} '
-                      '(cocher un choix la remplace)',
-                      style: theme.textTheme.bodySmall,
+                      written == null
+                          ? 'Bonne réponse calculée : ${q.correct} '
+                                '(cocher un choix la remplace)'
+                          : 'Bonne réponse : choix $written, qui n\'existe '
+                                'pas (cocher un choix)',
+                      style: TextStyle(
+                        fontSize: theme.textTheme.bodySmall?.fontSize,
+                        color: written == null ? null : theme.colorScheme.error,
+                      ),
                     ),
                   TextButton.icon(
                     onPressed: () => _edit(() => q.choices.add(DraftChoice())),

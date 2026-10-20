@@ -86,6 +86,22 @@ final class ExerciseDraft {
     return null;
   }
 
+  /// Rien de saisi : pas de modèle (l'exercice n'est pas corrigé
+  /// automatiquement).
+  bool get isBlank =>
+      params.isEmpty &&
+      lets.isEmpty &&
+      conditions.isEmpty &&
+      statement.trim().isEmpty &&
+      questions.every(
+        (q) =>
+            q.prompt.trim().isEmpty &&
+            q.answer.trim().isEmpty &&
+            q.tolerance.trim().isEmpty &&
+            q.correct.trim().isEmpty &&
+            q.choices.every((c) => c.text.trim().isEmpty),
+      );
+
   Map<String, Object?> toJson() {
     final used = <String>{};
     String key(String name) {
