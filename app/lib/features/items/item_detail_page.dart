@@ -104,17 +104,17 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                     suspended: !item.suspended,
                   );
                 case 'delete':
-                  final ok = await confirmDestructive(
-                    context,
-                    title: 'Supprimer la connaissance ?',
-                    message:
-                        '« ${item.title} » et son historique de révision '
-                        'seront définitivement supprimés.',
+                  // Pas de confirmation : « Annuler » rétablit tout
+                  // (historique, liens, notes), même après avoir quitté la
+                  // fiche.
+                  final messenger = ScaffoldMessenger.of(context);
+                  final deletion = await scope.store.deleteItem(item.id);
+                  if (context.mounted) Navigator.pop(context);
+                  showUndoSnackBar(
+                    messenger,
+                    message: 'Connaissance supprimée : « ${item.title} »',
+                    onUndo: () => scope.store.undoDeletion(deletion),
                   );
-                  if (ok) {
-                    await scope.store.deleteItem(item.id);
-                    if (context.mounted) Navigator.pop(context);
-                  }
               }
             },
             itemBuilder: (context) => [

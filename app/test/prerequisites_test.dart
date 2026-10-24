@@ -53,6 +53,16 @@ void main() {
     await settle(tester);
     expect(find.text('Définition · Polynôme caractéristique'), findsNothing);
     expect(find.text('Aucun prérequis.'), findsOneWidget);
+
+    // … puis annuler.
+    expect(
+      find.text('Lien retiré : « Polynôme caractéristique »'),
+      findsOneWidget,
+    );
+    await tester.tap(find.widgetWithText(SnackBarAction, 'Annuler'));
+    await settle(tester);
+    expect(find.text('Définition · Polynôme caractéristique'), findsOneWidget);
+    expect((await tester.runAsync(store.prerequisites))!, hasLength(2));
     await unmountTestApp(tester);
   });
 }

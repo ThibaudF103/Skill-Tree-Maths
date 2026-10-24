@@ -24,6 +24,14 @@ class StaleReviewException implements Exception {
   String toString() => 'StaleReviewException($itemId)';
 }
 
+/// Ce qu'une suppression a retiré, pour la défaire avec
+/// [VergerStore.undoDeletion] (bouton « Annuler »). Les lignes sont remises
+/// telles quelles, avec les mêmes identifiants.
+final class Deletion {
+  Deletion._(this._undo);
+  final Future<void> Function() _undo;
+}
+
 /// Bilan d'une mise à jour de PDF.
 /// PDF joint à un paquet (ou téléchargé à l'import), déjà analysé.
 typedef PackPdf = ({
@@ -303,8 +311,66 @@ class VergerStore {
     }
   }
 
-  Future<void> deleteItem(String id) =>
-      (_db.delete(_db.items)..where((i) => i.id.equals(id))).go();
+  /// Supprime une connaissance avec son historique de révision et ses liens
+  /// (prérequis, recto / verso) ; ses notes restent, détachées. L'annulation
+  /// rétablit tout, notes rattachées comprises.
+  Future<Deletion> deleteItem(String id) => _db.transaction(() async {
+    final item = await (_db.select(
+      _db.items,
+    )..where((i) => i.id.equals(id))).getSingleOrNull();
+    final logs = await (_db.select(
+      _db.reviewLogs,
+    )..where((l) => l.itemId.equals(id))).get();
+    final edges = await (_db.select(
+      _db.prerequisites,
+    )..where((p) => p.itemId.equals(id) | p.requiresId.equals(id))).get();
+    final anchors = await _anchorsQuery(itemId: id).get();
+    final noteIds = [
+      for (final n in await (_db.select(
+        _db.notes,
+      )..where((n) => n.itemId.equals(id))).get())
+        n.id,
+    ];
+    await (_db.delete(_db.items)..where((i) => i.id.equals(id))).go();
+    return Deletion._(() async {
+      if (item == null) return;
+      if (await node(item.nodeId) == null) {
+        throw StateError('La branche de la connaissance a été supprimée.');
+      }
+      await _db.into(_db.items).insert(item);
+      for (final log in logs) {
+        await _db.into(_db.reviewLogs).insert(log);
+      }
+      // Seulement les liens vers des connaissances et contenus encore là, et
+      // sans cycle (un autre lien a pu être ajouté entre-temps).
+      final items = {for (final i in await _db.select(_db.items).get()) i.id};
+      for (final edge in edges) {
+        if (!items.contains(edge.itemId) || !items.contains(edge.requiresId)) {
+          continue;
+        }
+        final graph = PrerequisiteGraph(await prerequisites());
+        if (graph.wouldCreateCycle(edge.itemId, edge.requiresId)) continue;
+        await _db.into(_db.prerequisites).insertOnConflictUpdate(edge);
+      }
+      final documents = {
+        for (final d in await _db.select(_db.documents).get()) d.id,
+      };
+      for (final anchor in anchors) {
+        if (documents.contains(anchor.documentId)) {
+          await _db.into(_db.anchors).insert(anchor);
+        }
+      }
+      await (_db.update(_db.notes)
+            ..where((n) => n.id.isIn(noteIds) & n.itemId.isNull()))
+          .write(NotesCompanion(itemId: Value(id)));
+    });
+  });
+
+  /// Défait une suppression ([deleteItem], [deleteAnchor],
+  /// [removePrerequisite]). Lève une erreur si ce dont elle dépend a disparu
+  /// entre-temps (branche, connaissance…).
+  Future<void> undoDeletion(Deletion deletion) =>
+      _db.transaction(deletion._undo);
 
   // --- Révisions -----------------------------------------------------------
 
@@ -555,11 +621,15 @@ class VergerStore {
             );
       });
 
-  Future<void> removePrerequisite(String itemId, String requiresId) =>
-      (_db.delete(_db.prerequisites)..where(
-            (p) => p.itemId.equals(itemId) & p.requiresId.equals(requiresId),
-          ))
-          .go();
+  /// Retire un prérequis ; l'annulation le remet (refusée par [StateError]
+  /// s'il créerait désormais un cycle).
+  Future<Deletion> removePrerequisite(String itemId, String requiresId) async {
+    await (_db.delete(_db.prerequisites)..where(
+          (p) => p.itemId.equals(itemId) & p.requiresId.equals(requiresId),
+        ))
+        .go();
+    return Deletion._(() => addPrerequisite(itemId, requiresId));
+  }
 
   Future<List<Prerequisite>> prerequisites() async =>
       (await _db.select(_db.prerequisites).get()).map(_toPrerequisite).toList();
@@ -712,8 +782,17 @@ class VergerStore {
     ),
   );
 
-  Future<void> deleteAnchor(String id) =>
-      (_db.delete(_db.anchors)..where((a) => a.id.equals(id))).go();
+  /// Retire un lien recto / verso ; l'annulation le remet tel quel
+  /// (miniature comprise).
+  Future<Deletion> deleteAnchor(String id) => _db.transaction(() async {
+    final row = await (_db.select(
+      _db.anchors,
+    )..where((a) => a.id.equals(id))).getSingleOrNull();
+    await (_db.delete(_db.anchors)..where((a) => a.id.equals(id))).go();
+    return Deletion._(() async {
+      if (row != null) await _db.into(_db.anchors).insert(row);
+    });
+  });
 
   // --- Notes de travail ---------------------------------------------------
 

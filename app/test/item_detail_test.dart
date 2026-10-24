@@ -45,4 +45,39 @@ void main() {
     expect(top('Prérequis'), lessThan(top('Progression')));
     await unmountTestApp(tester);
   });
+
+  testWidgets('supprimer une connaissance, puis annuler', (tester) async {
+    final store = await pumpTestApp(tester, seed: seed);
+    await tester.tap(find.text('Arbres'));
+    await settle(tester);
+    await tester.tap(find.text('Cayley-Hamilton'));
+    await settle(tester);
+
+    // Supprimée sans confirmation : retour à l'arbre, avec « Annuler ».
+    await tester.tap(find.byType(PopupMenuButton<String>));
+    await settle(tester);
+    await tester.tap(find.text('Supprimer'));
+    await settle(tester);
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(find.text('Cayley-Hamilton'), findsNothing);
+    expect(
+      find.text('Connaissance supprimée : « Cayley-Hamilton »'),
+      findsOneWidget,
+    );
+    final items = (await tester.runAsync(store.allItems))!;
+    expect(items.map((i) => i.title), ['Polynôme caractéristique']);
+
+    await tester.tap(find.widgetWithText(SnackBarAction, 'Annuler'));
+    await settle(tester);
+    expect(find.text('Cayley-Hamilton'), findsOneWidget);
+    final thm = (await tester.runAsync(
+      store.allItems,
+    ))!.firstWhere((i) => i.title == 'Cayley-Hamilton');
+    expect(thm.scheduling.reps, 1);
+    expect((await tester.runAsync(() => store.history(thm.id)))!, hasLength(1));
+    expect((await tester.runAsync(store.prerequisites))!, hasLength(1));
+    final notes = (await tester.runAsync(() => store.notes(itemId: thm.id)))!;
+    expect(notes.single.body, 'Preuve par densité');
+    await unmountTestApp(tester);
+  });
 }

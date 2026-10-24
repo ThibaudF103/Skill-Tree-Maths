@@ -3,6 +3,7 @@ import 'package:verger_core/verger_core.dart';
 
 import '../../app/app_scope.dart';
 import '../../pdf/pdf_region_view.dart';
+import '../../ui/dialogs.dart';
 import '../../ui/labels.dart';
 import '../../video/excerpt_card.dart';
 import '../video/video_page.dart';
@@ -257,8 +258,16 @@ class _AnchorCard extends StatelessWidget {
             IconButton(
               tooltip: 'Retirer ce lien',
               icon: const Icon(Icons.link_off),
-              onPressed: () =>
-                  AppScope.of(context).store.deleteAnchor(anchor.id),
+              onPressed: () async {
+                final store = AppScope.of(context).store;
+                final messenger = ScaffoldMessenger.of(context);
+                final deletion = await store.deleteAnchor(anchor.id);
+                showUndoSnackBar(
+                  messenger,
+                  message: '${isRecto ? 'Recto' : 'Verso'} retiré',
+                  onUndo: () => store.undoDeletion(deletion),
+                );
+              },
             ),
           ],
         ),

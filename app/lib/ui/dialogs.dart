@@ -102,3 +102,41 @@ Future<bool> confirmDestructive(
   );
   return result ?? false;
 }
+
+/// Annonce une suppression déjà faite, avec « Annuler » pour la défaire
+/// ([onUndo]). [messenger] est pris avant de quitter la page, pour que
+/// l'annonce survive à la page.
+void showUndoSnackBar(
+  ScaffoldMessengerState messenger, {
+  required String message,
+  required Future<void> Function() onUndo,
+}) {
+  messenger
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+      SnackBar(
+        content: Text(message),
+        // Avec une action, elle resterait affichée jusqu'à un geste.
+        persist: false,
+        duration: const Duration(seconds: 8),
+        showCloseIcon: true,
+        action: SnackBarAction(
+          label: 'Annuler',
+          onPressed: () async {
+            try {
+              await onUndo();
+            } catch (e) {
+              messenger.showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Impossible d\'annuler : '
+                    '${e is StateError ? e.message : e}',
+                  ),
+                ),
+              );
+            }
+          },
+        ),
+      ),
+    );
+}
