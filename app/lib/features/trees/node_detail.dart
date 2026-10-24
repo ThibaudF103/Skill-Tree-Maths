@@ -5,6 +5,7 @@ import '../../app/app_scope.dart';
 import '../../ui/dialogs.dart';
 import '../../ui/item_glyph.dart';
 import '../data/pack_actions.dart';
+import '../documents/content_import.dart';
 import '../items/item_detail_page.dart';
 import '../items/item_editor.dart';
 import '../items/item_tile.dart';
@@ -240,6 +241,8 @@ class _NodeMenu extends StatelessWidget {
             await store.moveNode(node.id);
           case 'skills':
             openSkillGraph(context, node.id);
+          case 'content':
+            await importContent(context, nodeId: node.id);
           case 'share':
             await exportTreePack(context, node);
           case 'worksheets':
@@ -298,6 +301,10 @@ class _NodeMenu extends StatelessWidget {
         const PopupMenuItem(
           value: 'worksheets',
           child: Text('Fiches d\'exercices par élève (PDF)…'),
+        ),
+        const PopupMenuItem(
+          value: 'content',
+          child: Text('Importer un contenu (PDF, vidéo)…'),
         ),
         const PopupMenuDivider(),
         const PopupMenuItem(
