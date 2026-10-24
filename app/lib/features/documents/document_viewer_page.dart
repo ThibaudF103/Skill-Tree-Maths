@@ -247,7 +247,7 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
                 padding: const EdgeInsets.all(32),
                 child: Text(
                   'Le PDF n\'est pas présent sur cet appareil.\n'
-                  'Utilisez « Mettre à jour » dans l\'onglet Documents '
+                  'Utilisez « Mettre à jour » dans l\'onglet Bibliothèque '
                   'pour le réimporter : les liens seront conservés.',
                   textAlign: TextAlign.center,
                   style: theme.textTheme.bodyLarge,

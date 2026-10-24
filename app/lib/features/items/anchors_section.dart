@@ -7,6 +7,7 @@ import '../../ui/dialogs.dart';
 import '../../ui/labels.dart';
 import '../../video/excerpt_card.dart';
 import '../video/video_page.dart';
+import '../documents/document_actions.dart';
 import '../documents/document_viewer_page.dart';
 
 /// Zone de PDF (recto ou verso), en vectoriel avec texte sélectionnable si
@@ -49,6 +50,8 @@ class AnchorSnapshot extends StatelessWidget {
         page: anchor.page!,
         region: anchor.region ?? const NormalizedRect(0, 0, 1, 1),
         snapshot: anchor.snapshot,
+        // PDF d'un paquet non téléchargé : l'importer depuis la zone même.
+        onMissingFile: (document) => updatePdf(context, document),
       ),
     );
   }
@@ -166,6 +169,8 @@ class _AnchorsSectionState extends State<AnchorsSection> {
                 ),
               for (final anchor in anchors)
                 Padding(
+                  // Chaque zone garde son propre rendu quand la liste change.
+                  key: ValueKey(anchor.id),
                   padding: const EdgeInsets.only(bottom: 16),
                   child: _AnchorCard(
                     anchor: anchor,
