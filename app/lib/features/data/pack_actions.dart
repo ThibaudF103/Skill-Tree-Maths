@@ -294,6 +294,8 @@ class PackImportDialog extends StatelessWidget {
             '${p.reviews > 0 ? ' et ${p.reviews} révision(s)' : ''}',
       if (p.notes > 0) '${p.notes} note(s)',
       if (p.anchors > 0) '${p.anchors} recto/verso',
+      if (p.links > 0) '${p.links} rattachement(s) de contenu',
+      if (p.prerequisites > 0) '${p.prerequisites} prérequis',
     ];
     return AlertDialog(
       title: Text('Importer « ${archive.title ?? 'paquet'} » ?'),

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -22,12 +23,14 @@ void main() {
     WidgetTester tester, {
     String? nodeId,
     Future<(String, Uint8List)?> Function()? pickPdf,
+    Future<String?> Function(String)? fetchTitle,
   }) {
     final future = showDialog<ContentImport>(
       context: tester.element(find.byType(Scaffold).first),
       builder: (_) => ContentImportDialog(
         initialNodeId: nodeId,
         pickPdf: pickPdf ?? () async => null,
+        fetchTitle: fetchTitle ?? (_) async => null,
       ),
     );
     return future;
@@ -129,4 +132,33 @@ void main() {
     expect(choice.nodeId, branchId);
     await unmountTestApp(tester);
   });
+
+  testWidgets(
+    'titre en cours de recherche, adresse effacée : plus d\'attente',
+    (tester) async {
+      await pumpTestApp(tester, seed: seed);
+      final pending = Completer<String?>();
+      open(tester, fetchTitle: (_) => pending.future);
+      await settle(tester);
+      await tester.tap(find.text('Vidéo YouTube'));
+      await settle(tester);
+      final url = find.widgetWithText(TextField, 'Adresse de la vidéo');
+      await tester.enterText(url, 'https://youtu.be/dQw4w9WgXcQ');
+      await tester.pump();
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+      await tester.enterText(url, 'https://youtu.be/');
+      await tester.pump();
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+
+      // La réponse tardive ne relance rien.
+      pending.complete('Ancien titre');
+      await settle(tester);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.widgetWithText(TextField, 'Ancien titre'), findsNothing);
+      await tester.tap(find.text('Annuler'));
+      await settle(tester);
+      await unmountTestApp(tester);
+    },
+  );
 }

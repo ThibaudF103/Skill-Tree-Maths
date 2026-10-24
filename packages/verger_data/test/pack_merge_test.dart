@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:drift/drift.dart' show driftRuntimeOptions;
@@ -5,6 +6,18 @@ import 'package:drift/native.dart';
 import 'package:test/test.dart';
 import 'package:verger_core/verger_core.dart';
 import 'package:verger_data/verger_data.dart';
+
+const _n = fingerprintSide * fingerprintSide;
+
+/// Empreinte d'une page distincte des autres.
+Uint8List page(int seed) {
+  final random = Random(seed);
+  final pixels = Uint8List(_n)..fillRange(0, _n, 250);
+  for (var s = 0; s < 60; s++) {
+    pixels[random.nextInt(_n)] = 70;
+  }
+  return pixels;
+}
 
 VergerStore newStore() => VergerStore(VergerDatabase(NativeDatabase.memory()));
 
@@ -367,4 +380,140 @@ void main() {
       expect(await fresh.prerequisites(), [(itemId: b.id, requiresId: a.id)]);
     },
   );
+
+  test('lien ou prérequis ajouté localement : la question est posée', () async {
+    final fresh = newStore();
+    addTearDown(fresh.close);
+    await fresh.importPack(v1);
+    expect((await fresh.previewPack(v1)).wouldLose, isFalse);
+
+    final series = await nodeNamed(fresh, 'Séries');
+    final poly = (await fresh.allDocuments()).single;
+    await fresh.linkResource(poly.id, series.id);
+    final cesaro = await itemNamed(fresh, 'Cesàro');
+    final alembert = await itemNamed(fresh, 'Critère de d\'Alembert');
+    await fresh.addPrerequisite(alembert.id, cesaro.id);
+
+    final preview = await fresh.previewPack(v1);
+    expect((preview.links, preview.prerequisites), (1, 1));
+    expect(preview.wouldLose, isTrue);
+
+    await fresh.importPack(v1, mode: PackImportMode.combine);
+    expect(
+      await fresh.resourceLinks(),
+      contains((documentId: poly.id, nodeId: series.id)),
+    );
+    expect(await fresh.prerequisites(), hasLength(1));
+
+    await fresh.importPack(v1);
+    expect(await fresh.resourceLinks(), hasLength(1));
+    expect(await fresh.prerequisites(), isEmpty);
+  });
+
+  test(
+    'contenu local plus récent (même identifiant) : conservé, pages recalées',
+    () async {
+      final source = newStore();
+      addTearDown(source.close);
+      final tree = await source.createNode(title: 'Algèbre');
+      final item = await source.createItem(
+        nodeId: tree.id,
+        kind: ItemKind.theorem,
+        title: 'Cayley-Hamilton',
+      );
+      final pages = [page(1), page(2), page(3)];
+      final poly = await source.importDocument(
+        title: 'Poly',
+        bytes: Uint8List.fromList([1]),
+        contentHash: 'v1',
+        fingerprints: pages,
+        nodeIds: [tree.id],
+      );
+      await source.addAnchor(
+        itemId: item.id,
+        documentId: poly.id,
+        role: AnchorRole.source,
+        page: 2,
+      );
+      await source.createNote(body: 'Du poly', documentId: poly.id, page: 3);
+      final pack = await source.exportTree(tree.id);
+
+      final local = newStore();
+      addTearDown(local.close);
+      await local.importPack(pack);
+      // Nouvelle version locale : une page insérée en tête.
+      await local.updateDocument(
+        poly.id,
+        bytes: Uint8List.fromList([2]),
+        contentHash: 'v2',
+        fingerprints: [page(99), ...pages],
+      );
+      final mine = await local.createNote(
+        body: 'Ma note',
+        documentId: poly.id,
+        page: 4,
+      );
+
+      for (final mode in PackImportMode.values) {
+        await local.importPack(pack, mode: mode);
+        final doc = (await local.allDocuments()).single;
+        expect((doc.id, doc.contentHash, doc.pageCount), (poly.id, 'v2', 4));
+        expect(await local.documentBytes(poly.id), [2]);
+        final anchor = (await local.anchorsOf(item.id)).single;
+        expect((anchor.documentId, anchor.page), (poly.id, 3));
+        expect(anchor.needsReview, isFalse);
+        final notes = await local.notes(documentId: poly.id);
+        expect(notes.map((n) => (n.body, n.page)).toSet(), {
+          ('Du poly', 4),
+          ('Ma note', 4),
+        });
+        expect((await local.note(mine.id))!.documentId, poly.id);
+        expect(await local.resourceLinks(), [
+          (documentId: poly.id, nodeId: tree.id),
+        ]);
+      }
+    },
+  );
+
+  test('note d\'un contenu étranger à l\'arbre : jamais écrasée', () async {
+    final other = await student.importDocument(
+      title: 'Autre',
+      bytes: Uint8List.fromList([5]),
+      contentHash: 'autre',
+      fingerprints: [Uint8List(4)],
+    );
+    final note = await student.createNote(
+      body: 'Remarque',
+      documentId: other.id,
+      page: 1,
+    );
+    final poly = v1.documents.single;
+    final now = DateTime.utc(2026, 4, 1);
+    final pack = VergerArchive(
+      nodes: v1.nodes,
+      items: v1.items,
+      documents: v1.documents,
+      anchors: v1.anchors,
+      resourceLinks: v1.resourceLinks,
+      notes: [
+        ...v1.notes,
+        Note(
+          id: note.id,
+          body: 'Du paquet',
+          documentId: poly.id,
+          page: 1,
+          createdAt: now,
+          updatedAt: now,
+        ),
+      ],
+      title: v1.title,
+    );
+    await student.importPack(pack, mode: PackImportMode.combine);
+    final kept = (await student.note(note.id))!;
+    expect((kept.body, kept.documentId), ('Remarque', other.id));
+    final copy = (await student.notes()).singleWhere(
+      (n) => n.body == 'Du paquet',
+    );
+    expect(copy.id, isNot(note.id));
+  });
 }

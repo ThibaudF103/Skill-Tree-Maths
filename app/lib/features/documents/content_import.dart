@@ -57,12 +57,18 @@ class ContentImportDialog extends StatefulWidget {
     super.key,
     this.initialNodeId,
     this.pickPdf = pickPdfFile,
+    this.fetchTitle = _youtubeTitle,
   });
 
   final String? initialNodeId;
 
   /// Choix du fichier PDF (remplaçable dans les tests).
   final Future<(String, Uint8List)?> Function() pickPdf;
+
+  /// Titre d'une vidéo YouTube d'après son identifiant (idem).
+  final Future<String?> Function(String videoId) fetchTitle;
+
+  static Future<String?> _youtubeTitle(String videoId) => youtubeTitle(videoId);
 
   @override
   State<ContentImportDialog> createState() => _ContentImportDialogState();
@@ -134,10 +140,15 @@ class _ContentImportDialogState extends State<ContentImportDialog> {
 
   Future<void> _onUrl(String text) async {
     final id = youtubeId(text);
-    setState(() => _videoId = id);
+    // Une recherche de titre en cours pour une autre adresse est abandonnée.
+    setState(() {
+      _videoId = id;
+      _fetching = false;
+    });
     if (id == null || _title.text.trim().isNotEmpty) return;
     setState(() => _fetching = true);
-    final title = await youtubeTitle(id);
+    final title = await widget.fetchTitle(id);
+    // Adresse changée entre-temps : l'appel suivant gère l'indicateur.
     if (!mounted || _videoId != id) return;
     setState(() {
       _fetching = false;

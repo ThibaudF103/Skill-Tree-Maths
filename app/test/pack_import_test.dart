@@ -86,4 +86,22 @@ void main() {
       PackImportMode.replace,
     );
   });
+
+  testWidgets('seuls des liens ou prérequis locaux en moins : on demande', (
+    tester,
+  ) async {
+    final preview = PackImportPreview(
+      existing: [tree],
+      links: 1,
+      prerequisites: 2,
+    );
+    expect(await choose(tester, preview, 'Combiner'), PackImportMode.combine);
+    await tester.tap(find.text('Ouvrir'));
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining('1 rattachement(s) de contenu, 2 prérequis'),
+      findsOneWidget,
+    );
+    expect(find.text('Mettre à jour'), findsNothing);
+  });
 }

@@ -62,6 +62,8 @@ final class PackImportPreview {
     this.items = 0,
     this.notes = 0,
     this.anchors = 0,
+    this.links = 0,
+    this.prerequisites = 0,
     this.reviews = 0,
   });
 
@@ -75,13 +77,20 @@ final class PackImportPreview {
   final int notes;
   final int anchors;
 
+  /// Rattachements de contenus aux nœuds de l'arbre.
+  final int links;
+
+  /// Prérequis entre connaissances de l'arbre.
+  final int prerequisites;
+
   /// Révisions des connaissances que [PackImportMode.replace] supprime.
   final int reviews;
 
   bool get updatesExisting => existing.isNotEmpty;
 
   /// Vrai si remplacer et combiner diffèrent (sinon, rien à demander).
-  bool get wouldLose => branches + items + notes + anchors > 0;
+  bool get wouldLose =>
+      branches + items + notes + anchors + links + prerequisites > 0;
 }
 
 /// Correspondance d'un paquet avec les données locales (voir `_planPack`).
@@ -100,6 +109,11 @@ class _PackPlan {
     required this.lostItems,
     required this.lostAnchors,
     required this.lostNotes,
+    required this.localDocuments,
+    required this.documentIds,
+    required this.pageRemaps,
+    required this.lostLinks,
+    required this.lostPrerequisites,
   });
 
   /// Racines du paquet déjà présentes.
@@ -122,6 +136,19 @@ class _PackPlan {
   final Set<String> lostItems;
   final Set<String> lostAnchors;
   final Set<String> lostNotes;
+
+  /// Rattachements de contenus et prérequis internes absents du paquet.
+  final List<ResourceLink> lostLinks;
+  final List<Prerequisite> lostPrerequisites;
+
+  final Map<String, SourceDocument> localDocuments;
+
+  /// Contenu du paquet → contenu enregistré (local réutilisé, ou ajouté).
+  final Map<String, String> documentIds;
+
+  /// Pages du paquet → pages du contenu local, quand les versions diffèrent
+  /// (clé : identifiant du contenu dans le paquet).
+  final Map<String, PageRemap> pageRemaps;
 }
 
 /// Accès aux données du Verger. L'application ne manipule que des types du
@@ -1167,6 +1194,8 @@ class VergerStore {
       items: plan.lostItems.length,
       notes: plan.lostNotes.length,
       anchors: plan.lostAnchors.length,
+      links: plan.lostLinks.length,
+      prerequisites: plan.lostPrerequisites.length,
       reviews: reviews,
     );
   }
@@ -1177,7 +1206,9 @@ class VergerStore {
   /// existants. La progression des connaissances déjà présentes est toujours
   /// conservée (un paquet n'en contient pas).
   ///
-  /// Un contenu déjà présent (même empreinte) est réutilisé ; un PDF fourni
+  /// Un contenu déjà présent (même empreinte, ou même identifiant dans une
+  /// autre version : les pages du paquet y sont recalées) est réutilisé tel
+  /// quel ; un PDF fourni
   /// dans [files] (inclus ou téléchargé) est enregistré, et s'il diffère de
   /// la version décrite par le paquet, ses ancres sont recalées comme lors
   /// d'une mise à jour. Renvoie les arbres importés.
@@ -1190,26 +1221,20 @@ class VergerStore {
     final plan = await _planPack(archive);
     final replace = mode == PackImportMode.replace;
 
-    final localDocuments = await allDocuments();
-    final byHash = {
-      for (final d in localDocuments)
-        if (d.contentHash.isNotEmpty) d.contentHash: d,
-    };
-    final takenDocuments = {for (final d in localDocuments) d.id};
-    final documentIds = <String, String>{};
+    final documentIds = plan.documentIds;
     final outdated = <String, PackPdf>{};
     for (final d in archive.documents) {
       final file = files[d.id];
-      final existing = d.contentHash.isEmpty ? null : byHash[d.contentHash];
-      if (existing != null && existing.kind == d.kind) {
-        documentIds[d.id] = existing.id;
-        if (file != null) await attachDocumentFile(existing.id, file.bytes);
+      final id = documentIds[d.id]!;
+      final existing = plan.localDocuments[id];
+      if (existing != null) {
+        // Contenu local conservé ; un fichier n'est joint que s'il en est
+        // bien la version.
+        if (file != null && file.contentHash == existing.contentHash) {
+          await attachDocumentFile(existing.id, file.bytes);
+        }
         continue;
       }
-      // Même identifiant mais autre version : copie distincte, pour que les
-      // pages des ancres du paquet restent justes.
-      final id = takenDocuments.contains(d.id) ? newId() : d.id;
-      documentIds[d.id] = id;
       await _db
           .into(_db.documents)
           .insert(
@@ -1393,7 +1418,18 @@ class VergerStore {
     for (final l in archive.resourceLinks) {
       await linkResource(documentIds[l.documentId]!, nodeIds[l.nodeId]!);
     }
+    // Contenu local d'une autre version que celle du paquet : les pages du
+    // paquet sont recalées sur la version locale, comme lors d'une mise à
+    // jour ; une page introuvable est à vérifier.
+    ({int? page, bool lost}) place(String documentId, int? page) {
+      final remap = plan.pageRemaps[documentId];
+      if (remap == null || page == null) return (page: page, lost: false);
+      final target = remap.matches[page]?.page;
+      return (page: target ?? page, lost: target == null);
+    }
+
     for (final a in archive.anchors) {
+      final placed = place(a.documentId, a.page);
       await _db
           .into(_db.anchors)
           .insertOnConflictUpdate(
@@ -1403,13 +1439,13 @@ class VergerStore {
                 itemId: plan.itemIds[a.itemId]!,
                 documentId: documentIds[a.documentId]!,
                 role: a.role,
-                page: a.page,
+                page: placed.page,
                 startMs: a.startMs,
                 endMs: a.endMs,
                 region: a.region,
                 textSnippet: a.textSnippet,
                 snapshot: a.snapshot,
-                needsReview: a.needsReview,
+                needsReview: a.needsReview || placed.lost,
                 createdAt: a.createdAt,
               ),
             ),
@@ -1426,7 +1462,9 @@ class VergerStore {
                 documentId: n.documentId == null
                     ? null
                     : documentIds[n.documentId],
-                page: n.page,
+                page: n.documentId == null
+                    ? n.page
+                    : place(n.documentId!, n.page).page,
                 startMs: n.startMs,
                 endMs: n.endMs,
                 region: n.region,
@@ -1517,14 +1555,48 @@ class VergerStore {
       for (final a in anchors)
         if (targetItems.contains(a.itemId)) a.id,
     };
+    final links = await resourceLinks();
+    // Contenus de l'arbre : rattachés à ses nœuds ou ancrés par ses
+    // connaissances.
+    final targetDocuments = {
+      for (final l in links)
+        if (targetNodes.contains(l.nodeId)) l.documentId,
+      for (final a in anchors)
+        if (targetItems.contains(a.itemId)) a.documentId,
+    };
     final notes = await _notesQuery().get();
-    // Notes d'une connaissance de l'arbre, ou d'un contenu seulement.
+    // Notes d'une connaissance de l'arbre, ou d'un de ses contenus seulement.
     final targetNotes = {
       for (final n in notes)
         if (targetItems.contains(n.itemId) ||
-            (n.itemId == null && n.documentId != null))
+            (n.itemId == null && targetDocuments.contains(n.documentId)))
           n.id,
     };
+
+    // Contenus : un contenu local de même empreinte, ou de même identifiant
+    // (autre version : il est conservé, les pages du paquet y sont
+    // recalées), est réutilisé ; sinon le contenu du paquet est ajouté.
+    final localDocuments = {for (final d in await allDocuments()) d.id: d};
+    final byHash = {
+      for (final d in localDocuments.values)
+        if (d.contentHash.isNotEmpty) d.contentHash: d,
+    };
+    final documentIds = <String, String>{};
+    final pageRemaps = <String, PageRemap>{};
+    for (final d in archive.documents) {
+      final sameHash = d.contentHash.isEmpty ? null : byHash[d.contentHash];
+      final sameId = localDocuments[d.id];
+      if (sameHash != null && sameHash.kind == d.kind) {
+        documentIds[d.id] = sameHash.id;
+      } else if (sameId != null && sameId.kind == d.kind) {
+        documentIds[d.id] = sameId.id;
+        if (d.isPdf) {
+          pageRemaps[d.id] = remapPages(d.fingerprints, sameId.fingerprints);
+        }
+      } else {
+        documentIds[d.id] = sameId == null ? d.id : newId();
+      }
+    }
 
     Map<String, String> ids(
       Iterable<String> incoming,
@@ -1550,7 +1622,18 @@ class VergerStore {
       for (final n in notes) n.id,
     }, targetNotes);
     final keptNotes = noteIds.values.toSet();
+    final incomingLinks = {
+      for (final l in archive.resourceLinks)
+        (documentId: documentIds[l.documentId]!, nodeId: nodeIds[l.nodeId]!),
+    };
+    final incomingEdges = {
+      for (final e in archive.prerequisites)
+        (itemId: itemIds[e.itemId]!, requiresId: itemIds[e.requiresId]!),
+    };
     return _PackPlan(
+      localDocuments: localDocuments,
+      documentIds: documentIds,
+      pageRemaps: pageRemaps,
       existing: existing,
       localNodes: localNodes,
       localItems: {for (final i in items) i.id},
@@ -1567,6 +1650,17 @@ class VergerStore {
         for (final n in notes)
           if (targetItems.contains(n.itemId) && !keptNotes.contains(n.id)) n.id,
       },
+      lostLinks: [
+        for (final l in links)
+          if (targetNodes.contains(l.nodeId) && !incomingLinks.contains(l)) l,
+      ],
+      lostPrerequisites: [
+        for (final e in await prerequisites())
+          if (targetItems.contains(e.itemId) &&
+              targetItems.contains(e.requiresId) &&
+              !incomingEdges.contains(e))
+            e,
+      ],
     );
   }
 
