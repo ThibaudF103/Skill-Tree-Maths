@@ -31,9 +31,13 @@ Offset translation(TransformationController c) {
 
 double scale(TransformationController c) => c.value.getMaxScaleOnAxis();
 
-Future<void> wheel(WidgetTester tester, Offset delta) async {
+Future<void> wheel(
+  WidgetTester tester,
+  Offset delta, {
+  Offset at = center,
+}) async {
   final mouse = TestPointer(1, PointerDeviceKind.mouse);
-  await tester.sendEventToBinding(mouse.hover(center));
+  await tester.sendEventToBinding(mouse.hover(at));
   await tester.sendEventToBinding(mouse.scroll(delta));
   await tester.pump();
 }
@@ -65,6 +69,12 @@ void main() {
 
     await wheel(tester, const Offset(60, 0));
     expect(translation(c), const Offset(-160, 0));
+
+    // Maj + défilement oblique : rien de vertical.
+    await simulateKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await wheel(tester, const Offset(40, 100));
+    await simulateKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    expect(translation(c), const Offset(-200, 0));
     expect(scale(c), 1);
   });
 
@@ -73,13 +83,15 @@ void main() {
   ) async {
     final c = await pumpViewer(tester);
     await wheel(tester, const Offset(0, 200));
-    final anchor = c.toScene(center);
+    // Pointeur loin du centre : le point de la scène sous lui ne bouge pas.
+    const pointer = Offset(150, 120);
+    final anchor = c.toScene(pointer);
 
     await simulateKeyDownEvent(LogicalKeyboardKey.controlLeft);
-    await wheel(tester, const Offset(0, -100));
+    await wheel(tester, const Offset(0, -100), at: pointer);
     expect(scale(c), greaterThan(1));
-    expect(c.toScene(center).dx, moreOrLessEquals(anchor.dx));
-    expect(c.toScene(center).dy, moreOrLessEquals(anchor.dy));
+    expect(c.toScene(pointer).dx, moreOrLessEquals(anchor.dx));
+    expect(c.toScene(pointer).dy, moreOrLessEquals(anchor.dy));
 
     for (var i = 0; i < 10; i++) {
       await wheel(tester, const Offset(0, -100));

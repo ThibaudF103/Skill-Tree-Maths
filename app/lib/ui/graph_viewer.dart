@@ -57,7 +57,11 @@ class _GraphViewerState extends State<GraphViewer> {
     final keys = HardwareKeyboard.instance;
     if (keys.isControlPressed || keys.isMetaPressed) return;
     var delta = event.scrollDelta;
-    if (keys.isShiftPressed && delta.dx == 0) delta = Offset(delta.dy, 0);
+    // Maj : horizontal seulement (le delta latéral s'il existe, sinon le
+    // vertical).
+    if (keys.isShiftPressed) {
+      delta = Offset(delta.dx != 0 ? delta.dx : delta.dy, 0);
+    }
     final before = _controller.value.clone();
     GestureBinding.instance.pointerSignalResolver.register(event, (_) {
       if (!mounted) return;
