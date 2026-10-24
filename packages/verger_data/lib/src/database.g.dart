@@ -6015,27 +6015,27 @@ class $$NodesTableTableManager
                   getPrefetchedDataCallback: (items) async {
                     return [
                       if (itemsRefs)
-                        await $_getPrefetchedData<
+                        await $_getPrefetchedDataByColumns<
                           NodeRow,
                           $NodesTable,
-                          ItemRow
+                          ItemRow,
+                          $ItemsTable
                         >(
                           currentTable: table,
                           referencedTable: $$NodesTableReferences
                               ._itemsRefsTable(db),
                           managerFromTypedResult: (p0) =>
                               $$NodesTableReferences(db, table, p0).itemsRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.nodeId == item.id,
-                              ),
+                          currentColumn: 'id',
+                          referencedColumn: 'node_id',
                           typedResults: items,
                         ),
                       if (resourceLinksRefs)
-                        await $_getPrefetchedData<
+                        await $_getPrefetchedDataByColumns<
                           NodeRow,
                           $NodesTable,
-                          ResourceLinkRow
+                          ResourceLinkRow,
+                          $ResourceLinksTable
                         >(
                           currentTable: table,
                           referencedTable: $$NodesTableReferences
@@ -6046,10 +6046,8 @@ class $$NodesTableTableManager
                                 table,
                                 p0,
                               ).resourceLinksRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.nodeId == item.id,
-                              ),
+                          currentColumn: 'id',
+                          referencedColumn: 'node_id',
                           typedResults: items,
                         ),
                     ];
@@ -6871,10 +6869,11 @@ class $$ItemsTableTableManager
                   getPrefetchedDataCallback: (items) async {
                     return [
                       if (reviewLogsRefs)
-                        await $_getPrefetchedData<
+                        await $_getPrefetchedDataByColumns<
                           ItemRow,
                           $ItemsTable,
-                          ReviewLogRow
+                          ReviewLogRow,
+                          $ReviewLogsTable
                         >(
                           currentTable: table,
                           referencedTable: $$ItemsTableReferences
@@ -6885,44 +6884,40 @@ class $$ItemsTableTableManager
                                 table,
                                 p0,
                               ).reviewLogsRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.itemId == item.id,
-                              ),
+                          currentColumn: 'id',
+                          referencedColumn: 'item_id',
                           typedResults: items,
                         ),
                       if (anchorsRefs)
-                        await $_getPrefetchedData<
+                        await $_getPrefetchedDataByColumns<
                           ItemRow,
                           $ItemsTable,
-                          AnchorRow
+                          AnchorRow,
+                          $AnchorsTable
                         >(
                           currentTable: table,
                           referencedTable: $$ItemsTableReferences
                               ._anchorsRefsTable(db),
                           managerFromTypedResult: (p0) =>
                               $$ItemsTableReferences(db, table, p0).anchorsRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.itemId == item.id,
-                              ),
+                          currentColumn: 'id',
+                          referencedColumn: 'item_id',
                           typedResults: items,
                         ),
                       if (notesRefs)
-                        await $_getPrefetchedData<
+                        await $_getPrefetchedDataByColumns<
                           ItemRow,
                           $ItemsTable,
-                          NoteRow
+                          NoteRow,
+                          $NotesTable
                         >(
                           currentTable: table,
                           referencedTable: $$ItemsTableReferences
                               ._notesRefsTable(db),
                           managerFromTypedResult: (p0) =>
                               $$ItemsTableReferences(db, table, p0).notesRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.itemId == item.id,
-                              ),
+                          currentColumn: 'id',
+                          referencedColumn: 'item_id',
                           typedResults: items,
                         ),
                     ];
@@ -8108,10 +8103,11 @@ class $$DocumentsTableTableManager
                   getPrefetchedDataCallback: (items) async {
                     return [
                       if (documentFilesRefs)
-                        await $_getPrefetchedData<
+                        await $_getPrefetchedDataByColumns<
                           DocumentRow,
                           $DocumentsTable,
-                          DocumentFileRow
+                          DocumentFileRow,
+                          $DocumentFilesTable
                         >(
                           currentTable: table,
                           referencedTable: $$DocumentsTableReferences
@@ -8122,17 +8118,16 @@ class $$DocumentsTableTableManager
                                 table,
                                 p0,
                               ).documentFilesRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.documentId == item.id,
-                              ),
+                          currentColumn: 'id',
+                          referencedColumn: 'document_id',
                           typedResults: items,
                         ),
                       if (anchorsRefs)
-                        await $_getPrefetchedData<
+                        await $_getPrefetchedDataByColumns<
                           DocumentRow,
                           $DocumentsTable,
-                          AnchorRow
+                          AnchorRow,
+                          $AnchorsTable
                         >(
                           currentTable: table,
                           referencedTable: $$DocumentsTableReferences
@@ -8143,17 +8138,16 @@ class $$DocumentsTableTableManager
                                 table,
                                 p0,
                               ).anchorsRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.documentId == item.id,
-                              ),
+                          currentColumn: 'id',
+                          referencedColumn: 'document_id',
                           typedResults: items,
                         ),
                       if (notesRefs)
-                        await $_getPrefetchedData<
+                        await $_getPrefetchedDataByColumns<
                           DocumentRow,
                           $DocumentsTable,
-                          NoteRow
+                          NoteRow,
+                          $NotesTable
                         >(
                           currentTable: table,
                           referencedTable: $$DocumentsTableReferences
@@ -8164,17 +8158,16 @@ class $$DocumentsTableTableManager
                                 table,
                                 p0,
                               ).notesRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.documentId == item.id,
-                              ),
+                          currentColumn: 'id',
+                          referencedColumn: 'document_id',
                           typedResults: items,
                         ),
                       if (resourceLinksRefs)
-                        await $_getPrefetchedData<
+                        await $_getPrefetchedDataByColumns<
                           DocumentRow,
                           $DocumentsTable,
-                          ResourceLinkRow
+                          ResourceLinkRow,
+                          $ResourceLinksTable
                         >(
                           currentTable: table,
                           referencedTable: $$DocumentsTableReferences
@@ -8185,10 +8178,8 @@ class $$DocumentsTableTableManager
                                 table,
                                 p0,
                               ).resourceLinksRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.documentId == item.id,
-                              ),
+                          currentColumn: 'id',
+                          referencedColumn: 'document_id',
                           typedResults: items,
                         ),
                     ];
