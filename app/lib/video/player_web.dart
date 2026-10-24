@@ -14,6 +14,9 @@ class PlatformYoutubeController implements YoutubePlayerController {
   double? _time;
   double? _duration;
   double? _stopAt;
+  var _playing = false;
+  var _muted = false;
+  var _rate = 1.0;
 
   void _post(String func, [List<Object?> args = const []]) {
     _frame?.contentWindow?.postMessage(
@@ -32,6 +35,15 @@ class PlatformYoutubeController implements YoutubePlayerController {
     if (info is Map && info['duration'] is num) {
       final duration = (info['duration'] as num).toDouble();
       if (duration > 0) _duration = duration;
+    }
+    if (info is Map && info['playerState'] is num) {
+      // Lecture ou chargement (1, 3) comptent comme « en lecture ».
+      final state = info['playerState'] as num;
+      _playing = state == 1 || state == 3;
+    }
+    if (info is Map && info['muted'] is bool) _muted = info['muted'] as bool;
+    if (info is Map && info['playbackRate'] is num) {
+      _rate = (info['playbackRate'] as num).toDouble();
     }
     if (info is Map && info['currentTime'] is num) {
       _time = (info['currentTime'] as num).toDouble();
@@ -72,6 +84,34 @@ class PlatformYoutubeController implements YoutubePlayerController {
 
   @override
   Future<void> pause() async => _post('pauseVideo');
+
+  @override
+  Future<void> play() async => _post('playVideo');
+
+  @override
+  Future<VideoPlayback?> playback() async {
+    final time = _time;
+    if (time == null || _frame == null) return null;
+    return (
+      positionMs: (time * 1000).round(),
+      durationMs: _duration == null ? null : (_duration! * 1000).round(),
+      playing: _playing,
+      muted: _muted,
+      rate: _rate,
+    );
+  }
+
+  @override
+  Future<void> setMuted(bool muted) async {
+    _muted = muted;
+    _post(muted ? 'mute' : 'unMute');
+  }
+
+  @override
+  Future<void> setRate(double rate) async {
+    _rate = rate;
+    _post('setPlaybackRate', [rate]);
+  }
 }
 
 var _views = 0;

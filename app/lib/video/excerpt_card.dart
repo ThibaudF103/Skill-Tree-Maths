@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:verger_core/verger_core.dart';
 
 import '../ui/labels.dart';
+import '../features/documents/document_viewer_page.dart'
+    show noteColor, rectoColor, versoColor;
+import 'video_control_bar.dart';
 import 'youtube_player.dart';
 
 /// Vignette d'un extrait vidéo (recto ou verso) : image de la vidéo et
@@ -98,6 +101,17 @@ Future<void> showExcerpt(
               controller: controller,
               startMs: startMs,
               endMs: endMs,
+            ),
+            // Commandes de YouTube masquées : barre maison, extrait encadré.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+              child: VideoControlBar(
+                controller: controller,
+                selection: (startMs, endMs),
+                rectoColor: rectoColor,
+                versoColor: versoColor,
+                noteColor: noteColor,
+              ),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
