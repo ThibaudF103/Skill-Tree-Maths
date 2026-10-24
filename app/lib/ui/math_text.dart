@@ -115,9 +115,13 @@ class MathText extends StatelessWidget {
           }
           if (t.isNotEmpty) inline.add(TextSpan(text: t));
         case FormulaSegment(:final tex, display: false):
+          // Sur la ligne de base du texte (flutter_math donne celle de la
+          // formule) : centrée, une formule sans descendante paraissait
+          // surélevée.
           inline.add(
             WidgetSpan(
-              alignment: PlaceholderAlignment.middle,
+              alignment: PlaceholderAlignment.baseline,
+              baseline: TextBaseline.alphabetic,
               child: _formula(tex, MathStyle.text, style, theme),
             ),
           );
