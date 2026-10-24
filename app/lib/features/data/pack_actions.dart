@@ -152,40 +152,28 @@ Future<void> importPackFile(BuildContext context) async {
         d,
   ];
   if (!context.mounted) return;
-  final treeCount = archive.nodes.where((n) => n.parentId == null).length;
-  final ok = await showDialog<bool>(
+  final PackImportPreview preview;
+  try {
+    preview = await store.previewPack(archive);
+  } on ArchiveFormatException catch (e) {
+    if (context.mounted) _notify(context, e.message);
+    return;
+  }
+  if (!context.mounted) return;
+  final mode = await showDialog<PackImportMode>(
     context: context,
-    builder: (context) => AlertDialog(
-      title: Text('Importer « ${archive.title ?? 'paquet'} » ?'),
-      content: Text(
-        [
-          '${archive.items.length} connaissance(s), '
-              '${archive.documents.length} contenu(s), '
-              '${archive.anchors.length} recto/verso, '
-              '${archive.notes.length} note(s).',
-          if (included.isNotEmpty) '${included.length} PDF inclus.',
-          if (toFetch.isNotEmpty)
-            '${toFetch.length} PDF à télécharger : '
-                '${toFetch.map((d) => d.title).join(', ')}.',
-          treeCount > 1
-              ? 'Les $treeCount arbres s\'ajoutent à côté des vôtres, sans '
-                    'progression.'
-              : 'L\'arbre s\'ajoute à côté des vôtres, sans progression.',
-        ].join('\n'),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context, false),
-          child: const Text('Annuler'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.pop(context, true),
-          child: const Text('Importer'),
-        ),
+    builder: (_) => PackImportDialog(
+      archive: archive,
+      preview: preview,
+      details: [
+        if (included.isNotEmpty) '${included.length} PDF inclus.',
+        if (toFetch.isNotEmpty)
+          '${toFetch.length} PDF à télécharger : '
+              '${toFetch.map((d) => d.title).join(', ')}.',
       ],
     ),
   );
-  if (ok != true || !context.mounted) return;
+  if (mode == null || !context.mounted) return;
 
   final status = ValueNotifier<String>('Préparation…');
   final navigator = Navigator.of(context, rootNavigator: true);
@@ -238,7 +226,7 @@ Future<void> importPackFile(BuildContext context) async {
       }
     }
     status.value = 'Enregistrement…';
-    trees = await store.importPack(archive, files: files);
+    trees = await store.importPack(archive, files: files, mode: mode);
   } catch (e) {
     navigator.pop();
     status.dispose();
@@ -248,13 +236,15 @@ Future<void> importPackFile(BuildContext context) async {
   navigator.pop();
   status.dispose();
   if (!context.mounted) return;
+  final updated = {for (final n in preview.existing) n.id};
+  final allUpdated = trees.every((t) => updated.contains(t.id));
   _notify(
     context,
     [
       trees.length > 3
-          ? '${trees.length} arbres ajoutés.'
+          ? '${trees.length} arbres ${allUpdated ? 'mis à jour' : 'importés'}.'
           : '${trees.map((t) => '« ${t.title} »').join(', ')} '
-                '${trees.length > 1 ? 'ajoutés' : 'ajouté'}.',
+                '${allUpdated ? 'mis à jour' : (trees.length > 1 ? 'ajoutés' : 'ajouté')}.',
       if (failed.isNotEmpty)
         'PDF non récupéré(s) : ${failed.join(', ')}. Importez le fichier '
             'depuis la Bibliothèque : il sera rattaché aux recto et verso.',
@@ -270,5 +260,108 @@ Future<Uint8List?> _download(String url) async {
     return response.statusCode == 200 ? response.bodyBytes : null;
   } catch (_) {
     return null;
+  }
+}
+
+/// Confirmation de l'import d'un paquet. Si l'un de ses arbres est déjà
+/// présent et que le paquet n'en contient pas tout, propose de remplacer
+/// l'arbre local ou de combiner les deux. Renvoie le mode choisi, `null` si
+/// annulé.
+class PackImportDialog extends StatelessWidget {
+  const PackImportDialog({
+    super.key,
+    required this.archive,
+    required this.preview,
+    this.details = const [],
+  });
+
+  final VergerArchive archive;
+  final PackImportPreview preview;
+
+  /// Lignes ajoutées au résumé (PDF inclus, à télécharger…).
+  final List<String> details;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final p = preview;
+    final treeCount = archive.nodes.where((n) => n.parentId == null).length;
+    final names = p.existing.map((n) => '« ${n.title} »').join(', ');
+    final lost = [
+      if (p.branches > 0) '${p.branches} branche(s)',
+      if (p.items > 0)
+        '${p.items} connaissance(s)'
+            '${p.reviews > 0 ? ' et ${p.reviews} révision(s)' : ''}',
+      if (p.notes > 0) '${p.notes} note(s)',
+      if (p.anchors > 0) '${p.anchors} recto/verso',
+    ];
+    return AlertDialog(
+      title: Text('Importer « ${archive.title ?? 'paquet'} » ?'),
+      content: SizedBox(
+        width: 480,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              [
+                '${archive.items.length} connaissance(s), '
+                    '${archive.documents.length} contenu(s), '
+                    '${archive.anchors.length} recto/verso, '
+                    '${archive.notes.length} note(s).',
+                ...details,
+                if (!p.updatesExisting)
+                  treeCount > 1
+                      ? 'Les $treeCount arbres s\'ajoutent à côté des vôtres, '
+                            'sans progression.'
+                      : 'L\'arbre s\'ajoute à côté des vôtres, sans '
+                            'progression.'
+                else
+                  '$names ${p.existing.length > 1 ? 'sont' : 'est'} déjà dans '
+                      'votre verger : mis à jour sans doublon, la progression '
+                      'des connaissances communes est conservée.',
+              ].join('\n'),
+            ),
+            if (p.wouldLose) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Le paquet ne contient pas tout ce que vous avez : '
+                '${lost.join(', ')}.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                '• Remplacer : l\'arbre devient celui du paquet, ces éléments '
+                'sont supprimés définitivement.\n'
+                '• Combiner : le paquet met à jour l\'arbre, ces éléments '
+                'sont conservés.',
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Annuler'),
+        ),
+        if (p.wouldLose) ...[
+          OutlinedButton(
+            onPressed: () => Navigator.pop(context, PackImportMode.replace),
+            child: const Text('Remplacer'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, PackImportMode.combine),
+            child: const Text('Combiner'),
+          ),
+        ] else
+          FilledButton(
+            onPressed: () => Navigator.pop(context, PackImportMode.replace),
+            child: Text(p.updatesExisting ? 'Mettre à jour' : 'Importer'),
+          ),
+      ],
+    );
   }
 }

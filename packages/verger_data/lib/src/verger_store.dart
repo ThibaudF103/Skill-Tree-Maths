@@ -43,6 +43,87 @@ typedef DocumentUpdate = ({
   List<int> newPages,
 });
 
+/// Import d'un paquet dont un arbre est déjà sur l'appareil (même
+/// identifiant : paquet réimporté, ou mis à jour par son auteur).
+enum PackImportMode {
+  /// L'arbre local devient celui du paquet : branches, connaissances, notes
+  /// et recto/verso absents du paquet sont supprimés.
+  replace,
+
+  /// Le paquet met à jour et complète l'arbre local, sans rien en supprimer.
+  combine,
+}
+
+/// Effet de l'import d'un paquet sur les arbres déjà présents.
+final class PackImportPreview {
+  const PackImportPreview({
+    this.existing = const [],
+    this.branches = 0,
+    this.items = 0,
+    this.notes = 0,
+    this.anchors = 0,
+    this.reviews = 0,
+  });
+
+  /// Arbres (ou branches) locaux que le paquet met à jour.
+  final List<KnowledgeNode> existing;
+
+  /// Éléments locaux absents du paquet : supprimés par
+  /// [PackImportMode.replace], conservés par [PackImportMode.combine].
+  final int branches;
+  final int items;
+  final int notes;
+  final int anchors;
+
+  /// Révisions des connaissances que [PackImportMode.replace] supprime.
+  final int reviews;
+
+  bool get updatesExisting => existing.isNotEmpty;
+
+  /// Vrai si remplacer et combiner diffèrent (sinon, rien à demander).
+  bool get wouldLose => branches + items + notes + anchors > 0;
+}
+
+/// Correspondance d'un paquet avec les données locales (voir `_planPack`).
+class _PackPlan {
+  const _PackPlan({
+    required this.existing,
+    required this.localNodes,
+    required this.localItems,
+    required this.targetNodes,
+    required this.targetItems,
+    required this.nodeIds,
+    required this.itemIds,
+    required this.anchorIds,
+    required this.noteIds,
+    required this.lostNodes,
+    required this.lostItems,
+    required this.lostAnchors,
+    required this.lostNotes,
+  });
+
+  /// Racines du paquet déjà présentes.
+  final List<KnowledgeNode> existing;
+  final Map<String, KnowledgeNode> localNodes;
+  final Set<String> localItems;
+
+  /// Partie locale mise à jour : descendance des racines déjà présentes.
+  final Set<String> targetNodes;
+  final Set<String> targetItems;
+
+  /// Identifiant du paquet → identifiant enregistré.
+  final Map<String, String> nodeIds;
+  final Map<String, String> itemIds;
+  final Map<String, String> anchorIds;
+  final Map<String, String> noteIds;
+
+  /// Éléments de la partie locale absents du paquet.
+  final Set<String> lostNodes;
+  final Set<String> lostItems;
+  final Set<String> lostAnchors;
+  final Set<String> lostNotes;
+}
+
 /// Accès aux données du Verger. L'application ne manipule que des types du
 /// domaine (`verger_core`) ; drift reste un détail d'implémentation.
 class VergerStore {
@@ -1070,30 +1151,64 @@ class VergerStore {
     );
   }
 
-  /// Ajoute un paquet à côté des données existantes : nouveaux identifiants,
-  /// aucune progression. Un contenu déjà présent (même empreinte) est
-  /// réutilisé ; un PDF fourni dans [files] (inclus ou téléchargé) est
-  /// enregistré, et s'il diffère de la version décrite par le paquet, ses
-  /// ancres sont recalées comme lors d'une mise à jour. Renvoie les arbres
-  /// créés.
+  /// Ce que l'import de [archive] changerait aux arbres déjà présents (même
+  /// identifiant) : à montrer avant de choisir entre remplacer et combiner.
+  Future<PackImportPreview> previewPack(VergerArchive archive) async {
+    archive.validate();
+    final plan = await _planPack(archive);
+    final reviews = plan.lostItems.isEmpty
+        ? 0
+        : (await (_db.select(
+            _db.reviewLogs,
+          )..where((r) => r.itemId.isIn(plan.lostItems))).get()).length;
+    return PackImportPreview(
+      existing: plan.existing,
+      branches: plan.lostNodes.length,
+      items: plan.lostItems.length,
+      notes: plan.lostNotes.length,
+      anchors: plan.lostAnchors.length,
+      reviews: reviews,
+    );
+  }
+
+  /// Importe un paquet en conservant ses identifiants : un arbre déjà présent
+  /// (paquet réimporté, ou mis à jour par son auteur) est mis à jour au lieu
+  /// d'être dupliqué, selon [mode] ; les autres s'ajoutent après les arbres
+  /// existants. La progression des connaissances déjà présentes est toujours
+  /// conservée (un paquet n'en contient pas).
+  ///
+  /// Un contenu déjà présent (même empreinte) est réutilisé ; un PDF fourni
+  /// dans [files] (inclus ou téléchargé) est enregistré, et s'il diffère de
+  /// la version décrite par le paquet, ses ancres sont recalées comme lors
+  /// d'une mise à jour. Renvoie les arbres importés.
   Future<List<KnowledgeNode>> importPack(
     VergerArchive archive, {
     Map<String, PackPdf> files = const {},
+    PackImportMode mode = PackImportMode.replace,
   }) => _db.transaction(() async {
     archive.validate();
-    final (trees, nodeIds, itemIds) = await _importStructure(archive);
-    final local = {for (final d in await allDocuments()) d.contentHash: d};
+    final plan = await _planPack(archive);
+    final replace = mode == PackImportMode.replace;
+
+    final localDocuments = await allDocuments();
+    final byHash = {
+      for (final d in localDocuments)
+        if (d.contentHash.isNotEmpty) d.contentHash: d,
+    };
+    final takenDocuments = {for (final d in localDocuments) d.id};
     final documentIds = <String, String>{};
     final outdated = <String, PackPdf>{};
     for (final d in archive.documents) {
       final file = files[d.id];
-      final existing = d.contentHash.isEmpty ? null : local[d.contentHash];
+      final existing = d.contentHash.isEmpty ? null : byHash[d.contentHash];
       if (existing != null && existing.kind == d.kind) {
         documentIds[d.id] = existing.id;
         if (file != null) await attachDocumentFile(existing.id, file.bytes);
         continue;
       }
-      final id = newId();
+      // Même identifiant mais autre version : copie distincte, pour que les
+      // pages des ancres du paquet restent justes.
+      final id = takenDocuments.contains(d.id) ? newId() : d.id;
       documentIds[d.id] = id;
       await _db
           .into(_db.documents)
@@ -1119,17 +1234,173 @@ class VergerStore {
         if (file.contentHash != d.contentHash) outdated[id] = file;
       }
     }
+
+    // Nœuds : mis à jour s'ils existent, sinon insérés une fois leur parent
+    // présent. Une racine déjà présente garde sa place (une branche
+    // partagée puis réimportée reste dans son arbre).
+    final nodeIds = plan.nodeIds;
+    final present = {...plan.localNodes.keys};
+    var nextTreeIndex = (await _siblings(null)).length;
+    final pending = [...archive.nodes];
+    while (pending.isNotEmpty) {
+      final ready = pending
+          .where(
+            (n) => n.parentId == null || present.contains(nodeIds[n.parentId]),
+          )
+          .toList();
+      if (ready.isEmpty) throw StateError('Hiérarchie incohérente');
+      for (final n in ready) {
+        pending.remove(n);
+        final id = nodeIds[n.id]!;
+        final isRoot = n.parentId == null;
+        if (plan.localNodes.containsKey(id)) {
+          await (_db.update(_db.nodes)..where((r) => r.id.equals(id))).write(
+            NodesCompanion(
+              title: Value(n.title),
+              curriculumKey: Value(n.curriculumKey),
+              origin: Value(n.origin),
+              parentId: isRoot
+                  ? const Value.absent()
+                  : Value(nodeIds[n.parentId]),
+              sortIndex: isRoot ? const Value.absent() : Value(n.sortIndex),
+            ),
+          );
+        } else {
+          await _db
+              .into(_db.nodes)
+              .insert(
+                NodeRow(
+                  id: id,
+                  parentId: isRoot ? null : nodeIds[n.parentId],
+                  title: n.title,
+                  sortIndex: isRoot ? nextTreeIndex++ : n.sortIndex,
+                  curriculumKey: n.curriculumKey,
+                  origin: n.origin,
+                  createdAt: n.createdAt.toUtc(),
+                ),
+              );
+          present.add(id);
+        }
+      }
+    }
+
+    // Connaissances : contenu repris du paquet, état de révision conservé.
+    for (final item in archive.items) {
+      final id = plan.itemIds[item.id]!;
+      final nodeId = nodeIds[item.nodeId]!;
+      if (plan.localItems.contains(id)) {
+        await (_db.update(_db.items)..where((i) => i.id.equals(id))).write(
+          ItemsCompanion(
+            nodeId: Value(nodeId),
+            kind: Value(item.kind),
+            title: Value(item.title),
+            body: Value(item.body),
+            level: Value(item.level),
+            autoExercise: Value(item.autoExercise),
+            sortIndex: Value(item.sortIndex),
+            updatedAt: Value(item.updatedAt.toUtc()),
+          ),
+        );
+      } else {
+        await _db
+            .into(_db.items)
+            .insert(
+              _itemCompanion(
+                KnowledgeItem(
+                  id: id,
+                  nodeId: nodeId,
+                  kind: item.kind,
+                  title: item.title,
+                  body: item.body,
+                  level: item.level,
+                  autoExercise: item.autoExercise,
+                  sortIndex: item.sortIndex,
+                  createdAt: item.createdAt,
+                  updatedAt: item.updatedAt,
+                ),
+              ),
+            );
+      }
+    }
+
+    if (replace) {
+      // Une note survivrait à sa connaissance (lien remis à zéro).
+      await (_db.delete(
+        _db.notes,
+      )..where((n) => n.id.isIn(plan.lostNotes))).go();
+      // Historique, ancres et prérequis suivent leur connaissance.
+      await (_db.delete(
+        _db.items,
+      )..where((i) => i.id.isIn(plan.lostItems))).go();
+      await (_db.delete(
+        _db.anchors,
+      )..where((a) => a.id.isIn(plan.lostAnchors))).go();
+      // Rattachements et prérequis internes : ceux du paquet.
+      await (_db.delete(
+        _db.resourceLinks,
+      )..where((l) => l.nodeId.isIn(plan.targetNodes))).go();
+      await (_db.delete(_db.prerequisites)..where(
+            (p) =>
+                p.itemId.isIn(plan.targetItems) &
+                p.requiresId.isIn(plan.targetItems),
+          ))
+          .go();
+    }
+
+    // Un nœud conservé dont le parent disparaît se rattache à son plus
+    // proche ancêtre conservé, à défaut devient un arbre.
+    final removed = replace ? plan.lostNodes : const <String>{};
+    final parentOf = <String, String?>{
+      for (final n in plan.localNodes.values) n.id: n.parentId,
+      for (final n in archive.nodes)
+        nodeIds[n.id]!: n.parentId == null
+            ? plan.localNodes[nodeIds[n.id]]?.parentId
+            : nodeIds[n.parentId],
+    };
+    String? survivor(String? id) {
+      for (var i = 0; id != null && removed.contains(id); i++) {
+        if (i > parentOf.length) return null;
+        id = parentOf[id];
+      }
+      return id;
+    }
+
+    for (final e in parentOf.entries.toList()) {
+      if (removed.contains(e.key) || !removed.contains(e.value)) continue;
+      final parent = survivor(e.value);
+      await (_db.update(_db.nodes)..where((n) => n.id.equals(e.key))).write(
+        NodesCompanion(
+          parentId: Value(parent),
+          sortIndex: Value((await _siblings(parent)).length),
+        ),
+      );
+      parentOf[e.key] = parent;
+    }
+    int depth(String id) {
+      var d = 0;
+      for (var p = parentOf[id]; p != null && d <= parentOf.length; d++) {
+        p = parentOf[p];
+      }
+      return d;
+    }
+
+    // Des feuilles vers la racine, pour respecter les clés étrangères.
+    for (final id
+        in removed.toList()..sort((a, b) => depth(b).compareTo(depth(a)))) {
+      await (_db.delete(_db.nodes)..where((n) => n.id.equals(id))).go();
+    }
+
     for (final l in archive.resourceLinks) {
       await linkResource(documentIds[l.documentId]!, nodeIds[l.nodeId]!);
     }
     for (final a in archive.anchors) {
       await _db
           .into(_db.anchors)
-          .insert(
+          .insertOnConflictUpdate(
             _anchorRow(
               Anchor(
-                id: newId(),
-                itemId: itemIds[a.itemId]!,
+                id: plan.anchorIds[a.id]!,
+                itemId: plan.itemIds[a.itemId]!,
                 documentId: documentIds[a.documentId]!,
                 role: a.role,
                 page: a.page,
@@ -1139,7 +1410,7 @@ class VergerStore {
                 textSnippet: a.textSnippet,
                 snapshot: a.snapshot,
                 needsReview: a.needsReview,
-                createdAt: _now(),
+                createdAt: a.createdAt,
               ),
             ),
           );
@@ -1147,10 +1418,10 @@ class VergerStore {
     for (final n in archive.notes) {
       await _db
           .into(_db.notes)
-          .insert(
+          .insertOnConflictUpdate(
             _noteRow(
               Note(
-                id: newId(),
+                id: plan.noteIds[n.id]!,
                 body: n.body,
                 documentId: n.documentId == null
                     ? null
@@ -1160,7 +1431,7 @@ class VergerStore {
                 endMs: n.endMs,
                 region: n.region,
                 snapshot: n.snapshot,
-                itemId: n.itemId == null ? null : itemIds[n.itemId],
+                itemId: n.itemId == null ? null : plan.itemIds[n.itemId],
                 ink: n.ink,
                 createdAt: n.createdAt,
                 updatedAt: n.updatedAt,
@@ -1168,6 +1439,38 @@ class VergerStore {
             ),
           );
     }
+    // Prérequis du paquet, sauf ceux qui formeraient un cycle avec les liens
+    // locaux conservés.
+    final edges = await prerequisites();
+    for (final e in archive.prerequisites) {
+      final edge = (
+        itemId: plan.itemIds[e.itemId]!,
+        requiresId: plan.itemIds[e.requiresId]!,
+      );
+      if (edges.contains(edge) ||
+          PrerequisiteGraph(
+            edges,
+          ).wouldCreateCycle(edge.itemId, edge.requiresId)) {
+        continue;
+      }
+      await _insertPrerequisites([edge]);
+      edges.add(edge);
+    }
+
+    // Positions : les éléments locaux conservés s'intercalent avec ceux du
+    // paquet, puis tout est renuméroté.
+    final region = {
+      ...plan.targetNodes,
+      ...nodeIds.values,
+      for (final r in plan.existing) ?r.parentId,
+    }..removeAll(removed);
+    for (final id in region) {
+      await _renumber((await _siblings(id)).map((n) => n.id).toList());
+      await _renumberItems(
+        (await _itemsQuery(nodeId: id).get()).map((i) => i.id).toList(),
+      );
+    }
+
     // Version différente de celle du paquet : recalage des pages.
     for (final e in outdated.entries) {
       await updateDocument(
@@ -1177,8 +1480,95 @@ class VergerStore {
         fingerprints: e.value.fingerprints,
       );
     }
-    return trees;
+    return [
+      for (final n in archive.nodes)
+        if (n.parentId == null) (await node(nodeIds[n.id]!))!,
+    ];
   });
+
+  /// Correspondance entre le paquet et les données locales. Une racine du
+  /// paquet déjà présente désigne la partie locale à mettre à jour (sa
+  /// descendance) ; un identifiant déjà pris ailleurs est renouvelé.
+  Future<_PackPlan> _planPack(VergerArchive archive) async {
+    final localNodes = {for (final n in await allNodes()) n.id: n};
+    final existing = [
+      for (final n in archive.nodes)
+        if (n.parentId == null && localNodes.containsKey(n.id))
+          localNodes[n.id]!,
+    ];
+    final targetNodes = {for (final n in existing) n.id};
+    for (var grew = true; grew;) {
+      grew = false;
+      for (final n in localNodes.values) {
+        if (n.parentId != null &&
+            targetNodes.contains(n.parentId) &&
+            targetNodes.add(n.id)) {
+          grew = true;
+        }
+      }
+    }
+    final items = await allItems();
+    final targetItems = {
+      for (final i in items)
+        if (targetNodes.contains(i.nodeId)) i.id,
+    };
+    final anchors = await _anchorsQuery().get();
+    final targetAnchors = {
+      for (final a in anchors)
+        if (targetItems.contains(a.itemId)) a.id,
+    };
+    final notes = await _notesQuery().get();
+    // Notes d'une connaissance de l'arbre, ou d'un contenu seulement.
+    final targetNotes = {
+      for (final n in notes)
+        if (targetItems.contains(n.itemId) ||
+            (n.itemId == null && n.documentId != null))
+          n.id,
+    };
+
+    Map<String, String> ids(
+      Iterable<String> incoming,
+      Set<String> local,
+      Set<String> target,
+    ) => {
+      for (final id in incoming)
+        id: !local.contains(id) || target.contains(id) ? id : newId(),
+    };
+
+    final nodeIds = ids(
+      archive.nodes.map((n) => n.id),
+      localNodes.keys.toSet(),
+      targetNodes,
+    );
+    final itemIds = ids(archive.items.map((i) => i.id), {
+      for (final i in items) i.id,
+    }, targetItems);
+    final anchorIds = ids(archive.anchors.map((a) => a.id), {
+      for (final a in anchors) a.id,
+    }, targetAnchors);
+    final noteIds = ids(archive.notes.map((n) => n.id), {
+      for (final n in notes) n.id,
+    }, targetNotes);
+    final keptNotes = noteIds.values.toSet();
+    return _PackPlan(
+      existing: existing,
+      localNodes: localNodes,
+      localItems: {for (final i in items) i.id},
+      targetNodes: targetNodes,
+      targetItems: targetItems,
+      nodeIds: nodeIds,
+      itemIds: itemIds,
+      anchorIds: anchorIds,
+      noteIds: noteIds,
+      lostNodes: targetNodes.difference(nodeIds.values.toSet()),
+      lostItems: targetItems.difference(itemIds.values.toSet()),
+      lostAnchors: targetAnchors.difference(anchorIds.values.toSet()),
+      lostNotes: {
+        for (final n in notes)
+          if (targetItems.contains(n.itemId) && !keptNotes.contains(n.id)) n.id,
+      },
+    );
+  }
 
   Future<void> _insertNodes(List<KnowledgeNode> nodes) async {
     final pending = [...nodes];
