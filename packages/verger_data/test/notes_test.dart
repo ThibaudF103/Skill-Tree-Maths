@@ -65,6 +65,37 @@ void main() {
     expect(await store.note(note.id), isNull);
   });
 
+  test('redimensionner la zone d\'une note', () async {
+    final note = await store.createNote(
+      body: 'Zone',
+      documentId: course.id,
+      page: 2,
+      region: const NormalizedRect(0.1, 0.2, 0.9, 0.5),
+      snapshot: Uint8List.fromList([1]),
+    );
+    now = now.add(const Duration(minutes: 1));
+    await store.relocateNote(
+      note.id,
+      region: const NormalizedRect(0.05, 0.2, 0.95, 0.6),
+      snapshot: Uint8List.fromList([2]),
+    );
+    var stored = (await store.note(note.id))!;
+    expect(stored.region, const NormalizedRect(0.05, 0.2, 0.95, 0.6));
+    expect(stored.snapshot, [2]);
+    expect(stored.page, 2);
+    expect(stored.body, 'Zone');
+    expect(stored.updatedAt, now);
+
+    // Sans nouvel aperçu, l'ancien est conservé.
+    await store.relocateNote(
+      note.id,
+      region: const NormalizedRect(0.1, 0.1, 0.5, 0.5),
+    );
+    stored = (await store.note(note.id))!;
+    expect(stored.region, const NormalizedRect(0.1, 0.1, 0.5, 0.5));
+    expect(stored.snapshot, [2]);
+  });
+
   test('notes d\'un PDF triées par page', () async {
     await store.createNote(body: 'p3', documentId: course.id, page: 3);
     await store.createNote(body: 'p1', documentId: course.id, page: 1);

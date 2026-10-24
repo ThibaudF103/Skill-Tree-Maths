@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/gestures.dart' show PointerDeviceKind, kPrimaryButton;
@@ -16,6 +17,7 @@ import '../items/item_detail_page.dart';
 import '../items/item_editor.dart';
 import '../notes/notes_panel.dart';
 import 'pickers.dart';
+import 'viewer_gestures.dart';
 
 /// Couleurs des ancres : recto (cours) et verso (notes).
 const rectoColor = Color(0xFF3F7CAC);
@@ -30,7 +32,9 @@ enum _SidePanel { none, pages, outline }
 /// - Recherche dans le texte.
 /// - Reprise de lecture à la dernière page consultée.
 /// - Mode « Encadrer » : tracer un rectangle pour prendre une note sur la
-///   zone, créer une connaissance (recto) ou attacher la zone.
+///   zone, créer une connaissance (recto) ou attacher la zone ; tirer les
+///   bords d'un cadre existant pour le redimensionner.
+/// - Sur ordinateur : barre de défilement, défilement au bouton du milieu.
 /// - Panneau de notes (bouton, balayage depuis le bord droit, ou marqueur
 ///   sur la page).
 class DocumentViewerPage extends StatefulWidget {
@@ -337,55 +341,73 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
       stream: _anchors,
       builder: (context, anchors) => Stack(
         children: [
-          // Pavé tactile (deux doigts) : on fait défiler la page même en
-          // mode « Encadrer », au lieu de tracer une zone.
-          Listener(
-            onPointerDown: _onPointerDown,
-            onPointerMove: _onPointerMove,
-            onPointerUp: _onPointerUp,
-            onPointerCancel: (_) => _dragFrom = _dragTo = null,
-            onPointerPanZoomUpdate: (event) {
-              if (!_selecting || !_controller.isReady) return;
-              _controller.value =
-                  Matrix4.translationValues(
-                    event.panDelta.dx,
-                    event.panDelta.dy,
-                    0,
-                  ) *
-                  _controller.value;
-            },
-            child: PdfViewer.data(
-              bytes,
-              sourceName: 'verger-${document.id}-v${document.version}',
-              controller: _controller,
-              initialPageNumber: _startPage ?? 1,
-              params: PdfViewerParams(
-                panEnabled: !_selecting,
-                backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                onViewerReady: (pdf, controller) {
-                  setState(() {
-                    _pdf = pdf;
-                    _outline = pdf.loadOutline();
-                    _searcher ??= PdfTextSearcher(controller)
-                      ..addListener(_onSearchChanged);
-                  });
-                },
-                onPageChanged: _onPageChanged,
-                onViewSizeChanged: _onViewSizeChanged,
-                onGeneralTap: _onGeneralTap,
-                textSelectionParams: PdfTextSelectionParams(
-                  onTextSelectionChange: _onTextSelectionChange,
+          // Clic molette : défilement automatique (aussi en mode
+          // « Encadrer »).
+          MiddleClickAutoscroll(
+            onScroll: (delta) => _panBy(-delta),
+            child: Listener(
+              onPointerDown: _onPointerDown,
+              onPointerMove: _onPointerMove,
+              onPointerUp: _onPointerUp,
+              onPointerCancel: (_) => _dragFrom = _dragTo = null,
+              // Pavé tactile (deux doigts) : on fait défiler la page même en
+              // mode « Encadrer », au lieu de tracer une zone.
+              onPointerPanZoomUpdate: (event) {
+                if (_selecting) _panBy(event.panDelta);
+              },
+              child: PdfViewer.data(
+                bytes,
+                sourceName: 'verger-${document.id}-v${document.version}',
+                controller: _controller,
+                initialPageNumber: _startPage ?? 1,
+                params: PdfViewerParams(
+                  panEnabled: !_selecting,
+                  backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                  onViewerReady: (pdf, controller) {
+                    setState(() {
+                      _pdf = pdf;
+                      _outline = pdf.loadOutline();
+                      _searcher ??= PdfTextSearcher(controller)
+                        ..addListener(_onSearchChanged);
+                    });
+                  },
+                  onPageChanged: _onPageChanged,
+                  onViewSizeChanged: _onViewSizeChanged,
+                  onGeneralTap: _onGeneralTap,
+                  textSelectionParams: PdfTextSelectionParams(
+                    onTextSelectionChange: _onTextSelectionChange,
+                  ),
+                  // Liens du PDF : sommaire, renvois, notes de bas de page, web.
+                  linkHandlerParams: _selecting
+                      ? null
+                      : PdfLinkHandlerParams(onLinkTap: _onLinkTap),
+                  pagePaintCallbacks: [
+                    if (_searcher != null)
+                      _searcher!.pageTextMatchPaintCallback,
+                  ],
+                  pageOverlaysBuilder: (context, pageRect, page) => [
+                    _overlay(page, document, anchors.data ?? const [], notes),
+                  ],
+                  // Barre de défilement (ordinateur) : pdfrx reconstruit ce
+                  // calque à chaque déplacement de la vue.
+                  viewerOverlayBuilder: (context, size, handleLinkTap) => [
+                    if (isDesktopPlatform && _controller.isReady)
+                      Positioned(
+                        right: 0,
+                        top: 0,
+                        bottom: 0,
+                        child: ScrollPassThrough(
+                          onScroll: _controller.handlePointerSignalEvent,
+                          child: ViewerScrollbar(
+                            extent: _controller.documentSize.height,
+                            viewport: _controller.visibleRect.height,
+                            offset: _controller.visibleRect.top,
+                            onScrollTo: _scrollTo,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
-                // Liens du PDF : sommaire, renvois, notes de bas de page, web.
-                linkHandlerParams: _selecting
-                    ? null
-                    : PdfLinkHandlerParams(onLinkTap: _onLinkTap),
-                pagePaintCallbacks: [
-                  if (_searcher != null) _searcher!.pageTextMatchPaintCallback,
-                ],
-                pageOverlaysBuilder: (context, pageRect, page) => [
-                  _overlay(page, document, anchors.data ?? const [], notes),
-                ],
               ),
             ),
           ),
@@ -405,7 +427,8 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
                     ),
                     child: Text(
                       _selecting
-                          ? 'Tracez un rectangle autour d\'un élément du PDF'
+                          ? 'Tracez un rectangle autour d\'un élément du PDF, '
+                                'ou tirez les bords d\'un cadre'
                           : 'Allez à la bonne page, puis « Encadrer » '
                                 '(ou surlignez le texte d\'abord)',
                       style: TextStyle(
@@ -418,7 +441,8 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
             ),
           if (_page != null)
             Positioned(
-              right: 12,
+              // À gauche de la barre de défilement sur ordinateur.
+              right: isDesktopPlatform ? 26 : 12,
               top: 12,
               child: Chip(label: Text('p. $_page / ${document.pageCount}')),
             ),
@@ -669,52 +693,46 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
           (p.dy / size.height).clamp(0.0, 1.0),
         );
 
+        NormalizedRect toRegion(Rect r) => NormalizedRect.fromCorners(
+          r.left / size.width,
+          r.top / size.height,
+          r.right / size.width,
+          r.bottom / size.height,
+        );
+        // Au moins la taille minimale d'un tracé (voir _finishDrag).
+        final minFrame = Size(
+          math.max(0.02 * size.width, 12),
+          math.max(0.01 * size.height, 12),
+        );
+
         final pageNotes = notes.where((n) => n.page == number).toList();
-        final children = <Widget>[
+        final pageAnchors = [
           for (final anchor in anchors)
-            if (anchor.page == number && anchor.region != null)
+            if (anchor.page == number && anchor.region != null) anchor,
+        ];
+        final children = <Widget>[
+          // En mode « Encadrer », les cadres sont dessinés avec leurs
+          // poignées, au-dessus de la zone de tracé (plus bas).
+          if (!_selecting)
+            for (final anchor in pageAnchors)
               Positioned.fromRect(
                 rect: toRect(anchor.region!),
                 child: Tooltip(
                   message: anchor.role == AnchorRole.source ? 'Recto' : 'Verso',
                   child: GestureDetector(
-                    onTap: _selecting ? null : () => _openItem(anchor.itemId),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color:
-                            (anchor.role == AnchorRole.source
-                                    ? rectoColor
-                                    : versoColor)
-                                .withValues(alpha: 0.08),
-                        border: Border.all(
-                          color: anchor.role == AnchorRole.source
-                              ? rectoColor
-                              : versoColor,
-                          width: 1.5,
-                        ),
-                      ),
-                    ),
+                    onTap: () => _openItem(anchor.itemId),
+                    child: _anchorFrame(anchor),
                   ),
                 ),
               ),
           // Zones des notes (pointillé discret) et marqueurs.
-          for (final note in pageNotes)
-            if (note.region != null)
-              Positioned.fromRect(
-                rect: toRect(note.region!),
-                child: IgnorePointer(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: noteColor.withValues(
-                        alpha: note.id == _activeNote ? 0.14 : 0.05,
-                      ),
-                      border: Border.all(
-                        color: noteColor.withValues(alpha: 0.6),
-                      ),
-                    ),
-                  ),
+          if (!_selecting)
+            for (final note in pageNotes)
+              if (note.region != null)
+                Positioned.fromRect(
+                  rect: toRect(note.region!),
+                  child: IgnorePointer(child: _noteFrame(note)),
                 ),
-              ),
           for (final (i, note) in pageNotes.indexed)
             Positioned(
               left: note.region == null
@@ -768,12 +786,7 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
                 behavior: HitTestBehavior.opaque,
                 // Le pavé tactile fait défiler (voir Listener) au lieu de
                 // tracer.
-                supportedDevices: const {
-                  PointerDeviceKind.mouse,
-                  PointerDeviceKind.touch,
-                  PointerDeviceKind.stylus,
-                  PointerDeviceKind.invertedStylus,
-                },
+                supportedDevices: frameDevices,
                 onPanStart: (d) => setState(() {
                   _dragPage = number;
                   _dragStart = normalize(d.localPosition);
@@ -787,6 +800,31 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
                 onPanEnd: (_) => _finishDrag(page),
               ),
             ),
+          // Cadres existants : poignées pour les redimensionner.
+          if (_selecting) ...[
+            for (final note in pageNotes)
+              if (note.region != null)
+                FrameResizer(
+                  key: ValueKey('note-${note.id}'),
+                  rect: toRect(note.region!),
+                  bounds: size,
+                  minSize: minFrame,
+                  color: noteColor,
+                  onResized: (r) => _resizeFrame(page, toRegion(r), note: note),
+                  child: _noteFrame(note),
+                ),
+            for (final anchor in pageAnchors)
+              FrameResizer(
+                key: ValueKey('anchor-${anchor.id}'),
+                rect: toRect(anchor.region!),
+                bounds: size,
+                minSize: minFrame,
+                color: _anchorColor(anchor),
+                onResized: (r) =>
+                    _resizeFrame(page, toRegion(r), anchor: anchor),
+                child: _anchorFrame(anchor),
+              ),
+          ],
           if (_dragPage == number && _dragStart != null && _dragEnd != null)
             Positioned.fromRect(
               rect: Rect.fromPoints(
@@ -806,9 +844,71 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
               ),
             ),
         ];
-        return Stack(children: children);
+        // La molette et le pavé tactile font défiler la page même sur un
+        // cadre ou une poignée (sinon le calque les absorbe). En mode
+        // « Encadrer », le pavé tactile passe déjà par le Listener de la
+        // visionneuse.
+        return ScrollPassThrough(
+          onScroll: _controller.handlePointerSignalEvent,
+          onPan: _selecting ? null : _panBy,
+          child: Stack(children: children),
+        );
       },
     );
+  }
+
+  static Color _anchorColor(Anchor anchor) =>
+      anchor.role == AnchorRole.source ? rectoColor : versoColor;
+
+  Widget _anchorFrame(Anchor anchor) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: _anchorColor(anchor).withValues(alpha: 0.08),
+      border: Border.all(color: _anchorColor(anchor), width: 1.5),
+    ),
+  );
+
+  Widget _noteFrame(Note note) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: noteColor.withValues(alpha: note.id == _activeNote ? 0.14 : 0.05),
+      border: Border.all(color: noteColor.withValues(alpha: 0.6)),
+    ),
+  );
+
+  /// Fait glisser le contenu de [delta] (pixels de la vue).
+  void _panBy(Offset delta) {
+    if (!_controller.isReady || delta == Offset.zero) return;
+    _controller.value =
+        Matrix4.translationValues(delta.dx, delta.dy, 0) * _controller.value;
+  }
+
+  /// Barre de défilement : place le haut de la vue à [top] (coordonnées du
+  /// document).
+  void _scrollTo(double top) {
+    if (!_controller.isReady) return;
+    final m = _controller.value.clone();
+    final t = m.getTranslation();
+    m.setTranslationRaw(t.x, -top * _controller.currentZoom, t.z);
+    _controller.value = m;
+  }
+
+  /// Cadre redimensionné : nouvelle zone et nouvel aperçu.
+  Future<void> _resizeFrame(
+    PdfPage page,
+    NormalizedRect region, {
+    Anchor? anchor,
+    Note? note,
+  }) async {
+    final snapshot = await renderRegionPng(page, region);
+    if (anchor != null) {
+      await _store.relocateAnchor(
+        anchor.id,
+        page: page.pageNumber,
+        region: region,
+        snapshot: snapshot,
+      );
+    } else if (note != null) {
+      await _store.relocateNote(note.id, region: region, snapshot: snapshot);
+    }
   }
 
   /// Ouverture / fermeture d'un panneau : la page garde la même part de la
