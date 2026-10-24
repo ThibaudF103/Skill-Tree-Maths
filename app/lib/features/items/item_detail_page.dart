@@ -183,15 +183,16 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                     title: 'Recto / verso',
                     child: AnchorsSection(item: item),
                   ),
-                  const SizedBox(height: 28),
-                  _Section(
-                    title: 'Prérequis',
-                    child: PrerequisitesSection(item: item),
-                  ),
+                  // Les notes (verso rédigé) juste après le recto.
                   const SizedBox(height: 28),
                   _Section(
                     title: 'Notes',
                     child: ItemNotesSection(item: item),
+                  ),
+                  const SizedBox(height: 28),
+                  _Section(
+                    title: 'Prérequis',
+                    child: PrerequisitesSection(item: item),
                   ),
                   const SizedBox(height: 28),
                   _Section(
