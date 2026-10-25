@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'anchor.dart';
 import 'ink.dart';
+import 'rating.dart';
 
 /// Note de travail : rédaction (texte, LaTeX entre `$…$` ou `$$…$$`)
 /// éventuellement attachée à une zone d'un PDF et à une connaissance.
@@ -23,6 +24,7 @@ final class Note {
     this.snapshot,
     this.itemId,
     this.ink,
+    this.reviewRating,
   });
 
   final String id;
@@ -50,6 +52,13 @@ final class Note {
 
   /// Écriture manuscrite (traits au stylet), en plus du texte.
   final InkDrawing? ink;
+
+  /// Tentative de révision : note prise pendant la révision de la
+  /// connaissance [itemId], avant de révéler le verso, avec la note donnée
+  /// (date : [createdAt]). Elle ne fait pas partie du verso.
+  final Rating? reviewRating;
+
+  bool get isReviewAttempt => reviewRating != null;
 
   /// Ni texte ni écriture.
   bool get isBlank => body.trim().isEmpty && (ink?.isEmpty ?? true);

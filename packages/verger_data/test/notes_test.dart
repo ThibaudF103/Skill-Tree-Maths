@@ -129,6 +129,35 @@ void main() {
     await other.close();
   });
 
+  test('tentative de révision : note, date, sauvegarde', () async {
+    final attempt = await store.createNote(
+      body: 'Récurrence sur n',
+      itemId: item.id,
+      reviewRating: Rating.hard,
+    );
+    await store.createNote(body: 'Verso', itemId: item.id);
+    final notes = await store.notes(itemId: item.id);
+    expect(notes, hasLength(2));
+    final read = notes.firstWhere((n) => n.id == attempt.id);
+    expect(read.isReviewAttempt, isTrue);
+    expect(read.reviewRating, Rating.hard);
+    expect(read.createdAt, now);
+    expect(notes.where((n) => !n.isReviewAttempt).single.body, 'Verso');
+
+    final json = jsonEncode((await store.exportArchive()).toJson());
+    final other = VergerStore(VergerDatabase(NativeDatabase.memory()));
+    addTearDown(other.close);
+    await other.restoreArchive(
+      VergerArchive.fromJson((jsonDecode(json) as Map).cast()),
+    );
+    final restored = (await other.note(attempt.id))!;
+    expect(restored.reviewRating, Rating.hard);
+    expect(
+      (await other.notes(itemId: item.id)).where((n) => !n.isReviewAttempt),
+      hasLength(1),
+    );
+  });
+
   test('mise à jour du PDF : les notes suivent leurs pages', () async {
     Uint8List page(int seed) {
       final pixels = Uint8List(fingerprintSide * fingerprintSide)

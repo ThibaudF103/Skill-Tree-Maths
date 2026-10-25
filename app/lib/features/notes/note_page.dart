@@ -199,6 +199,9 @@ class ItemNotesSection extends StatefulWidget {
 class _ItemNotesSectionState extends State<ItemNotesSection> {
   Stream<List<Note>>? _notes;
 
+  /// Toutes les tentatives (sinon les plus récentes).
+  var _allAttempts = false;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -226,7 +229,17 @@ class _ItemNotesSectionState extends State<ItemNotesSection> {
     return StreamBuilder<List<Note>>(
       stream: _notes,
       builder: (context, snapshot) {
-        final notes = snapshot.data ?? const <Note>[];
+        final all = snapshot.data ?? const <Note>[];
+        final notes = [
+          for (final n in all)
+            if (!n.isReviewAttempt) n,
+        ];
+        // Tentatives des révisions : la plus récente d'abord.
+        final attempts = [
+          for (final n in all)
+            if (n.isReviewAttempt) n,
+        ]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        final shown = _allAttempts ? attempts : attempts.take(3).toList();
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -260,9 +273,86 @@ class _ItemNotesSectionState extends State<ItemNotesSection> {
               icon: const Icon(Icons.edit_note),
               label: const Text('Nouvelle note'),
             ),
+            if (attempts.isNotEmpty) ...[
+              const SizedBox(height: 24),
+              Text(
+                'Tentatives en révision (${attempts.length})',
+                style: theme.textTheme.titleSmall,
+              ),
+              const SizedBox(height: 8),
+              for (final note in shown)
+                _AttemptCard(note: note, onTap: () => _open(note.id)),
+              if (attempts.length > shown.length)
+                TextButton(
+                  onPressed: () => setState(() => _allAttempts = true),
+                  child: Text(
+                    'Voir les ${attempts.length - shown.length} plus anciennes',
+                  ),
+                ),
+            ],
           ],
         );
       },
+    );
+  }
+}
+
+/// Tentative d'une révision : date et note données, puis ce qui a été
+/// rédigé ; liseré de la couleur de la note.
+class _AttemptCard extends StatelessWidget {
+  const _AttemptCard({required this.note, required this.onTap});
+
+  final Note note;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final rating = note.reviewRating!;
+    return Card.outlined(
+      margin: const EdgeInsets.only(bottom: 12),
+      color: theme.colorScheme.surfaceContainerLow,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: rating.color.withValues(alpha: 0.6)),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.history_edu, size: 18, color: rating.color),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Révision du ${formatDate(note.createdAt)}',
+                    style: theme.textTheme.labelLarge,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    rating.label,
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: rating.color,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              note.isBlank
+                  ? Text(
+                      'Note vide',
+                      style: TextStyle(color: theme.colorScheme.outline),
+                    )
+                  : NoteContent(note: note),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

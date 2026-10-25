@@ -4213,6 +4213,15 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, NoteRow> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  @override
+  late final GeneratedColumnWithTypeConverter<Rating?, String> reviewRating =
+      GeneratedColumn<String>(
+        'review_rating',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      ).withConverter<Rating?>($NotesTable.$converterreviewRatingn);
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -4250,6 +4259,7 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, NoteRow> {
     snapshot,
     itemId,
     ink,
+    reviewRating,
     createdAt,
     updatedAt,
   ];
@@ -4421,6 +4431,12 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, NoteRow> {
         DriftSqlType.string,
         data['${effectivePrefix}ink'],
       ),
+      reviewRating: $NotesTable.$converterreviewRatingn.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}review_rating'],
+        ),
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -4436,6 +4452,11 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, NoteRow> {
   $NotesTable createAlias(String alias) {
     return $NotesTable(attachedDatabase, alias);
   }
+
+  static JsonTypeConverter2<Rating, String, String> $converterreviewRating =
+      const EnumNameConverter<Rating>(Rating.values);
+  static JsonTypeConverter2<Rating?, String?, String?> $converterreviewRatingn =
+      JsonTypeConverter2.asNullable($converterreviewRating);
 }
 
 class NoteRow extends DataClass implements Insertable<NoteRow> {
@@ -4456,6 +4477,10 @@ class NoteRow extends DataClass implements Insertable<NoteRow> {
 
   /// Écriture manuscrite, JSON de `Ink` (v8).
   final String? ink;
+
+  /// Tentative de révision : note donnée à la connaissance (v10) ; `null`
+  /// pour une note ordinaire.
+  final Rating? reviewRating;
   final DateTime createdAt;
   final DateTime updatedAt;
   const NoteRow({
@@ -4472,6 +4497,7 @@ class NoteRow extends DataClass implements Insertable<NoteRow> {
     this.snapshot,
     this.itemId,
     this.ink,
+    this.reviewRating,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -4513,6 +4539,11 @@ class NoteRow extends DataClass implements Insertable<NoteRow> {
     if (!nullToAbsent || ink != null) {
       map['ink'] = Variable<String>(ink);
     }
+    if (!nullToAbsent || reviewRating != null) {
+      map['review_rating'] = Variable<String>(
+        $NotesTable.$converterreviewRatingn.toSql(reviewRating),
+      );
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -4547,6 +4578,9 @@ class NoteRow extends DataClass implements Insertable<NoteRow> {
           ? const Value.absent()
           : Value(itemId),
       ink: ink == null && nullToAbsent ? const Value.absent() : Value(ink),
+      reviewRating: reviewRating == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reviewRating),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -4571,6 +4605,9 @@ class NoteRow extends DataClass implements Insertable<NoteRow> {
       snapshot: serializer.fromJson<Uint8List?>(json['snapshot']),
       itemId: serializer.fromJson<String?>(json['itemId']),
       ink: serializer.fromJson<String?>(json['ink']),
+      reviewRating: $NotesTable.$converterreviewRatingn.fromJson(
+        serializer.fromJson<String?>(json['reviewRating']),
+      ),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -4592,6 +4629,9 @@ class NoteRow extends DataClass implements Insertable<NoteRow> {
       'snapshot': serializer.toJson<Uint8List?>(snapshot),
       'itemId': serializer.toJson<String?>(itemId),
       'ink': serializer.toJson<String?>(ink),
+      'reviewRating': serializer.toJson<String?>(
+        $NotesTable.$converterreviewRatingn.toJson(reviewRating),
+      ),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -4611,6 +4651,7 @@ class NoteRow extends DataClass implements Insertable<NoteRow> {
     Value<Uint8List?> snapshot = const Value.absent(),
     Value<String?> itemId = const Value.absent(),
     Value<String?> ink = const Value.absent(),
+    Value<Rating?> reviewRating = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => NoteRow(
@@ -4627,6 +4668,7 @@ class NoteRow extends DataClass implements Insertable<NoteRow> {
     snapshot: snapshot.present ? snapshot.value : this.snapshot,
     itemId: itemId.present ? itemId.value : this.itemId,
     ink: ink.present ? ink.value : this.ink,
+    reviewRating: reviewRating.present ? reviewRating.value : this.reviewRating,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -4647,6 +4689,9 @@ class NoteRow extends DataClass implements Insertable<NoteRow> {
       snapshot: data.snapshot.present ? data.snapshot.value : this.snapshot,
       itemId: data.itemId.present ? data.itemId.value : this.itemId,
       ink: data.ink.present ? data.ink.value : this.ink,
+      reviewRating: data.reviewRating.present
+          ? data.reviewRating.value
+          : this.reviewRating,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -4668,6 +4713,7 @@ class NoteRow extends DataClass implements Insertable<NoteRow> {
           ..write('snapshot: $snapshot, ')
           ..write('itemId: $itemId, ')
           ..write('ink: $ink, ')
+          ..write('reviewRating: $reviewRating, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -4689,6 +4735,7 @@ class NoteRow extends DataClass implements Insertable<NoteRow> {
     $driftBlobEquality.hash(snapshot),
     itemId,
     ink,
+    reviewRating,
     createdAt,
     updatedAt,
   );
@@ -4709,6 +4756,7 @@ class NoteRow extends DataClass implements Insertable<NoteRow> {
           $driftBlobEquality.equals(other.snapshot, this.snapshot) &&
           other.itemId == this.itemId &&
           other.ink == this.ink &&
+          other.reviewRating == this.reviewRating &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -4727,6 +4775,7 @@ class NotesCompanion extends UpdateCompanion<NoteRow> {
   final Value<Uint8List?> snapshot;
   final Value<String?> itemId;
   final Value<String?> ink;
+  final Value<Rating?> reviewRating;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
@@ -4744,6 +4793,7 @@ class NotesCompanion extends UpdateCompanion<NoteRow> {
     this.snapshot = const Value.absent(),
     this.itemId = const Value.absent(),
     this.ink = const Value.absent(),
+    this.reviewRating = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -4762,6 +4812,7 @@ class NotesCompanion extends UpdateCompanion<NoteRow> {
     this.snapshot = const Value.absent(),
     this.itemId = const Value.absent(),
     this.ink = const Value.absent(),
+    this.reviewRating = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
     this.rowid = const Value.absent(),
@@ -4783,6 +4834,7 @@ class NotesCompanion extends UpdateCompanion<NoteRow> {
     Expression<Uint8List>? snapshot,
     Expression<String>? itemId,
     Expression<String>? ink,
+    Expression<String>? reviewRating,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
@@ -4801,6 +4853,7 @@ class NotesCompanion extends UpdateCompanion<NoteRow> {
       if (snapshot != null) 'snapshot': snapshot,
       if (itemId != null) 'item_id': itemId,
       if (ink != null) 'ink': ink,
+      if (reviewRating != null) 'review_rating': reviewRating,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -4821,6 +4874,7 @@ class NotesCompanion extends UpdateCompanion<NoteRow> {
     Value<Uint8List?>? snapshot,
     Value<String?>? itemId,
     Value<String?>? ink,
+    Value<Rating?>? reviewRating,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<int>? rowid,
@@ -4839,6 +4893,7 @@ class NotesCompanion extends UpdateCompanion<NoteRow> {
       snapshot: snapshot ?? this.snapshot,
       itemId: itemId ?? this.itemId,
       ink: ink ?? this.ink,
+      reviewRating: reviewRating ?? this.reviewRating,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -4887,6 +4942,11 @@ class NotesCompanion extends UpdateCompanion<NoteRow> {
     if (ink.present) {
       map['ink'] = Variable<String>(ink.value);
     }
+    if (reviewRating.present) {
+      map['review_rating'] = Variable<String>(
+        $NotesTable.$converterreviewRatingn.toSql(reviewRating.value),
+      );
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -4915,6 +4975,7 @@ class NotesCompanion extends UpdateCompanion<NoteRow> {
           ..write('snapshot: $snapshot, ')
           ..write('itemId: $itemId, ')
           ..write('ink: $ink, ')
+          ..write('reviewRating: $reviewRating, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -9089,6 +9150,7 @@ typedef $$NotesTableCreateCompanionBuilder =
       Value<Uint8List?> snapshot,
       Value<String?> itemId,
       Value<String?> ink,
+      Value<Rating?> reviewRating,
       required DateTime createdAt,
       required DateTime updatedAt,
       Value<int> rowid,
@@ -9108,6 +9170,7 @@ typedef $$NotesTableUpdateCompanionBuilder =
       Value<Uint8List?> snapshot,
       Value<String?> itemId,
       Value<String?> ink,
+      Value<Rating?> reviewRating,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<int> rowid,
@@ -9215,6 +9278,12 @@ class $$NotesTableFilterComposer
     column: $table.ink,
     builder: (column) => ColumnFilters(column),
   );
+
+  ColumnWithTypeConverterFilters<Rating?, Rating, String> get reviewRating =>
+      $composableBuilder(
+        column: $table.reviewRating,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
@@ -9337,6 +9406,11 @@ class $$NotesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get reviewRating => $composableBuilder(
+    column: $table.reviewRating,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -9436,6 +9510,12 @@ class $$NotesTableAnnotationComposer
   GeneratedColumn<String> get ink =>
       $composableBuilder(column: $table.ink, builder: (column) => column);
 
+  GeneratedColumnWithTypeConverter<Rating?, String> get reviewRating =>
+      $composableBuilder(
+        column: $table.reviewRating,
+        builder: (column) => column,
+      );
+
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -9530,6 +9610,7 @@ class $$NotesTableTableManager
                 Value<Uint8List?> snapshot = const Value.absent(),
                 Value<String?> itemId = const Value.absent(),
                 Value<String?> ink = const Value.absent(),
+                Value<Rating?> reviewRating = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -9547,6 +9628,7 @@ class $$NotesTableTableManager
                 snapshot: snapshot,
                 itemId: itemId,
                 ink: ink,
+                reviewRating: reviewRating,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,
@@ -9566,6 +9648,7 @@ class $$NotesTableTableManager
                 Value<Uint8List?> snapshot = const Value.absent(),
                 Value<String?> itemId = const Value.absent(),
                 Value<String?> ink = const Value.absent(),
+                Value<Rating?> reviewRating = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
                 Value<int> rowid = const Value.absent(),
@@ -9583,6 +9666,7 @@ class $$NotesTableTableManager
                 snapshot: snapshot,
                 itemId: itemId,
                 ink: ink,
+                reviewRating: reviewRating,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,

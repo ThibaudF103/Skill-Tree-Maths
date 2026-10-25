@@ -806,6 +806,7 @@ class VergerStore {
     Uint8List? snapshot,
     String? itemId,
     InkDrawing? ink,
+    Rating? reviewRating,
   }) async {
     final now = _now();
     final note = Note(
@@ -819,6 +820,7 @@ class VergerStore {
       snapshot: snapshot,
       itemId: itemId,
       ink: ink,
+      reviewRating: reviewRating,
       createdAt: now,
       updatedAt: now,
     );
@@ -839,7 +841,8 @@ class VergerStore {
           .watchSingleOrNull()
           .map((row) => row == null ? null : _toNote(row));
 
-  /// Notes d'un PDF (par page puis date) ou d'une connaissance.
+  /// Notes d'un PDF (par page puis date) ou d'une connaissance (tentatives
+  /// de révision comprises : [Note.isReviewAttempt]).
   Future<List<Note>> notes({String? documentId, String? itemId}) async =>
       (await _notesQuery(
         documentId: documentId,
@@ -1121,9 +1124,11 @@ class VergerStore {
       for (final a in anchors) a.documentId,
     };
     final notes = [
+      // Sans les tentatives de révision : personnelles, comme l'historique.
       for (final row in await _notesQuery().get())
-        if (itemIds.contains(row.itemId) ||
-            (row.itemId == null && documentIds.contains(row.documentId)))
+        if (row.reviewRating == null &&
+            (itemIds.contains(row.itemId) ||
+                (row.itemId == null && documentIds.contains(row.documentId))))
           _toNote(row),
     ];
     documentIds.addAll([
@@ -1241,6 +1246,7 @@ class VergerStore {
                 snapshot: n.snapshot,
                 itemId: n.itemId == null ? null : itemIds[n.itemId],
                 ink: n.ink,
+                reviewRating: n.reviewRating,
                 createdAt: n.createdAt,
                 updatedAt: n.updatedAt,
               ),
@@ -1405,6 +1411,7 @@ class VergerStore {
     snapshot: row.snapshot,
     itemId: row.itemId,
     ink: row.ink == null ? null : InkDrawing.decode(row.ink!),
+    reviewRating: row.reviewRating,
     createdAt: row.createdAt.toUtc(),
     updatedAt: row.updatedAt.toUtc(),
   );
@@ -1423,6 +1430,7 @@ class VergerStore {
     snapshot: n.snapshot,
     itemId: n.itemId,
     ink: n.ink == null || n.ink!.isEmpty ? null : n.ink!.encode(),
+    reviewRating: n.reviewRating,
     createdAt: n.createdAt.toUtc(),
     updatedAt: n.updatedAt.toUtc(),
   );

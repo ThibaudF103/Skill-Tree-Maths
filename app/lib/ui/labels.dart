@@ -1,4 +1,4 @@
-import 'package:flutter/widgets.dart' show StringCharacters;
+import 'package:flutter/widgets.dart' show Color, StringCharacters;
 import 'package:verger_core/verger_core.dart';
 
 /// Libellés français de l'interface.
@@ -76,6 +76,14 @@ extension RatingLabel on Rating {
     Rating.hard => 'Difficile',
     Rating.good => 'Correct',
     Rating.easy => 'Facile',
+  };
+
+  /// Couleur des boutons de note et des tentatives de révision.
+  Color get color => switch (this) {
+    Rating.again => const Color(0xFFC8553D),
+    Rating.hard => const Color(0xFFE09A3E),
+    Rating.good => const Color(0xFF5B7F5E),
+    Rating.easy => const Color(0xFF3F7CAC),
   };
 }
 

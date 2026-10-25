@@ -205,6 +205,10 @@ class Notes extends Table {
 
   /// Écriture manuscrite, JSON de `Ink` (v8).
   TextColumn get ink => text().nullable()();
+
+  /// Tentative de révision : note donnée à la connaissance (v10) ; `null`
+  /// pour une note ordinaire.
+  TextColumn get reviewRating => textEnum<Rating>().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
 
@@ -240,7 +244,7 @@ class VergerDatabase extends _$VergerDatabase {
   VergerDatabase(super.executor);
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -320,6 +324,10 @@ class VergerDatabase extends _$VergerDatabase {
       from8To9: (m, schema) async {
         // v9 : exercices corrigés automatiquement.
         await m.addColumn(schema.items, schema.items.autoExercise);
+      },
+      from9To10: (m, schema) async {
+        // v10 : notes prises pendant les révisions (tentatives).
+        await m.addColumn(schema.notes, schema.notes.reviewRating);
       },
     ),
     beforeOpen: (details) async {
