@@ -26,7 +26,7 @@ class NotesPanel extends StatelessWidget {
     required this.activeNoteId,
     required this.currentPage,
     required this.onSelect,
-    required this.onClose,
+    this.onClose,
     required this.onGoTo,
   });
 
@@ -37,7 +37,9 @@ class NotesPanel extends StatelessWidget {
 
   /// Ouvre une note (`null` : retour à la liste).
   final ValueChanged<String?> onSelect;
-  final VoidCallback onClose;
+
+  /// Ferme le panneau ; sans lui, pas de bouton (l'écran partagé a le sien).
+  final VoidCallback? onClose;
 
   /// Affiche la page (et la zone) d'une note dans le PDF.
   final void Function(int page, NormalizedRect? region) onGoTo;
@@ -84,11 +86,12 @@ class NotesPanel extends StatelessWidget {
                     icon: const Icon(Icons.add),
                     label: Text('Note p. $currentPage'),
                   ),
-                IconButton(
-                  tooltip: 'Fermer les notes',
-                  icon: const Icon(Icons.close),
-                  onPressed: onClose,
-                ),
+                if (onClose != null)
+                  IconButton(
+                    tooltip: 'Fermer les notes',
+                    icon: const Icon(Icons.close),
+                    onPressed: onClose,
+                  ),
               ],
             ),
           ),

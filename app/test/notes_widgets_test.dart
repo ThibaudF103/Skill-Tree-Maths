@@ -41,9 +41,10 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 700)); // enregistrement
     await settle(tester);
-    expect(find.byType(Math), findsOneWidget); // aperçu
+    // Aperçu dans l'éditeur, et rendu dans la fiche au-dessus.
+    expect(find.byType(Math), findsNWidgets(2));
 
-    await tester.pageBack();
+    await tester.tap(find.byTooltip('Fermer la note'));
     await settle(tester);
     final items = (await tester.runAsync(store.allItems))!;
     final notes = (await tester.runAsync(

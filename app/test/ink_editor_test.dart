@@ -169,7 +169,8 @@ void main() {
       isNotNull,
     );
 
-    await tester.pageBack();
+    // La note se referme sous la fiche.
+    await tester.tap(find.byTooltip('Fermer la note'));
     await settle(tester);
     final notes = (await tester.runAsync(store.notes))!;
     expect(notes, hasLength(1));
@@ -268,7 +269,8 @@ void main() {
     await tester.tap(find.text('Clavier'));
     await settle(tester);
     expect(find.text('Par Rolle'), findsWidgets);
-    expect(find.byType(InkView), findsOneWidget);
+    // Aperçu dans l'éditeur, et dans la fiche au-dessus.
+    expect(find.byType(InkView), findsNWidgets(2));
 
     await tester.pageBack();
     await settle(tester);

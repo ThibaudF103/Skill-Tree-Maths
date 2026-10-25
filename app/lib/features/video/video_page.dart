@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:verger_core/verger_core.dart';
 import 'package:verger_data/verger_data.dart';
@@ -13,6 +15,7 @@ import '../documents/pickers.dart';
 import '../items/item_detail_page.dart';
 import '../items/item_editor.dart';
 import '../notes/note_page.dart';
+import '../notes/note_split.dart';
 
 /// Vidéo YouTube : lecture, extraits (début / fin) à transformer en note,
 /// en connaissance (recto ou verso) ou à attacher ; extraits et notes déjà
@@ -49,6 +52,9 @@ class _VideoPageState extends State<VideoPage> {
   Stream<List<Note>>? _timelineNotes;
   int? _start;
   int? _end;
+
+  /// Note ouverte sous la vidéo (écran partagé).
+  String? _openNote;
 
   /// Une fenêtre couvre le lecteur : il est masqué le temps de l'échange
   /// (dans la version web, une iframe capterait les clics destinés à la
@@ -158,9 +164,10 @@ class _VideoPageState extends State<VideoPage> {
         endMs: end,
       );
       if (!mounted) return;
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => NotePage(noteId: note.id)),
-      );
+      setState(() {
+        _openNote = note.id;
+        _start = _end = null;
+      });
       return;
     }
     final work = action == 'work' || action == 'createWork';
@@ -218,65 +225,89 @@ class _VideoPageState extends State<VideoPage> {
         }
         return Scaffold(
           appBar: AppBar(title: Text(document.title)),
-          body: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-            children: [
-              Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 960),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Stack(
-                        children: [
-                          const AspectRatio(
-                            aspectRatio: 16 / 9,
-                            child: ColoredBox(color: Colors.black),
-                          ),
-                          Offstage(
-                            offstage: _covered,
-                            child: YoutubePlayer(
-                              videoId: document.contentHash,
-                              controller: _player,
-                              startMs: widget.startMs ?? 0,
-                              endMs: widget.endMs,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      StreamBuilder<List<Anchor>>(
-                        stream: _timelineAnchors,
-                        builder: (context, anchors) =>
-                            StreamBuilder<List<Note>>(
-                              stream: _timelineNotes,
-                              builder: (context, notes) => VideoTimeline(
-                                controller: _player,
-                                spans: videoCoverage(
-                                  anchors.data ?? const [],
-                                  notes.data ?? const [],
-                                ),
-                                selection: _start == null
-                                    ? null
-                                    : (_start!, _end),
-                                rectoColor: rectoColor,
-                                versoColor: versoColor,
-                                noteColor: noteColor,
-                              ),
-                            ),
-                      ),
-                      const SizedBox(height: 8),
-                      _excerptBar(document),
-                      const SizedBox(height: 24),
-                      _linked(context),
-                    ],
+          body: NoteSplit(
+            title: const Text('Note'),
+            onClose: () => setState(() => _openNote = null),
+            note: _openNote == null
+                ? null
+                : LiveNoteEditor(
+                    key: ValueKey(_openNote),
+                    noteId: _openNote!,
+                    onDeleted: () => setState(() => _openNote = null),
                   ),
-                ),
-              ),
-            ],
+            content: LayoutBuilder(
+              builder: (context, area) => _body(document, area),
+            ),
           ),
         );
       },
+    );
+  }
+
+  /// Lecteur, frise, extrait et liens ; avec une note ouverte, le lecteur
+  /// rétrécit pour rester entier au-dessus de la note.
+  Widget _body(SourceDocument document, BoxConstraints area) {
+    final playerWidth = _openNote == null
+        ? double.infinity
+        : math.max(240.0, (area.maxHeight - 24) * 16 / 9);
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+      children: [
+        Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 960),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: playerWidth),
+                    child: Stack(
+                      children: [
+                        const AspectRatio(
+                          aspectRatio: 16 / 9,
+                          child: ColoredBox(color: Colors.black),
+                        ),
+                        Offstage(
+                          offstage: _covered,
+                          child: YoutubePlayer(
+                            videoId: document.contentHash,
+                            controller: _player,
+                            startMs: widget.startMs ?? 0,
+                            endMs: widget.endMs,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                StreamBuilder<List<Anchor>>(
+                  stream: _timelineAnchors,
+                  builder: (context, anchors) => StreamBuilder<List<Note>>(
+                    stream: _timelineNotes,
+                    builder: (context, notes) => VideoTimeline(
+                      controller: _player,
+                      spans: videoCoverage(
+                        anchors.data ?? const [],
+                        notes.data ?? const [],
+                      ),
+                      selection: _start == null ? null : (_start!, _end),
+                      rectoColor: rectoColor,
+                      versoColor: versoColor,
+                      noteColor: noteColor,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _excerptBar(document),
+                const SizedBox(height: 24),
+                _linked(context),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -422,11 +453,7 @@ class _VideoPageState extends State<VideoPage> {
                     trailing: IconButton(
                       tooltip: 'Ouvrir la note',
                       icon: const Icon(Icons.open_in_new),
-                      onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => NotePage(noteId: n.id),
-                        ),
-                      ),
+                      onPressed: () => setState(() => _openNote = n.id),
                     ),
                   ),
               ],

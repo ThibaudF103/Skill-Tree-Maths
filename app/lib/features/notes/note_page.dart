@@ -7,6 +7,7 @@ import '../../ui/math_text.dart';
 import '../documents/document_viewer_page.dart';
 import '../video/video_page.dart';
 import 'ink_view.dart';
+import 'note_split.dart';
 import 'notes_panel.dart';
 
 /// Page d'édition d'une note (hors visionneuse).
@@ -114,11 +115,82 @@ class _NotePageState extends State<NotePage> {
   }
 }
 
+/// Éditeur d'une note désignée par son identifiant, suivie en base : pour
+/// l'écran partagé ([NoteSplit]) d'une vidéo ou d'une fiche.
+class LiveNoteEditor extends StatefulWidget {
+  const LiveNoteEditor({
+    super.key,
+    required this.noteId,
+    required this.onDeleted,
+  });
+
+  final String noteId;
+
+  /// Note supprimée par l'utilisateur.
+  final VoidCallback onDeleted;
+
+  @override
+  State<LiveNoteEditor> createState() => _LiveNoteEditorState();
+}
+
+class _LiveNoteEditorState extends State<LiveNoteEditor> {
+  Stream<Note?>? _note;
+  Future<SourceDocument?>? _document;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final store = AppScope.of(context).store;
+    _note ??= store.watchNote(widget.noteId);
+    _document ??= store
+        .note(widget.noteId)
+        .then(
+          (n) => n?.documentId == null ? null : store.document(n!.documentId!),
+        );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Theme.of(context).colorScheme.surface,
+      child: FutureBuilder<SourceDocument?>(
+        future: _document,
+        builder: (context, docSnapshot) => StreamBuilder<Note?>(
+          stream: _note,
+          builder: (context, snapshot) {
+            final note = snapshot.data;
+            if (note == null) {
+              return Center(
+                child: snapshot.connectionState == ConnectionState.active
+                    ? const Text('Note supprimée')
+                    : const CircularProgressIndicator(),
+              );
+            }
+            return NoteEditor(
+              // Même éditeur tant que c'est la même note : la saisie en
+              // cours n'est pas perdue.
+              key: ValueKey(note.id),
+              note: note,
+              document: docSnapshot.data,
+              onGoTo: null,
+              onDeleted: widget.onDeleted,
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
 /// Section « Notes » d'une connaissance : ses notes (verso), rendues en LaTeX.
 class ItemNotesSection extends StatefulWidget {
-  const ItemNotesSection({super.key, required this.item});
+  const ItemNotesSection({super.key, required this.item, this.onOpen});
 
   final KnowledgeItem item;
+
+  /// Ouvre une note (dans l'écran partagé de la fiche) ; sans lui, la note
+  /// s'ouvre dans sa propre page.
+  final ValueChanged<String>? onOpen;
 
   @override
   State<ItemNotesSection> createState() => _ItemNotesSectionState();
@@ -133,14 +205,19 @@ class _ItemNotesSectionState extends State<ItemNotesSection> {
     _notes ??= AppScope.of(context).store.watchNotes(itemId: widget.item.id);
   }
 
+  Future<void> _open(String noteId) async {
+    if (widget.onOpen case final onOpen?) return onOpen(noteId);
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => NotePage(noteId: noteId)));
+  }
+
   Future<void> _newNote() async {
     final note = await AppScope.of(
       context,
     ).store.createNote(itemId: widget.item.id);
     if (!mounted) return;
-    await Navigator.of(
-      context,
-    ).push(MaterialPageRoute<void>(builder: (_) => NotePage(noteId: note.id)));
+    await _open(note.id);
   }
 
   @override
@@ -166,11 +243,7 @@ class _ItemNotesSectionState extends State<ItemNotesSection> {
                 margin: const EdgeInsets.only(bottom: 12),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(12),
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => NotePage(noteId: note.id),
-                    ),
-                  ),
+                  onTap: () => _open(note.id),
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: note.isBlank
