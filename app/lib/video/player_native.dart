@@ -38,9 +38,9 @@ class PlatformYoutubeController implements YoutubePlayerController {
       _js('window.vergerSeek && window.vergerSeek(${ms / 1000}, $play)');
 
   @override
-  Future<void> playSegment(int startMs, int? endMs) => _js(
+  Future<void> playSegment(int startMs, int? endMs, {bool play = true}) => _js(
     'window.vergerSegment && window.vergerSegment(${startMs / 1000}, '
-    '${endMs == null ? 'null' : endMs / 1000})',
+    '${endMs == null ? 'null' : endMs / 1000}, $play)',
   );
 
   @override
@@ -73,6 +73,10 @@ class PlatformYoutubeController implements YoutubePlayerController {
       _js('window.vergerMute && window.vergerMute($muted)');
 
   @override
+  Future<void> setCaptions(bool on) =>
+      _js('window.vergerCaptions && window.vergerCaptions($on)');
+
+  @override
   Future<void> setRate(double rate) =>
       _js('window.vergerRate && window.vergerRate($rate)');
 }
@@ -99,7 +103,11 @@ function jump(s, play) {
 // Un saut libre annule l'arrêt programmé d'un extrait.
 window.vergerSeek = function (s, play) { window.vergerStopAt = null; jump(s, play); };
 window.vergerPause = function () { if (player && player.pauseVideo) player.pauseVideo(); };
-window.vergerSegment = function (a, b) { window.vergerStopAt = b; jump(a, true); };
+window.vergerSegment = function (a, b, play) { window.vergerStopAt = b; jump(a, play !== false); };
+window.vergerCaptions = function (on) {
+  if (!player || !player.loadModule) return;
+  if (on) player.loadModule('captions'); else player.unloadModule('captions');
+};
 window.vergerPlay = function () { if (player && player.playVideo) player.playVideo(); };
 window.vergerMute = function (m) { if (player && player.mute) { if (m) player.mute(); else player.unMute(); } };
 window.vergerRate = function (r) { if (player && player.setPlaybackRate) player.setPlaybackRate(r); };

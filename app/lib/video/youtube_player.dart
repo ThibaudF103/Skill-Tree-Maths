@@ -28,8 +28,9 @@ abstract class YoutubePlayerController {
 
   Future<void> seek(int ms, {bool play = true});
 
-  /// Joue l'extrait [startMs]–[endMs] puis s'arrête.
-  Future<void> playSegment(int startMs, int? endMs);
+  /// Joue l'extrait [startMs]–[endMs] puis s'arrête ([play] faux : se place
+  /// au début sans lancer la lecture, l'arrêt reste programmé).
+  Future<void> playSegment(int startMs, int? endMs, {bool play = true});
 
   Future<void> pause();
 
@@ -42,6 +43,9 @@ abstract class YoutubePlayerController {
 
   /// Vitesse de lecture (1 : normale).
   Future<void> setRate(double rate);
+
+  /// Sous-titres (module `captions` du lecteur, piste par défaut).
+  Future<void> setCaptions(bool on);
 }
 
 /// Paramètres communs du lecteur intégré : commandes de YouTube masquées,

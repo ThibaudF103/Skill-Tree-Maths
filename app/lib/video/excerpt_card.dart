@@ -108,6 +108,7 @@ Future<void> showExcerpt(
               child: VideoControlBar(
                 controller: controller,
                 selection: (startMs, endMs),
+                stopAtSelectionEnd: true,
                 rectoColor: rectoColor,
                 versoColor: versoColor,
                 noteColor: noteColor,

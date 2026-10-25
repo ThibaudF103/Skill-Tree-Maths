@@ -62,12 +62,19 @@ class _VideoPageState extends State<VideoPage> {
   /// des widgets reste le même, pour ne pas recharger le lecteur.
   var _fullscreen = false;
 
-  void _toggleFullscreen() {
-    setState(() => _fullscreen = !_fullscreen);
-    if (_fullscreen && _scroll.hasClients) _scroll.jumpTo(0);
+  /// Reçoit Échap (ordinateur, web) pour quitter le plein cadre.
+  final _keys = FocusNode(debugLabel: 'video-page');
+
+  void _toggleFullscreen() => _setFullscreen(!_fullscreen);
+
+  void _setFullscreen(bool on) {
+    if (on == _fullscreen) return;
+    setState(() => _fullscreen = on);
+    if (on && _scroll.hasClients) _scroll.jumpTo(0);
+    if (on) _keys.requestFocus();
     // Masque aussi la barre d'état sur tablette (sans effet sur ordinateur).
     SystemChrome.setEnabledSystemUIMode(
-      _fullscreen ? SystemUiMode.immersiveSticky : SystemUiMode.edgeToEdge,
+      on ? SystemUiMode.immersiveSticky : SystemUiMode.edgeToEdge,
     );
   }
 
@@ -77,18 +84,24 @@ class _VideoPageState extends State<VideoPage> {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     }
     _scroll.dispose();
+    _keys.dispose();
     super.dispose();
   }
 
-  void _open(TimeSpan span) => _covering(
-    () => Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => span.role == null
-            ? NotePage(noteId: span.id)
-            : ItemDetailPage(itemId: span.id),
+  void _open(TimeSpan span) {
+    // La page ouverte ne doit hériter ni du plein cadre ni de la barre
+    // d'état masquée.
+    _setFullscreen(false);
+    _covering(
+      () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => span.role == null
+              ? NotePage(noteId: span.id)
+              : ItemDetailPage(itemId: span.id),
+        ),
       ),
-    ),
-  );
+    );
+  }
 
   Future<T> _covering<T>(Future<T> Function() action) async {
     setState(() => _covered = true);
@@ -256,106 +269,121 @@ class _VideoPageState extends State<VideoPage> {
           // En plein cadre, « retour » quitte d'abord le plein cadre.
           canPop: !_fullscreen,
           onPopInvokedWithResult: (didPop, _) {
-            if (!didPop) _toggleFullscreen();
+            if (!didPop) _setFullscreen(false);
           },
-          child: Scaffold(
-            backgroundColor: _fullscreen ? Colors.black : null,
-            appBar: _fullscreen ? null : AppBar(title: Text(document.title)),
-            body: LayoutBuilder(
-              builder: (context, viewport) {
-                // Largeur de la vidéo en plein cadre : toute la fenêtre,
-                // moins la hauteur de la barre de lecture.
-                final width = _fullscreen
-                    ? viewport.maxWidth.clamp(
-                        0.0,
-                        (viewport.maxHeight - 104).clamp(0.0, double.infinity) *
-                            16 /
-                            9,
-                      )
-                    : null;
-                return ListView(
-                  controller: _scroll,
-                  physics: _fullscreen
-                      ? const NeverScrollableScrollPhysics()
-                      : null,
-                  padding: _fullscreen
-                      ? EdgeInsets.zero
-                      : const EdgeInsets.fromLTRB(16, 8, 16, 32),
-                  children: [
-                    Center(
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxWidth: _fullscreen ? double.infinity : 960,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Center(
-                              child: SizedBox(
-                                width: width,
-                                child: Stack(
-                                  children: [
-                                    const AspectRatio(
-                                      aspectRatio: 16 / 9,
-                                      child: ColoredBox(color: Colors.black),
-                                    ),
-                                    Offstage(
-                                      offstage: _covered,
-                                      child: YoutubePlayer(
-                                        videoId: document.contentHash,
-                                        controller: _player,
-                                        startMs: widget.startMs ?? 0,
-                                        endMs: widget.endMs,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Theme(
-                              // Barre claire sur fond noir en plein cadre.
-                              data: _fullscreen
-                                  ? ThemeData(
-                                      brightness: Brightness.dark,
-                                      colorSchemeSeed: Theme.of(
-                                        context,
-                                      ).colorScheme.primary,
-                                    )
-                                  : Theme.of(context),
-                              child: Padding(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: _fullscreen ? 16 : 0,
-                                ),
-                                child: _controlBar(),
-                              ),
-                            ),
-                            Visibility(
-                              visible: !_fullscreen,
-                              maintainState: true,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  const SizedBox(height: 8),
-                                  _excerptBar(document),
-                                  const SizedBox(height: 24),
-                                  _linked(context),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              },
+          child: CallbackShortcuts(
+            bindings: {
+              const SingleActivator(LogicalKeyboardKey.escape): () =>
+                  _setFullscreen(false),
+            },
+            child: Focus(
+              focusNode: _keys,
+              autofocus: true,
+              child: _scaffold(document),
             ),
           ),
         );
       },
     );
   }
+
+  Widget _scaffold(SourceDocument document) => Scaffold(
+    backgroundColor: _fullscreen ? Colors.black : null,
+    appBar: _fullscreen ? null : AppBar(title: Text(document.title)),
+    // En plein cadre, rien sous l'encoche ni l'indicateur d'accueil.
+    body: SafeArea(
+      top: _fullscreen,
+      bottom: _fullscreen,
+      child: LayoutBuilder(
+        builder: (context, viewport) {
+          // Largeur de la vidéo en plein cadre : toute la fenêtre,
+          // moins la hauteur de la barre de lecture.
+          final width = _fullscreen
+              ? viewport.maxWidth.clamp(
+                  0.0,
+                  (viewport.maxHeight - 104).clamp(0.0, double.infinity) *
+                      16 /
+                      9,
+                )
+              : null;
+          return ListView(
+            controller: _scroll,
+            physics: _fullscreen ? const NeverScrollableScrollPhysics() : null,
+            padding: _fullscreen
+                ? EdgeInsets.zero
+                : const EdgeInsets.fromLTRB(16, 8, 16, 32),
+            children: [
+              Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: _fullscreen ? double.infinity : 960,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Center(
+                        child: SizedBox(
+                          width: width,
+                          child: Stack(
+                            children: [
+                              const AspectRatio(
+                                aspectRatio: 16 / 9,
+                                child: ColoredBox(color: Colors.black),
+                              ),
+                              Offstage(
+                                offstage: _covered,
+                                child: YoutubePlayer(
+                                  videoId: document.contentHash,
+                                  controller: _player,
+                                  startMs: widget.startMs ?? 0,
+                                  endMs: widget.endMs,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Theme(
+                        // Barre claire sur fond noir en plein cadre.
+                        data: _fullscreen
+                            ? ThemeData(
+                                brightness: Brightness.dark,
+                                colorSchemeSeed: Theme.of(
+                                  context,
+                                ).colorScheme.primary,
+                              )
+                            : Theme.of(context),
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: _fullscreen ? 16 : 0,
+                          ),
+                          child: _controlBar(),
+                        ),
+                      ),
+                      Visibility(
+                        visible: !_fullscreen,
+                        maintainState: true,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const SizedBox(height: 8),
+                            _excerptBar(document),
+                            const SizedBox(height: 24),
+                            _linked(context),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    ),
+  );
 
   /// Barre de lecture, avec la couverture de la vidéo.
   Widget _controlBar() => StreamBuilder<List<KnowledgeItem>>(
@@ -381,6 +409,26 @@ class _VideoPageState extends State<VideoPage> {
           onOpen: _open,
           onFullscreen: _toggleFullscreen,
           fullscreen: _fullscreen,
+          // La barre d'extrait est masquée en plein cadre : le marquage
+          // passe dans la barre de lecture.
+          actions: _fullscreen
+              ? [
+                  IconButton(
+                    tooltip: _start == null
+                        ? 'Marquer le début'
+                        : 'Début : ${formatClock(_start!)}',
+                    icon: const Icon(Icons.first_page),
+                    onPressed: () => _mark(start: true),
+                  ),
+                  IconButton(
+                    tooltip: _end == null
+                        ? 'Marquer la fin'
+                        : 'Fin : ${formatClock(_end!)}',
+                    icon: const Icon(Icons.last_page),
+                    onPressed: () => _mark(start: false),
+                  ),
+                ]
+              : const [],
         ),
       ),
     ),

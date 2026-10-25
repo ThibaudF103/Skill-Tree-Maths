@@ -24,8 +24,11 @@ class FakePlayer implements YoutubePlayerController {
   Future<void> seek(int ms, {bool play = true}) async => calls.add('seek $ms');
 
   @override
-  Future<void> playSegment(int startMs, int? endMs) async =>
-      calls.add('segment $startMs');
+  Future<void> playSegment(int startMs, int? endMs, {bool play = true}) async =>
+      calls.add('segment $startMs $endMs $play');
+
+  @override
+  Future<void> setCaptions(bool on) async => calls.add('captions $on');
 
   @override
   Future<void> pause() async => calls.add('pause');
@@ -79,7 +82,12 @@ void main() {
     opened = null;
   });
 
-  Future<void> pumpBar(WidgetTester tester) async {
+  Future<void> pumpBar(
+    WidgetTester tester, {
+    (int, int?)? selection,
+    bool stopAtSelectionEnd = false,
+    List<Widget> actions = const [],
+  }) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -93,6 +101,9 @@ void main() {
                 versoColor: Colors.orange,
                 noteColor: Colors.green,
                 onOpen: (s) => opened = s,
+                selection: selection,
+                stopAtSelectionEnd: stopAtSelectionEnd,
+                actions: actions,
               ),
             ),
           ),
@@ -165,16 +176,17 @@ void main() {
     expect(find.text('1,5×'), findsOneWidget);
   });
 
-  testWidgets('un appui sur un extrait saute à son début, ailleurs au point '
-      'touché', (tester) async {
+  testWidgets('un appui saute au point touché, même dans un extrait', (
+    tester,
+  ) async {
     player.state = at(0);
     await pumpBar(tester);
     await tester.tapAt(trackAt(tester, 30000));
     await tester.pump();
-    expect(player.calls, ['seek 20000']);
+    expect(player.calls, ['seek 30000']);
     // Le titre de l'extrait s'affiche sous la tête de lecture.
     expect(find.byKey(const Key('video-preview')), findsOneWidget);
-    expect(find.text('0:20 · Théorème de Pythagore'), findsOneWidget);
+    expect(find.text('0:30 · Théorème de Pythagore'), findsOneWidget);
     await tester.pump(const Duration(seconds: 3));
     expect(find.byKey(const Key('video-preview')), findsNothing);
 
@@ -182,6 +194,88 @@ void main() {
     await tester.pump();
     expect(player.calls.last, 'seek 55000');
     await tester.pump(const Duration(seconds: 3));
+
+    // Près d'une note ponctuelle : saut sur la note.
+    await tester.tapAt(trackAt(tester, 70200));
+    await tester.pump();
+    expect(player.calls.last, 'seek 70000');
+    await tester.pump(const Duration(seconds: 3));
+  });
+
+  testWidgets('le bouton voisin du titre reprend l\'extrait au début', (
+    tester,
+  ) async {
+    player.state = at(30000, playing: true);
+    await pumpBar(tester);
+    await tester.tap(find.byKey(const Key('video-current-start')));
+    await tester.pump();
+    expect(player.calls, ['seek 20000']);
+    await tester.pump(const Duration(seconds: 3));
+  });
+
+  testWidgets('après un saut ou une pause, l\'ancien état relevé ne fait pas '
+      'reculer la tête de lecture', (tester) async {
+    player.state = at(10000, playing: true);
+    await pumpBar(tester);
+    await tester.tapAt(trackAt(tester, 55000));
+    await tester.tap(find.byIcon(Icons.pause));
+    // Le lecteur rend encore l'ancien état pendant deux relevés.
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(find.text('0:55 / 1:40'), findsOneWidget);
+    expect(find.byIcon(Icons.play_arrow), findsOneWidget);
+    // Le lecteur rattrape la commande : son état fait foi de nouveau.
+    player.state = at(55100);
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(find.text('0:55 / 1:40'), findsOneWidget);
+    player.state = at(56000);
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(find.text('0:56 / 1:40'), findsOneWidget);
+
+    // Sans réponse du lecteur, l'état relevé reprend la main au bout de
+    // 600 ms.
+    await tester.tapAt(trackAt(tester, 90000));
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(find.text('1:30 / 1:40'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(find.text('0:56 / 1:40'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 3));
+  });
+
+  testWidgets('« Revoir l\'extrait » : un saut dans l\'extrait garde l\'arrêt '
+      'à sa fin', (tester) async {
+    player.state = at(20000);
+    await pumpBar(tester, selection: (20000, 40000), stopAtSelectionEnd: true);
+    await tester.tapAt(trackAt(tester, 30000));
+    await tester.pump();
+    expect(player.calls, ['segment 30000 40000 false']);
+    await tester.tapAt(trackAt(tester, 60000));
+    await tester.pump();
+    expect(player.calls.last, 'seek 60000');
+    await tester.pump(const Duration(seconds: 3));
+  });
+
+  testWidgets('sous-titres et boutons ajoutés', (tester) async {
+    player.state = at(0);
+    var marked = 0;
+    await pumpBar(
+      tester,
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.first_page),
+          onPressed: () => marked++,
+        ),
+      ],
+    );
+    await tester.tap(find.byIcon(Icons.closed_caption_off_outlined));
+    await tester.pump();
+    expect(player.calls, ['captions true']);
+    await tester.tap(find.byIcon(Icons.closed_caption));
+    await tester.pump();
+    expect(player.calls.last, 'captions false');
+    await tester.tap(find.byIcon(Icons.first_page));
+    expect(marked, 1);
   });
 
   testWidgets('glisser la tête de lecture', (tester) async {

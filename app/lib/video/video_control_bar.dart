@@ -20,9 +20,10 @@ String rateLabel(double rate) =>
 /// en bleu, verso en orange, notes, extrait en cours de marquage).
 ///
 /// Le survol (souris) ou le glissement (doigt) d'un extrait affiche son
-/// titre ; un appui sur un extrait y saute, ailleurs il déplace la lecture.
-/// Le titre de ce qui est en cours de lecture s'affiche près du temps, et
-/// l'ouvre ([onOpen]).
+/// titre ; un appui déplace la lecture au point touché (près d'une note
+/// ponctuelle : sur la note). Le titre de ce qui est en cours de lecture
+/// s'affiche près du temps : il l'ouvre ([onOpen]), et un bouton voisin
+/// reprend l'extrait à son début.
 class VideoControlBar extends StatefulWidget {
   const VideoControlBar({
     super.key,
@@ -35,6 +36,8 @@ class VideoControlBar extends StatefulWidget {
     this.onOpen,
     this.onFullscreen,
     this.fullscreen = false,
+    this.stopAtSelectionEnd = false,
+    this.actions = const [],
     this.pollInterval = const Duration(milliseconds: 250),
   });
 
@@ -53,6 +56,13 @@ class VideoControlBar extends StatefulWidget {
   /// Bascule le plein cadre (pas de bouton si `null`).
   final VoidCallback? onFullscreen;
   final bool fullscreen;
+
+  /// Un saut dans [selection] garde l'arrêt à sa fin (« Revoir l'extrait »).
+  final bool stopAtSelectionEnd;
+
+  /// Boutons ajoutés avant la vitesse (marquage d'un extrait en plein
+  /// cadre…).
+  final List<Widget> actions;
 
   /// Fréquence de relevé de l'état du lecteur.
   final Duration pollInterval;
@@ -76,6 +86,19 @@ class _VideoControlBarState extends State<VideoControlBar> {
   int? _flashMs;
   Timer? _flashTimer;
 
+  /// Valeurs imposées par une commande locale : le lecteur rend encore un
+  /// moment l'ancien état (valeurs en cache, message en route), qui ferait
+  /// sauter la tête de lecture ou l'icône. Elles l'emportent sur l'état
+  /// relevé jusqu'à ce que le lecteur les rattrape, au plus [_holdTime].
+  int? _heldPosition;
+  bool? _heldPlaying;
+  bool? _heldMuted;
+  double? _heldRate;
+  Timer? _holdTimer;
+  static const _holdTime = Duration(milliseconds: 600);
+
+  var _captions = false;
+
   @override
   void initState() {
     super.initState();
@@ -87,6 +110,7 @@ class _VideoControlBarState extends State<VideoControlBar> {
   void dispose() {
     _poll?.cancel();
     _flashTimer?.cancel();
+    _holdTimer?.cancel();
     super.dispose();
   }
 
@@ -94,8 +118,24 @@ class _VideoControlBarState extends State<VideoControlBar> {
     if (_polling) return;
     _polling = true;
     try {
-      final state = await widget.controller.playback();
-      if (mounted && state != null) setState(() => _state = state);
+      final polled = await widget.controller.playback();
+      if (!mounted || polled == null) return;
+      if (_heldPosition != null &&
+          (polled.positionMs - _heldPosition!).abs() < 1000) {
+        _heldPosition = null;
+      }
+      if (_heldPlaying == polled.playing) _heldPlaying = null;
+      if (_heldMuted == polled.muted) _heldMuted = null;
+      if (_heldRate == polled.rate) _heldRate = null;
+      setState(
+        () => _state = (
+          positionMs: _heldPosition ?? polled.positionMs,
+          durationMs: polled.durationMs,
+          playing: _heldPlaying ?? polled.playing,
+          muted: _heldMuted ?? polled.muted,
+          rate: _heldRate ?? polled.rate,
+        ),
+      );
     } catch (_) {
       // Lecteur pas encore prêt, ou vue web fermée.
     } finally {
@@ -106,6 +146,14 @@ class _VideoControlBarState extends State<VideoControlBar> {
   void _update({int? positionMs, bool? playing, bool? muted, double? rate}) {
     final s = _state;
     if (s == null) return;
+    _heldPosition = positionMs ?? _heldPosition;
+    _heldPlaying = playing ?? _heldPlaying;
+    _heldMuted = muted ?? _heldMuted;
+    _heldRate = rate ?? _heldRate;
+    _holdTimer?.cancel();
+    _holdTimer = Timer(_holdTime, () {
+      _heldPosition = _heldPlaying = _heldMuted = _heldRate = null;
+    });
     setState(
       () => _state = (
         positionMs: positionMs ?? s.positionMs,
@@ -118,8 +166,24 @@ class _VideoControlBarState extends State<VideoControlBar> {
   }
 
   void _seek(int ms) {
-    widget.controller.seek(ms, play: _state?.playing ?? false);
+    final play = _state?.playing ?? false;
+    final sel = widget.selection;
+    if (widget.stopAtSelectionEnd &&
+        sel != null &&
+        sel.$2 != null &&
+        ms >= sel.$1 &&
+        ms < sel.$2!) {
+      // Dans l'extrait : l'arrêt à sa fin reste programmé.
+      widget.controller.playSegment(ms, sel.$2, play: play);
+    } else {
+      widget.controller.seek(ms, play: play);
+    }
     _update(positionMs: ms);
+  }
+
+  void _toggleCaptions() {
+    setState(() => _captions = !_captions);
+    widget.controller.setCaptions(_captions);
   }
 
   void _flash(int ms) {
@@ -201,6 +265,16 @@ class _VideoControlBarState extends State<VideoControlBar> {
                   ? const SizedBox.shrink()
                   : _current(theme, current),
             ),
+            ...widget.actions,
+            IconButton(
+              tooltip: _captions
+                  ? 'Masquer les sous-titres'
+                  : 'Afficher les sous-titres',
+              isSelected: _captions,
+              icon: const Icon(Icons.closed_caption_off_outlined),
+              selectedIcon: const Icon(Icons.closed_caption),
+              onPressed: ready ? _toggleCaptions : null,
+            ),
             PopupMenuButton<double>(
               tooltip: 'Vitesse de lecture',
               enabled: ready,
@@ -238,11 +312,36 @@ class _VideoControlBarState extends State<VideoControlBar> {
   }
 
   /// Titre de ce qui est en cours de lecture (le premier ; « +n » pour les
-  /// autres), qui ouvre la connaissance ou la note.
+  /// autres), qui ouvre la connaissance ou la note, précédé d'un bouton qui
+  /// reprend l'extrait à son début.
   Widget _current(ThemeData theme, List<TimeSpan> current) {
     final first = current.first;
     final more = current.length > 1 ? '  +${current.length - 1}' : '';
     final open = widget.onOpen;
+    return Row(
+      children: [
+        IconButton(
+          key: const Key('video-current-start'),
+          visualDensity: VisualDensity.compact,
+          iconSize: 20,
+          tooltip: 'Reprendre « ${first.label} » au début',
+          icon: const Icon(Icons.skip_previous),
+          onPressed: () {
+            _seek(first.start);
+            _flash(first.start);
+          },
+        ),
+        Flexible(child: _currentTitle(theme, first, more, open)),
+      ],
+    );
+  }
+
+  Widget _currentTitle(
+    ThemeData theme,
+    TimeSpan first,
+    String more,
+    void Function(TimeSpan)? open,
+  ) {
     return Align(
       alignment: Alignment.centerLeft,
       child: Tooltip(
@@ -374,8 +473,10 @@ class _VideoControlBarState extends State<VideoControlBar> {
             behavior: HitTestBehavior.opaque,
             onTapUp: (d) {
               final dx = d.localPosition.dx;
-              final spans = near(dx);
-              final target = spans.isEmpty ? msAt(dx) : spans.last.start;
+              // Comme les chapitres de YouTube : saut au point touché, sauf
+              // près d'une note ponctuelle, difficile à viser du doigt.
+              final points = near(dx).where((s) => s.end == null);
+              final target = points.isEmpty ? msAt(dx) : points.last.start;
               _seek(target);
               _flash(target);
             },

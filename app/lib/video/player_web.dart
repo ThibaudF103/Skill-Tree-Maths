@@ -77,9 +77,9 @@ class PlatformYoutubeController implements YoutubePlayerController {
   }
 
   @override
-  Future<void> playSegment(int startMs, int? endMs) async {
+  Future<void> playSegment(int startMs, int? endMs, {bool play = true}) async {
     _stopAt = endMs == null ? null : endMs / 1000;
-    _jump(startMs, true);
+    _jump(startMs, play);
   }
 
   @override
@@ -106,6 +106,10 @@ class PlatformYoutubeController implements YoutubePlayerController {
     _muted = muted;
     _post(muted ? 'mute' : 'unMute');
   }
+
+  @override
+  Future<void> setCaptions(bool on) async =>
+      _post(on ? 'loadModule' : 'unloadModule', ['captions']);
 
   @override
   Future<void> setRate(double rate) async {
