@@ -248,4 +248,44 @@ void main() {
     await store.deleteDocument(video.id);
     expect(await store.resourceLinks(), isEmpty);
   });
+
+  test('état du fichier suivi : import, mise à jour, suppression', () async {
+    final tree = await store.createNode(title: 'Poly');
+    final pdf = await store.importDocument(
+      title: 'Poly.pdf',
+      url: 'https://exemple.fr/poly.pdf',
+      bytes: Uint8List.fromList([1]),
+      contentHash: 'v1',
+      fingerprints: [page(1)],
+      nodeIds: [tree.id],
+    );
+    // Paquet importé sans le PDF : fiche sans fichier.
+    final archive = await store.exportTree(tree.id);
+    await store.deleteNode(tree.id, recursive: true);
+    await store.deleteDocument(pdf.id);
+    await store.importPack(archive);
+    final id = (await store.allDocuments()).single.id;
+
+    final states = <({String contentHash, bool hasFile})?>[];
+    final subscription = store.watchDocumentFile(id).listen(states.add);
+    await pumpEventQueue();
+    await store.attachDocumentFile(id, Uint8List.fromList([1]));
+    await pumpEventQueue();
+    await store.updateDocument(
+      id,
+      bytes: Uint8List.fromList([2]),
+      contentHash: 'v2',
+      fingerprints: [page(1)],
+    );
+    await pumpEventQueue();
+    await store.deleteDocument(id);
+    await pumpEventQueue();
+    await subscription.cancel();
+    expect(states, [
+      (contentHash: 'v1', hasFile: false),
+      (contentHash: 'v1', hasFile: true),
+      (contentHash: 'v2', hasFile: true),
+      null,
+    ]);
+  });
 }

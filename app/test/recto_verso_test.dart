@@ -184,6 +184,14 @@ void main() {
     await settle(tester);
     expect(find.text('Verso'), findsNothing);
     expect(find.byType(Image), findsOneWidget);
+
+    // … puis annuler : il revient tel quel, miniature comprise.
+    expect(find.text('Verso retiré'), findsOneWidget);
+    await tester.tap(find.widgetWithText(SnackBarAction, 'Annuler'));
+    await settle(tester);
+    expect(find.text('Verso'), findsOneWidget);
+    expect(find.text('Page à vérifier'), findsOneWidget);
+    expect(find.byType(Image), findsNWidgets(2));
     await unmountTestApp(tester);
   });
 

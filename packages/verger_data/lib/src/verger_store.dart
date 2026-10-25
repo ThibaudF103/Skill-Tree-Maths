@@ -24,6 +24,14 @@ class StaleReviewException implements Exception {
   String toString() => 'StaleReviewException($itemId)';
 }
 
+/// Ce qu'une suppression a retiré, pour la défaire avec
+/// [VergerStore.undoDeletion] (bouton « Annuler »). Les lignes sont remises
+/// telles quelles, avec les mêmes identifiants.
+final class Deletion {
+  Deletion._(this._undo);
+  final Future<void> Function() _undo;
+}
+
 /// Bilan d'une mise à jour de PDF.
 /// PDF joint à un paquet (ou téléchargé à l'import), déjà analysé.
 typedef PackPdf = ({
@@ -303,8 +311,73 @@ class VergerStore {
     }
   }
 
-  Future<void> deleteItem(String id) =>
-      (_db.delete(_db.items)..where((i) => i.id.equals(id))).go();
+  /// Supprime une connaissance avec son historique de révision et ses liens
+  /// (prérequis, recto / verso) ; ses notes restent, détachées. L'annulation
+  /// rétablit tout, notes rattachées comprises.
+  Future<Deletion> deleteItem(String id) => _db.transaction(() async {
+    final item = await (_db.select(
+      _db.items,
+    )..where((i) => i.id.equals(id))).getSingleOrNull();
+    final logs = await (_db.select(
+      _db.reviewLogs,
+    )..where((l) => l.itemId.equals(id))).get();
+    final edges = await (_db.select(
+      _db.prerequisites,
+    )..where((p) => p.itemId.equals(id) | p.requiresId.equals(id))).get();
+    final anchors = await _anchorsQuery(itemId: id).get();
+    final noteIds = [
+      for (final n in await (_db.select(
+        _db.notes,
+      )..where((n) => n.itemId.equals(id))).get())
+        n.id,
+    ];
+    await (_db.delete(_db.items)..where((i) => i.id.equals(id))).go();
+    return Deletion._(() async {
+      if (item == null) return;
+      if (await node(item.nodeId) == null) {
+        throw StateError('La branche de la connaissance a été supprimée.');
+      }
+      if (await this.item(item.id) != null) {
+        throw StateError(
+          'La connaissance est déjà revenue (sauvegarde restaurée ?).',
+        );
+      }
+      await _db.into(_db.items).insert(item);
+      for (final log in logs) {
+        await _db.into(_db.reviewLogs).insert(log);
+      }
+      // Seulement les liens vers des connaissances et contenus encore là, et
+      // sans cycle (un autre lien a pu être ajouté entre-temps).
+      final items = {for (final i in await _db.select(_db.items).get()) i.id};
+      for (final edge in edges) {
+        if (!items.contains(edge.itemId) || !items.contains(edge.requiresId)) {
+          continue;
+        }
+        final graph = PrerequisiteGraph(await prerequisites());
+        if (graph.wouldCreateCycle(edge.itemId, edge.requiresId)) continue;
+        await _db.into(_db.prerequisites).insertOnConflictUpdate(edge);
+      }
+      final documents = {
+        for (final d in await _db.select(_db.documents).get()) d.id,
+      };
+      for (final anchor in anchors) {
+        if (documents.contains(anchor.documentId)) {
+          await _db.into(_db.anchors).insert(anchor);
+        }
+      }
+      await (_db.update(_db.notes)
+            ..where((n) => n.id.isIn(noteIds) & n.itemId.isNull()))
+          .write(NotesCompanion(itemId: Value(id)));
+    });
+  });
+
+  /// Défait une suppression ([deleteItem], [deleteAnchor],
+  /// [removePrerequisite]). Lève une [StateError] (message en français) si
+  /// ce dont elle dépend a disparu entre-temps (branche, connaissance,
+  /// contenu…) ou si ce qu'elle remet est déjà revenu (sauvegarde
+  /// restaurée).
+  Future<void> undoDeletion(Deletion deletion) =>
+      _db.transaction(deletion._undo);
 
   // --- Révisions -----------------------------------------------------------
 
@@ -421,6 +494,30 @@ class VergerStore {
 
   Stream<List<SourceDocument>> watchDocuments() =>
       _documentsQuery().watch().map((rows) => rows.map(_toDocument).toList());
+
+  /// État du fichier d'un document, suivi sans charger le PDF : change à
+  /// chaque mise à jour (empreinte) et quand le fichier est joint ou retiré.
+  /// `null` si le document n'existe pas.
+  Stream<({String contentHash, bool hasFile})?> watchDocumentFile(
+    String id,
+  ) => _db
+      .customSelect(
+        'SELECT d.content_hash AS hash, EXISTS (SELECT 1 FROM document_files f '
+        'WHERE f.document_id = d.id) AS has_file '
+        'FROM documents d WHERE d.id = ?',
+        variables: [Variable.withString(id)],
+        readsFrom: {_db.documents, _db.documentFiles},
+      )
+      .watchSingleOrNull()
+      .map(
+        (row) => row == null
+            ? null
+            : (
+                contentHash: row.read<String>('hash'),
+                hasFile: row.read<bool>('has_file'),
+              ),
+      )
+      .distinct();
 
   Future<SourceDocument?> document(String id) async {
     final row = await (_db.select(
@@ -555,11 +652,20 @@ class VergerStore {
             );
       });
 
-  Future<void> removePrerequisite(String itemId, String requiresId) =>
-      (_db.delete(_db.prerequisites)..where(
-            (p) => p.itemId.equals(itemId) & p.requiresId.equals(requiresId),
-          ))
-          .go();
+  /// Retire un prérequis ; l'annulation le remet (refusée par [StateError]
+  /// s'il créerait désormais un cycle).
+  Future<Deletion> removePrerequisite(String itemId, String requiresId) async {
+    await (_db.delete(_db.prerequisites)..where(
+          (p) => p.itemId.equals(itemId) & p.requiresId.equals(requiresId),
+        ))
+        .go();
+    return Deletion._(() async {
+      if (await item(itemId) == null || await item(requiresId) == null) {
+        throw StateError('L\'une des deux connaissances a été supprimée.');
+      }
+      await addPrerequisite(itemId, requiresId);
+    });
+  }
 
   Future<List<Prerequisite>> prerequisites() async =>
       (await _db.select(_db.prerequisites).get()).map(_toPrerequisite).toList();
@@ -712,8 +818,30 @@ class VergerStore {
     ),
   );
 
-  Future<void> deleteAnchor(String id) =>
-      (_db.delete(_db.anchors)..where((a) => a.id.equals(id))).go();
+  /// Retire un lien recto / verso ; l'annulation le remet tel quel
+  /// (miniature comprise).
+  Future<Deletion> deleteAnchor(String id) => _db.transaction(() async {
+    final row = await (_db.select(
+      _db.anchors,
+    )..where((a) => a.id.equals(id))).getSingleOrNull();
+    await (_db.delete(_db.anchors)..where((a) => a.id.equals(id))).go();
+    return Deletion._(() async {
+      if (row == null) return;
+      if (await item(row.itemId) == null) {
+        throw StateError('La connaissance a été supprimée.');
+      }
+      if (await document(row.documentId) == null) {
+        throw StateError('Le contenu (PDF ou vidéo) a été supprimé.');
+      }
+      final existing = await (_db.select(
+        _db.anchors,
+      )..where((a) => a.id.equals(row.id))).getSingleOrNull();
+      if (existing != null) {
+        throw StateError('Ce lien est déjà revenu (sauvegarde restaurée ?).');
+      }
+      await _db.into(_db.anchors).insert(row);
+    });
+  });
 
   // --- Notes de travail ---------------------------------------------------
 

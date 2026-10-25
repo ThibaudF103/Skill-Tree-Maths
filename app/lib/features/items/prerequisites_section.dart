@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:verger_core/verger_core.dart';
+import 'package:verger_data/verger_data.dart';
 
 import '../../app/app_scope.dart';
+import '../../ui/dialogs.dart';
 import '../../ui/labels.dart';
 import '../documents/pickers.dart';
 import '../trees/node_picker.dart';
@@ -66,6 +68,18 @@ class _PrerequisitesSectionState extends State<PrerequisitesSection> {
     }
   }
 
+  /// Lien vers [other] retiré : on propose de le remettre.
+  Future<void> _undoable(KnowledgeItem other, Future<Deletion> removal) async {
+    final store = AppScope.of(context).store;
+    final messenger = ScaffoldMessenger.of(context);
+    final deletion = await removal;
+    showUndoSnackBar(
+      messenger,
+      message: 'Lien retiré : « ${other.title} »',
+      onUndo: () => store.undoDeletion(deletion),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<Prerequisite>>(
@@ -96,7 +110,8 @@ class _PrerequisitesSectionState extends State<PrerequisitesSection> {
                   empty: 'Aucun prérequis.',
                   items: requires,
                   path: (i) => nodePath(nodeById, i.nodeId),
-                  onRemove: (other) => store.removePrerequisite(id, other.id),
+                  onRemove: (other) =>
+                      _undoable(other, store.removePrerequisite(id, other.id)),
                   addLabel: 'Prérequis',
                   onAdd: () => _add(
                     requires: true,
@@ -109,7 +124,8 @@ class _PrerequisitesSectionState extends State<PrerequisitesSection> {
                   empty: 'Aucune connaissance ne s\'appuie sur celle-ci.',
                   items: usedBy,
                   path: (i) => nodePath(nodeById, i.nodeId),
-                  onRemove: (other) => store.removePrerequisite(other.id, id),
+                  onRemove: (other) =>
+                      _undoable(other, store.removePrerequisite(other.id, id)),
                   addLabel: 'Utilisation',
                   onAdd: () => _add(
                     requires: false,
