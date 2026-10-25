@@ -193,12 +193,13 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
     try {
       await _store.applyReview(item.id, record);
       _results.add(rating);
-      await _saveAttempt(item, rating, text, ink);
+      await _saveDraft(item, text, ink, rating: rating);
       await _afterReview(item, rating, record.reviewedAt);
     } on StaleReviewException {
       // Révisée ailleurs entre-temps : on passe à la suivante, sans perdre
-      // la tentative.
-      await _saveAttempt(item, rating, text, ink);
+      // ce qui a été écrit (note ordinaire : cette note n'a pas été
+      // retenue).
+      await _saveDraft(item, text, ink);
     } catch (e) {
       // Connaissance supprimée entre-temps, erreur de base… : on prévient
       // et on passe à la suivante plutôt que de bloquer la session.
@@ -211,13 +212,19 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
     await _show(_index + 1);
   }
 
-  /// Enregistre la tentative (si elle n'est pas vide) avec la connaissance.
-  Future<void> _saveAttempt(
+  /// Brouillon de la carte affichée non vide.
+  bool get _hasDraft =>
+      _item != null &&
+      (_draftText.text.trim().isNotEmpty || !_draftInk.ink.isEmpty);
+
+  /// Enregistre le brouillon (s'il n'est pas vide) avec la connaissance :
+  /// tentative de révision avec [rating], sinon note ordinaire.
+  Future<void> _saveDraft(
     KnowledgeItem item,
-    Rating rating,
     String text,
-    InkDrawing ink,
-  ) async {
+    InkDrawing ink, {
+    Rating? rating,
+  }) async {
     if (text.trim().isEmpty && ink.isEmpty) return;
     await _store.createNote(
       body: text,
@@ -225,6 +232,46 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
       itemId: item.id,
       reviewRating: rating,
     );
+  }
+
+  /// Quitter la session (Terminer, retour) : un brouillon non vide est
+  /// gardé (note de la connaissance, sans note de révision) ou jeté, au
+  /// choix ; « Annuler » reste sur la carte.
+  Future<void> _leave() async {
+    final item = _item;
+    if (item == null || !_hasDraft) {
+      Navigator.of(context).pop();
+      return;
+    }
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Garder votre tentative ?'),
+        content: Text(
+          'Elle n\'a pas été notée. Gardée, elle rejoint les notes de '
+          '« ${item.title} ».',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, 'discard'),
+            child: const Text('Jeter'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, 'keep'),
+            child: const Text('Garder'),
+          ),
+        ],
+      ),
+    );
+    if (choice == null || !mounted) return;
+    if (choice == 'keep') {
+      await _saveDraft(item, _draftText.text, _draftInk.ink);
+    }
+    if (mounted) Navigator.of(context).pop();
   }
 
   /// Prérequis directs de [item] encore existants et actifs.
@@ -322,7 +369,12 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
 
   void _reveal() {
     if (_item != null && !_revealed) setState(() => _revealed = true);
+    // Le focus quitte la tentative : 1 à 4 notent la carte.
+    _focus.requestFocus();
   }
+
+  /// Rend les raccourcis à la session (zone de notes fermée, mode changé).
+  void _takeFocus() => _focus.requestFocus();
 
   /// Corrige l'exercice ; tout lu → correction affichée et note proposée.
   void _check() {
@@ -390,43 +442,50 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
   Widget build(BuildContext context) {
     final total = _ids.length;
     final done = _nodes != null && _item == null;
-    return Focus(
-      focusNode: _focus,
-      autofocus: true,
-      onKeyEvent: _onKey,
-      child: Scaffold(
-        appBar: AppBar(
-          leading: IconButton(
-            tooltip: 'Terminer',
-            icon: const Icon(Icons.close),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-          title: done
-              ? const Text('Session terminée')
-              : Text('${(_index + 1).clamp(1, total)} / $total'),
-          actions: [
-            if (!done && _nodes != null && _exercise == null)
-              IconButton(
-                tooltip: 'Prendre des notes',
-                isSelected: _noting,
-                icon: const Icon(Icons.edit_note),
-                onPressed: () => setState(() => _noting = !_noting),
+    return PopScope(
+      // Retour du système : le brouillon en cours n'est pas perdu en silence.
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _leave();
+      },
+      child: Focus(
+        focusNode: _focus,
+        autofocus: true,
+        onKeyEvent: _onKey,
+        child: Scaffold(
+          appBar: AppBar(
+            leading: IconButton(
+              tooltip: 'Terminer',
+              icon: const Icon(Icons.close),
+              onPressed: _leave,
+            ),
+            title: done
+                ? const Text('Session terminée')
+                : Text('${(_index + 1).clamp(1, total)} / $total'),
+            actions: [
+              if (!done && _nodes != null && _exercise == null)
+                IconButton(
+                  tooltip: 'Prendre des notes',
+                  isSelected: _noting,
+                  icon: const Icon(Icons.edit_note),
+                  onPressed: () => setState(() => _noting = !_noting),
+                ),
+              const SizedBox(width: 4),
+            ],
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(3),
+              child: LinearProgressIndicator(
+                value: total == 0 ? 1 : (done ? total : _index) / total,
+                minHeight: 3,
               ),
-            const SizedBox(width: 4),
-          ],
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(3),
-            child: LinearProgressIndicator(
-              value: total == 0 ? 1 : (done ? total : _index) / total,
-              minHeight: 3,
             ),
           ),
+          body: _nodes == null
+              ? const Center(child: CircularProgressIndicator())
+              : done
+              ? _Summary(results: _results, elapsed: _session.elapsed)
+              : _buildCard(context, _item!),
         ),
-        body: _nodes == null
-            ? const Center(child: CircularProgressIndicator())
-            : done
-            ? _Summary(results: _results, elapsed: _session.elapsed)
-            : _buildCard(context, _item!),
       ),
     );
   }
@@ -452,7 +511,10 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
                   ? 'Votre tentative : comparez au verso'
                   : 'Votre tentative',
             ),
-            onClose: () => setState(() => _noting = false),
+            onClose: () {
+              setState(() => _noting = false);
+              _takeFocus();
+            },
             // Pas de prise de notes pour un exercice corrigé
             // automatiquement : les réponses se saisissent dans la carte.
             note: _noting && _exercise == null
@@ -461,6 +523,7 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
                     text: _draftText,
                     ink: _draftInk,
                     hint: 'Rédigez de mémoire, puis révélez pour comparer',
+                    onModeChanged: _takeFocus,
                   )
                 : null,
             content: SingleChildScrollView(

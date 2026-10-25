@@ -58,7 +58,10 @@ void main() {
     expect(find.textContaining('diagonalisable'), findsOneWidget);
     expect(find.text('Autoadjoint : BON'), findsOneWidget);
     expect(find.text('Votre tentative : comparez au verso'), findsOneWidget);
-    // Un chiffre tapé dans la tentative ne note pas la carte.
+    // Révéler rend la main aux raccourcis ; mais un chiffre tapé dans la
+    // tentative (de nouveau touchée) ne note pas la carte.
+    await tester.tap(find.byType(TextField));
+    await tester.pump();
     await tester.sendKeyEvent(LogicalKeyboardKey.digit1);
     await tester.pump();
     expect(find.text('Session terminée'), findsNothing);
@@ -191,6 +194,134 @@ void main() {
     expect(find.text('Correct'), findsOneWidget);
     expect(find.text('À revoir'), findsOneWidget);
     expect(find.textContaining('Révision du '), findsNWidgets(2));
+    await unmountTestApp(tester);
+  });
+
+  testWidgets('écrire, révéler : 1 à 4 notent la carte', (tester) async {
+    final store = await pumpTestApp(tester, seed: seed);
+    await startWithNotes(tester);
+    await tester.tap(find.text('Clavier'));
+    await tester.pump();
+    await tester.enterText(find.byType(TextField), 'BON');
+    await tester.tap(find.text('Révéler'));
+    await settle(tester);
+    await tester.sendKeyEvent(LogicalKeyboardKey.digit3);
+    await settle(tester);
+    expect(find.text('Session terminée'), findsOneWidget);
+    final note = (await tester.runAsync(store.notes))!.single;
+    expect(note.reviewRating, Rating.good);
+    await unmountTestApp(tester);
+  });
+
+  testWidgets('zone de notes fermée en pleine saisie : Espace révèle', (
+    tester,
+  ) async {
+    await pumpTestApp(tester, seed: seed);
+    await startWithNotes(tester);
+    await tester.tap(find.text('Clavier'));
+    await tester.pump();
+    await tester.tap(find.byType(TextField));
+    await tester.pump();
+    await tester.tap(find.byTooltip('Fermer la note'));
+    await settle(tester);
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await settle(tester);
+    expect(find.textContaining('diagonalisable'), findsOneWidget);
+    await tester.tap(find.byTooltip('Terminer'));
+    await settle(tester);
+    await unmountTestApp(tester);
+  });
+
+  testWidgets('passage au stylet depuis la saisie : Espace révèle', (
+    tester,
+  ) async {
+    await pumpTestApp(tester, seed: seed);
+    await startWithNotes(tester);
+    await tester.tap(find.text('Clavier'));
+    await tester.pump();
+    await tester.tap(find.byType(TextField));
+    await tester.pump();
+    await tester.tap(find.text('Stylet'));
+    await settle(tester);
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await settle(tester);
+    expect(find.textContaining('diagonalisable'), findsOneWidget);
+    await tester.tap(find.byTooltip('Terminer'));
+    await settle(tester);
+    await unmountTestApp(tester);
+  });
+
+  testWidgets('quitter avec une tentative : garder ou jeter', (tester) async {
+    final store = await pumpTestApp(tester, seed: seed);
+    await startWithNotes(tester);
+    await tester.tap(find.text('Clavier'));
+    await tester.pump();
+    await tester.enterText(find.byType(TextField), 'Brouillon');
+
+    // Jeter : rien d'enregistré, la session se ferme.
+    await tester.tap(find.byTooltip('Terminer'));
+    await settle(tester);
+    expect(find.text('Garder votre tentative ?'), findsOneWidget);
+    await tester.tap(find.text('Annuler'));
+    await settle(tester);
+    expect(find.text('Brouillon'), findsOneWidget); // toujours là
+    await tester.tap(find.byTooltip('Terminer'));
+    await settle(tester);
+    await tester.tap(find.text('Jeter'));
+    await settle(tester);
+    expect(find.byType(ReviewSessionPage), findsNothing);
+    expect(await tester.runAsync(store.notes), isEmpty);
+
+    // Garder : note ordinaire de la connaissance, sans note de révision.
+    await tester.tap(find.text('Commencer (1)'));
+    await settle(tester);
+    await tester.tap(find.text('Clavier'));
+    await tester.pump();
+    await tester.enterText(find.byType(TextField), 'À garder');
+    await tester.tap(find.byTooltip('Terminer'));
+    await settle(tester);
+    await tester.tap(find.text('Garder'));
+    await settle(tester);
+    expect(find.byType(ReviewSessionPage), findsNothing);
+    final item = (await tester.runAsync(store.allItems))!.single;
+    final note = (await tester.runAsync(store.notes))!.single;
+    expect(note.body, 'À garder');
+    expect(note.itemId, item.id);
+    expect(note.isReviewAttempt, isFalse);
+    // La carte n'a pas été révisée.
+    expect(item.scheduling.reps, 0);
+    await unmountTestApp(tester);
+  });
+
+  testWidgets('révisée ailleurs entre-temps : tentative gardée sans note', (
+    tester,
+  ) async {
+    final store = await pumpTestApp(tester, seed: seed);
+    await startWithNotes(tester);
+    await tester.tap(find.text('Clavier'));
+    await tester.pump();
+    await tester.enterText(find.byType(TextField), 'Essai');
+    await tester.tap(find.text('Révéler'));
+    await settle(tester);
+    // Révision concurrente (autre appareil, autre fenêtre).
+    await tester.runAsync(() async {
+      final item = (await store.allItems()).single;
+      await store.applyReview(
+        item.id,
+        const SchedulerSettings().build().record(
+          item.scheduling,
+          Rating.easy,
+          DateTime.now(),
+        ),
+      );
+    });
+    await tester.tap(find.text('À revoir'));
+    await settle(tester);
+    final note = (await tester.runAsync(store.notes))!.single;
+    expect(note.body, 'Essai');
+    expect(note.isReviewAttempt, isFalse);
+    final history = (await tester.runAsync(() => store.history(note.itemId!)))!;
+    expect(history.single.rating, Rating.easy);
     await unmountTestApp(tester);
   });
 }

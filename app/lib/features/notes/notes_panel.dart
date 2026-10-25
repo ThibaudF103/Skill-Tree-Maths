@@ -250,11 +250,15 @@ class NoteDraftEditor extends StatefulWidget {
     required this.text,
     required this.ink,
     this.hint = r'Formules : $x^2$ ou $$\sum_k a_k$$',
+    this.onModeChanged,
   });
 
   final TextEditingController text;
   final InkEditorController ink;
   final String hint;
+
+  /// Après un changement de mode (le clavier a pu perdre le focus).
+  final VoidCallback? onModeChanged;
 
   @override
   State<NoteDraftEditor> createState() => _NoteDraftEditorState();
@@ -272,6 +276,7 @@ class _NoteDraftEditorState extends State<NoteDraftEditor> {
     if (handwriting) FocusScope.of(context).unfocus();
     _lastHandwriting = handwriting;
     setState(() => _handwriting = handwriting);
+    widget.onModeChanged?.call();
   }
 
   @override

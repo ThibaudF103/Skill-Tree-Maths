@@ -1489,10 +1489,14 @@ class VergerStore {
     }
 
     if (replace) {
-      // Une note survivrait à sa connaissance (lien remis à zéro).
-      await (_db.delete(
-        _db.notes,
-      )..where((n) => n.id.isIn(plan.lostNotes))).go();
+      // Une note survivrait à sa connaissance (lien remis à zéro) ; les
+      // tentatives de révision suivent leur connaissance, comme l'historique.
+      await (_db.delete(_db.notes)..where(
+            (n) =>
+                n.id.isIn(plan.lostNotes) |
+                (n.reviewRating.isNotNull() & n.itemId.isIn(plan.lostItems)),
+          ))
+          .go();
       // Historique, ancres et prérequis suivent leur connaissance.
       await (_db.delete(
         _db.items,
@@ -1839,9 +1843,14 @@ class VergerStore {
       lostNodes: targetNodes.difference(nodeIds.values.toSet()),
       lostItems: lostItems,
       lostAnchors: targetAnchors.difference(anchorIds.values.toSet()),
+      // Les tentatives de révision ne voyagent pas dans les paquets : elles
+      // restent avec leur connaissance (et partent avec elle).
       lostNotes: {
         for (final n in notes)
-          if (targetItems.contains(n.itemId) && !keptNotes.contains(n.id)) n.id,
+          if (n.reviewRating == null &&
+              targetItems.contains(n.itemId) &&
+              !keptNotes.contains(n.id))
+            n.id,
       },
       lostLinks: [
         for (final l in links)

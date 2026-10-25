@@ -216,6 +216,36 @@ void main() {
     ]);
   });
 
+  test('remplacer : les tentatives de révision restent avec leur '
+      'connaissance', () async {
+    final cesaroId = (await itemNamed(student, 'Cesàro')).id;
+    final lemmaId = (await itemNamed(student, 'Lemme perso')).id;
+    await student.createNote(
+      body: 'Essai Cesàro',
+      itemId: cesaroId,
+      reviewRating: Rating.good,
+    );
+    await student.createNote(
+      body: 'Essai lemme',
+      itemId: lemmaId,
+      reviewRating: Rating.hard,
+    );
+    // Pas comptées comme perdues : le paquet n'en transporte jamais.
+    expect((await student.previewPack(v2)).notes, 2); // Ma remarque, Idée
+
+    await student.importPack(v2);
+    final attempt = (await student.notes(
+      itemId: cesaroId,
+    )).singleWhere((n) => n.isReviewAttempt);
+    expect(attempt.body, 'Essai Cesàro');
+    expect(attempt.reviewRating, Rating.good);
+    // Celle du lemme supprimé part avec lui, sans rester orpheline.
+    expect(
+      (await student.notes()).map((n) => n.body),
+      isNot(contains('Essai lemme')),
+    );
+  });
+
   test('combiner : le paquet met à jour, rien de local ne se perd', () async {
     final cesaroId = (await itemNamed(student, 'Cesàro')).id;
     final lemmaId = (await itemNamed(student, 'Lemme perso')).id;

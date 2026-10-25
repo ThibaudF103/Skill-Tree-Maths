@@ -377,9 +377,15 @@ final class VergerArchive {
     }
   }
 
+  /// Version écrite : la 6 seulement si l'archive contient des tentatives
+  /// de révision (jamais un paquet) ; sinon la 5, qu'une version plus
+  /// ancienne de l'appli lit sans rien perdre.
+  int get writtenVersion =>
+      notes.any((n) => n.isReviewAttempt) ? currentVersion : 5;
+
   Map<String, Object?> toJson() => {
     'format': format,
-    'version': currentVersion,
+    'version': writtenVersion,
     'title': ?title,
     'exportedAt': DateTime.now().toUtc().toIso8601String(),
     'settings': ?settings?.toJson(),
