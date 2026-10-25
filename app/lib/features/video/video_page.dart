@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:verger_core/verger_core.dart';
@@ -14,6 +16,7 @@ import '../documents/pickers.dart';
 import '../items/item_detail_page.dart';
 import '../items/item_editor.dart';
 import '../notes/note_page.dart';
+import '../notes/note_split.dart';
 
 /// Vidéo YouTube : lecture, extraits (début / fin) à transformer en note,
 /// en connaissance (recto ou verso) ou à attacher ; extraits et notes déjà
@@ -62,6 +65,9 @@ class _VideoPageState extends State<VideoPage> {
   /// des widgets reste le même, pour ne pas recharger le lecteur.
   var _fullscreen = false;
 
+  /// Note ouverte sous la vidéo (écran partagé, hors plein cadre).
+  String? _openNote;
+
   /// Reçoit Échap (ordinateur, web) pour quitter le plein cadre.
   final _keys = FocusNode(debugLabel: 'video-page');
 
@@ -69,7 +75,11 @@ class _VideoPageState extends State<VideoPage> {
 
   void _setFullscreen(bool on) {
     if (on == _fullscreen) return;
-    setState(() => _fullscreen = on);
+    setState(() {
+      _fullscreen = on;
+      // Le plein cadre referme la note (enregistrée en partant).
+      if (on) _openNote = null;
+    });
     if (on && _scroll.hasClients) _scroll.jumpTo(0);
     if (on) _keys.requestFocus();
     // Masque aussi la barre d'état sur tablette (sans effet sur ordinateur).
@@ -92,12 +102,14 @@ class _VideoPageState extends State<VideoPage> {
     // La page ouverte ne doit hériter ni du plein cadre ni de la barre
     // d'état masquée.
     _setFullscreen(false);
+    if (span.role == null) {
+      setState(() => _openNote = span.id);
+      return;
+    }
     _covering(
       () => Navigator.of(context).push(
         MaterialPageRoute<void>(
-          builder: (_) => span.role == null
-              ? NotePage(noteId: span.id)
-              : ItemDetailPage(itemId: span.id),
+          builder: (_) => ItemDetailPage(itemId: span.id),
         ),
       ),
     );
@@ -207,9 +219,10 @@ class _VideoPageState extends State<VideoPage> {
         endMs: end,
       );
       if (!mounted) return;
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => NotePage(noteId: note.id)),
-      );
+      setState(() {
+        _openNote = note.id;
+        _start = _end = null;
+      });
       return;
     }
     final work = action == 'work' || action == 'createWork';
@@ -294,93 +307,110 @@ class _VideoPageState extends State<VideoPage> {
     body: SafeArea(
       top: _fullscreen,
       bottom: _fullscreen,
-      child: LayoutBuilder(
-        builder: (context, viewport) {
-          // Largeur de la vidéo en plein cadre : toute la fenêtre,
-          // moins la hauteur de la barre de lecture.
-          final width = _fullscreen
-              ? viewport.maxWidth.clamp(
-                  0.0,
-                  (viewport.maxHeight - 104).clamp(0.0, double.infinity) *
-                      16 /
-                      9,
-                )
-              : null;
-          return ListView(
-            controller: _scroll,
-            physics: _fullscreen ? const NeverScrollableScrollPhysics() : null,
-            padding: _fullscreen
-                ? EdgeInsets.zero
-                : const EdgeInsets.fromLTRB(16, 8, 16, 32),
-            children: [
-              Center(
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxWidth: _fullscreen ? double.infinity : 960,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Center(
-                        child: SizedBox(
-                          width: width,
-                          child: Stack(
-                            children: [
-                              const AspectRatio(
-                                aspectRatio: 16 / 9,
-                                child: ColoredBox(color: Colors.black),
-                              ),
-                              Offstage(
-                                offstage: _covered,
-                                child: YoutubePlayer(
-                                  videoId: document.contentHash,
-                                  controller: _player,
-                                  startMs: widget.startMs ?? 0,
-                                  endMs: widget.endMs,
+      child: NoteSplit(
+        title: const Text('Note'),
+        onClose: () => setState(() => _openNote = null),
+        note: _fullscreen || _openNote == null
+            ? null
+            : LiveNoteEditor(
+                key: ValueKey(_openNote),
+                noteId: _openNote!,
+                onDeleted: () => setState(() => _openNote = null),
+              ),
+        content: LayoutBuilder(
+          builder: (context, viewport) {
+            // Largeur de la vidéo en plein cadre : toute la fenêtre,
+            // moins la hauteur de la barre de lecture.
+            final width = _fullscreen
+                ? viewport.maxWidth.clamp(
+                    0.0,
+                    (viewport.maxHeight - 104).clamp(0.0, double.infinity) *
+                        16 /
+                        9,
+                  )
+                // Avec une note ouverte, la vidéo et sa barre restent entières
+                // au-dessus de la note.
+                : _openNote != null
+                ? math.max(240.0, (viewport.maxHeight - 104) * 16 / 9)
+                : null;
+            return ListView(
+              controller: _scroll,
+              physics: _fullscreen
+                  ? const NeverScrollableScrollPhysics()
+                  : null,
+              padding: _fullscreen
+                  ? EdgeInsets.zero
+                  : const EdgeInsets.fromLTRB(16, 8, 16, 32),
+              children: [
+                Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: _fullscreen ? double.infinity : 960,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Center(
+                          child: SizedBox(
+                            width: width,
+                            child: Stack(
+                              children: [
+                                const AspectRatio(
+                                  aspectRatio: 16 / 9,
+                                  child: ColoredBox(color: Colors.black),
                                 ),
-                              ),
+                                Offstage(
+                                  offstage: _covered,
+                                  child: YoutubePlayer(
+                                    videoId: document.contentHash,
+                                    controller: _player,
+                                    startMs: widget.startMs ?? 0,
+                                    endMs: widget.endMs,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Theme(
+                          // Barre claire sur fond noir en plein cadre.
+                          data: _fullscreen
+                              ? ThemeData(
+                                  brightness: Brightness.dark,
+                                  colorSchemeSeed: Theme.of(
+                                    context,
+                                  ).colorScheme.primary,
+                                )
+                              : Theme.of(context),
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: _fullscreen ? 16 : 0,
+                            ),
+                            child: _controlBar(),
+                          ),
+                        ),
+                        Visibility(
+                          visible: !_fullscreen,
+                          maintainState: true,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              const SizedBox(height: 8),
+                              _excerptBar(document),
+                              const SizedBox(height: 24),
+                              _linked(context),
                             ],
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Theme(
-                        // Barre claire sur fond noir en plein cadre.
-                        data: _fullscreen
-                            ? ThemeData(
-                                brightness: Brightness.dark,
-                                colorSchemeSeed: Theme.of(
-                                  context,
-                                ).colorScheme.primary,
-                              )
-                            : Theme.of(context),
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: _fullscreen ? 16 : 0,
-                          ),
-                          child: _controlBar(),
-                        ),
-                      ),
-                      Visibility(
-                        visible: !_fullscreen,
-                        maintainState: true,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            const SizedBox(height: 8),
-                            _excerptBar(document),
-                            const SizedBox(height: 24),
-                            _linked(context),
-                          ],
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
-          );
-        },
+              ],
+            );
+          },
+        ),
       ),
     ),
   );
@@ -576,11 +606,7 @@ class _VideoPageState extends State<VideoPage> {
                     trailing: IconButton(
                       tooltip: 'Ouvrir la note',
                       icon: const Icon(Icons.open_in_new),
-                      onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => NotePage(noteId: n.id),
-                        ),
-                      ),
+                      onPressed: () => setState(() => _openNote = n.id),
                     ),
                   ),
               ],

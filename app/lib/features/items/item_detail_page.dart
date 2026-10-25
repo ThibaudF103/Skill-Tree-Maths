@@ -7,6 +7,7 @@ import '../../ui/item_glyph.dart';
 import '../../ui/labels.dart';
 import '../../ui/math_text.dart';
 import '../notes/note_page.dart';
+import '../notes/note_split.dart';
 import '../trees/node_picker.dart';
 import 'anchors_section.dart';
 import 'item_editor.dart';
@@ -26,6 +27,9 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
   Stream<List<KnowledgeItem>>? _items;
   Stream<List<KnowledgeNode>>? _nodes;
   Future<List<ReviewRecord>>? _history;
+
+  /// Note ouverte sous la fiche (écran partagé).
+  String? _openNote;
 
   @override
   void didChangeDependencies() {
@@ -69,13 +73,6 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
     Map<String, String> titles,
   ) {
     final scope = AppScope.of(context);
-    final theme = Theme.of(context);
-    final now = DateTime.now();
-    final s = item.scheduling;
-    final stage = GrowthStage.of(s);
-    final r = scope.scheduler.retrievability(s, now);
-    final mastery = scope.mastery.of(s, r);
-
     return Scaffold(
       appBar: AppBar(
         title: Text(item.typeLabel),
@@ -130,154 +127,179 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
-        children: [
-          Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 720),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Chemin dans l'arbre, à jour après un déplacement.
-                  StreamBuilder<List<KnowledgeNode>>(
-                    stream: _nodes,
-                    builder: (context, snapshot) => Text(
-                      nodePath({
-                        for (final n in snapshot.data ?? <KnowledgeNode>[])
-                          n.id: n,
-                      }, item.nodeId),
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        color: theme.colorScheme.outline,
-                      ),
+      body: NoteSplit(
+        title: const Text('Note'),
+        onClose: () => setState(() => _openNote = null),
+        note: _openNote == null
+            ? null
+            : LiveNoteEditor(
+                key: ValueKey(_openNote),
+                noteId: _openNote!,
+                onDeleted: () => setState(() => _openNote = null),
+              ),
+        content: _content(context, item, titles),
+      ),
+    );
+  }
+
+  Widget _content(
+    BuildContext context,
+    KnowledgeItem item,
+    Map<String, String> titles,
+  ) {
+    final scope = AppScope.of(context);
+    final theme = Theme.of(context);
+    final now = DateTime.now();
+    final s = item.scheduling;
+    final stage = GrowthStage.of(s);
+    final r = scope.scheduler.retrievability(s, now);
+    final mastery = scope.mastery.of(s, r);
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+      children: [
+        Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Chemin dans l'arbre, à jour après un déplacement.
+                StreamBuilder<List<KnowledgeNode>>(
+                  stream: _nodes,
+                  builder: (context, snapshot) => Text(
+                    nodePath({
+                      for (final n in snapshot.data ?? <KnowledgeNode>[])
+                        n.id: n,
+                    }, item.nodeId),
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: theme.colorScheme.outline,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      ItemGlyph(
-                        family: item.kind.family,
-                        stage: stage,
-                        size: 48,
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Text(
-                          item.title,
-                          style: theme.textTheme.headlineSmall,
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (item.body != null) ...[
-                    const SizedBox(height: 20),
-                    SelectionArea(
-                      child: MathText(
-                        item.body!,
-                        style: theme.textTheme.bodyLarge,
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    ItemGlyph(family: item.kind.family, stage: stage, size: 48),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Text(
+                        item.title,
+                        style: theme.textTheme.headlineSmall,
                       ),
                     ),
                   ],
-                  const SizedBox(height: 28),
-                  _Section(
-                    title: 'Recto / verso',
-                    child: AnchorsSection(item: item),
-                  ),
-                  // Les notes (verso rédigé) juste après le recto.
-                  const SizedBox(height: 28),
-                  _Section(
-                    title: 'Notes',
-                    child: ItemNotesSection(item: item),
-                  ),
-                  const SizedBox(height: 28),
-                  _Section(
-                    title: 'Prérequis',
-                    child: PrerequisitesSection(item: item),
-                  ),
-                  const SizedBox(height: 28),
-                  _Section(
-                    title: 'Progression',
-                    child: Wrap(
-                      spacing: 32,
-                      runSpacing: 16,
-                      children: [
-                        _Fact('Stade', stage.label),
-                        _Fact('Maîtrise', '${(mastery * 100).round()} %'),
-                        _Fact('Phase', s.phase.label),
-                        if (item.suspended)
-                          const _Fact('Révisions', 'suspendues')
-                        else if (s.due != null)
-                          _Fact('Prochaine révision', formatDue(s.due!, now)),
-                        if (s.lastReview != null)
-                          _Fact(
-                            'Dernière révision',
-                            formatDate(s.lastReview!, now: now),
-                          ),
-                        if (s.stability != null)
-                          _Fact(
-                            'Stabilité',
-                            '${s.stability!.toStringAsFixed(1)} j',
-                          ),
-                        if (s.difficulty != null)
-                          _Fact(
-                            'Difficulté',
-                            '${s.difficulty!.toStringAsFixed(1)} / 10',
-                          ),
-                        if (!s.isNew)
-                          _Fact('Rappel estimé', '${(r * 100).round()} %'),
-                        _Fact('Révisions', '${s.reps}'),
-                        if (s.lapses > 0) _Fact('Oublis', '${s.lapses}'),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 28),
-                  _Section(
-                    title: 'Historique',
-                    child: FutureBuilder<List<ReviewRecord>>(
-                      future: _history,
-                      builder: (context, snapshot) {
-                        final history = snapshot.data;
-                        if (history == null) return const SizedBox.shrink();
-                        if (history.isEmpty) {
-                          return Text(
-                            'Pas encore révisée.',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.outline,
-                            ),
-                          );
-                        }
-                        return Column(
-                          children: [
-                            for (final record in history.reversed)
-                              ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                title: Text(
-                                  record.impliedBy == null
-                                      ? record.rating.label
-                                      : '${record.rating.label} · via '
-                                            '« ${titles[record.impliedBy] ?? 'connaissance supprimée'} »',
-                                ),
-                                subtitle: Text(
-                                  formatDate(record.reviewedAt, now: now),
-                                ),
-                                trailing: record.after.due == null
-                                    ? null
-                                    : Text(
-                                        '→ ${formatDate(record.after.due!, now: now)}',
-                                      ),
-                              ),
-                          ],
-                        );
-                      },
+                ),
+                if (item.body != null) ...[
+                  const SizedBox(height: 20),
+                  SelectionArea(
+                    child: MathText(
+                      item.body!,
+                      style: theme.textTheme.bodyLarge,
                     ),
                   ),
                 ],
-              ),
+                const SizedBox(height: 28),
+                _Section(
+                  title: 'Recto / verso',
+                  child: AnchorsSection(item: item),
+                ),
+                // Les notes (verso rédigé) juste après le recto.
+                const SizedBox(height: 28),
+                _Section(
+                  title: 'Notes',
+                  child: ItemNotesSection(
+                    item: item,
+                    onOpen: (id) => setState(() => _openNote = id),
+                  ),
+                ),
+                const SizedBox(height: 28),
+                _Section(
+                  title: 'Prérequis',
+                  child: PrerequisitesSection(item: item),
+                ),
+                const SizedBox(height: 28),
+                _Section(
+                  title: 'Progression',
+                  child: Wrap(
+                    spacing: 32,
+                    runSpacing: 16,
+                    children: [
+                      _Fact('Stade', stage.label),
+                      _Fact('Maîtrise', '${(mastery * 100).round()} %'),
+                      _Fact('Phase', s.phase.label),
+                      if (item.suspended)
+                        const _Fact('Révisions', 'suspendues')
+                      else if (s.due != null)
+                        _Fact('Prochaine révision', formatDue(s.due!, now)),
+                      if (s.lastReview != null)
+                        _Fact(
+                          'Dernière révision',
+                          formatDate(s.lastReview!, now: now),
+                        ),
+                      if (s.stability != null)
+                        _Fact(
+                          'Stabilité',
+                          '${s.stability!.toStringAsFixed(1)} j',
+                        ),
+                      if (s.difficulty != null)
+                        _Fact(
+                          'Difficulté',
+                          '${s.difficulty!.toStringAsFixed(1)} / 10',
+                        ),
+                      if (!s.isNew)
+                        _Fact('Rappel estimé', '${(r * 100).round()} %'),
+                      _Fact('Révisions', '${s.reps}'),
+                      if (s.lapses > 0) _Fact('Oublis', '${s.lapses}'),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 28),
+                _Section(
+                  title: 'Historique',
+                  child: FutureBuilder<List<ReviewRecord>>(
+                    future: _history,
+                    builder: (context, snapshot) {
+                      final history = snapshot.data;
+                      if (history == null) return const SizedBox.shrink();
+                      if (history.isEmpty) {
+                        return Text(
+                          'Pas encore révisée.',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.outline,
+                          ),
+                        );
+                      }
+                      return Column(
+                        children: [
+                          for (final record in history.reversed)
+                            ListTile(
+                              dense: true,
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(
+                                record.impliedBy == null
+                                    ? record.rating.label
+                                    : '${record.rating.label} · via '
+                                          '« ${titles[record.impliedBy] ?? 'connaissance supprimée'} »',
+                              ),
+                              subtitle: Text(
+                                formatDate(record.reviewedAt, now: now),
+                              ),
+                              trailing: record.after.due == null
+                                  ? null
+                                  : Text(
+                                      '→ ${formatDate(record.after.due!, now: now)}',
+                                    ),
+                            ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

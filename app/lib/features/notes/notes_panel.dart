@@ -26,7 +26,7 @@ class NotesPanel extends StatelessWidget {
     required this.activeNoteId,
     required this.currentPage,
     required this.onSelect,
-    required this.onClose,
+    this.onClose,
     required this.onGoTo,
   });
 
@@ -37,7 +37,9 @@ class NotesPanel extends StatelessWidget {
 
   /// Ouvre une note (`null` : retour à la liste).
   final ValueChanged<String?> onSelect;
-  final VoidCallback onClose;
+
+  /// Ferme le panneau ; sans lui, pas de bouton (l'écran partagé a le sien).
+  final VoidCallback? onClose;
 
   /// Affiche la page (et la zone) d'une note dans le PDF.
   final void Function(int page, NormalizedRect? region) onGoTo;
@@ -84,11 +86,12 @@ class NotesPanel extends StatelessWidget {
                     icon: const Icon(Icons.add),
                     label: Text('Note p. $currentPage'),
                   ),
-                IconButton(
-                  tooltip: 'Fermer les notes',
-                  icon: const Icon(Icons.close),
-                  onPressed: onClose,
-                ),
+                if (onClose != null)
+                  IconButton(
+                    tooltip: 'Fermer les notes',
+                    icon: const Icon(Icons.close),
+                    onPressed: onClose,
+                  ),
               ],
             ),
           ),
@@ -195,6 +198,158 @@ class _NoteList extends StatelessWidget {
   }
 }
 
+/// Dernier mode de saisie choisi (stylet ou clavier), commun à tous les
+/// éditeurs de note.
+bool? _lastHandwriting;
+
+/// Mode de saisie à l'ouverture : celui du contenu s'il n'y en a qu'un,
+/// sinon le dernier choisi (d'abord le stylet sur iPad, pas sur iPhone).
+bool _initialMode(
+  BuildContext context, {
+  required bool hasText,
+  required bool hasInk,
+}) {
+  if (hasInk != hasText) return hasInk;
+  return _lastHandwriting ??
+      (defaultTargetPlatform == TargetPlatform.iOS &&
+          MediaQuery.sizeOf(context).shortestSide >= 600);
+}
+
+/// Bascule Clavier / Stylet des éditeurs de note.
+class _ModeToggle extends StatelessWidget {
+  const _ModeToggle({required this.handwriting, required this.onChanged});
+
+  final bool handwriting;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) => SegmentedButton<bool>(
+    segments: const [
+      ButtonSegment(
+        value: false,
+        icon: Icon(Icons.keyboard_outlined),
+        label: Text('Clavier'),
+      ),
+      ButtonSegment(
+        value: true,
+        icon: Icon(Icons.draw_outlined),
+        label: Text('Stylet'),
+      ),
+    ],
+    selected: {handwriting},
+    onSelectionChanged: (v) => onChanged(v.single),
+  );
+}
+
+/// Brouillon de note, pas encore enregistré (tentative pendant une
+/// révision) : texte et écriture restent dans [text] et [ink], que
+/// l'appelant enregistre quand il le décide.
+class NoteDraftEditor extends StatefulWidget {
+  const NoteDraftEditor({
+    super.key,
+    required this.text,
+    required this.ink,
+    this.hint = r'Formules : $x^2$ ou $$\sum_k a_k$$',
+    this.onModeChanged,
+  });
+
+  final TextEditingController text;
+  final InkEditorController ink;
+  final String hint;
+
+  /// Après un changement de mode (le clavier a pu perdre le focus).
+  final VoidCallback? onModeChanged;
+
+  @override
+  State<NoteDraftEditor> createState() => _NoteDraftEditorState();
+}
+
+class _NoteDraftEditorState extends State<NoteDraftEditor> {
+  late bool _handwriting = _initialMode(
+    context,
+    hasText: widget.text.text.trim().isNotEmpty,
+    hasInk: !widget.ink.ink.isEmpty,
+  );
+
+  void _setMode(bool handwriting) {
+    if (handwriting == _handwriting) return;
+    if (handwriting) FocusScope.of(context).unfocus();
+    _lastHandwriting = handwriting;
+    setState(() => _handwriting = handwriting);
+    widget.onModeChanged?.call();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: theme.colorScheme.surface,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: _ModeToggle(
+                handwriting: _handwriting,
+                onChanged: _setMode,
+              ),
+            ),
+          ),
+          Expanded(
+            child: _handwriting
+                ? InkEditor(controller: widget.ink, onChanged: () {})
+                : ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: [
+                      TextField(
+                        controller: widget.text,
+                        inputFormatters: const [LatexAutoCloseFormatter()],
+                        minLines: 4,
+                        maxLines: null,
+                        keyboardType: TextInputType.multiline,
+                        decoration: InputDecoration(
+                          hintText: widget.hint,
+                          border: const OutlineInputBorder(),
+                        ),
+                      ),
+                      ListenableBuilder(
+                        listenable: widget.text,
+                        builder: (context, _) => widget.text.text.contains(r'$')
+                            ? Container(
+                                margin: const EdgeInsets.only(top: 12),
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.surfaceContainerLow,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: MathText(widget.text.text),
+                              )
+                            : const SizedBox.shrink(),
+                      ),
+                      // L'écriture du brouillon : la toucher passe au stylet.
+                      ListenableBuilder(
+                        listenable: widget.ink,
+                        builder: (context, _) => widget.ink.ink.isEmpty
+                            ? const SizedBox.shrink()
+                            : Padding(
+                                padding: const EdgeInsets.only(top: 16),
+                                child: InkWell(
+                                  onTap: () => _setMode(true),
+                                  child: InkView(ink: widget.ink.ink),
+                                ),
+                              ),
+                      ),
+                    ],
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Édition d'une note, au clavier (texte et LaTeX, avec aperçu) ou au
 /// stylet (écriture manuscrite) : une même note peut mêler les deux.
 /// Enregistrement automatique, zone du PDF, lien vers une connaissance.
@@ -214,7 +369,7 @@ class NoteEditor extends StatefulWidget {
 
   /// Oublie le dernier mode de saisie choisi (tests).
   @visibleForTesting
-  static void forgetMode() => _NoteEditorState._lastHandwriting = null;
+  static void forgetMode() => _lastHandwriting = null;
 
   @override
   State<NoteEditor> createState() => _NoteEditorState();
@@ -235,17 +390,11 @@ class _NoteEditorState extends State<NoteEditor> {
   /// l'écriture s'ouvre au stylet, une note qui n'a que du texte au
   /// clavier ; sinon, le dernier mode choisi (d'abord le stylet sur iPad,
   /// pas sur iPhone).
-  late bool _handwriting = _initialMode();
-  static bool? _lastHandwriting;
-
-  bool _initialMode() {
-    final hasText = widget.note.body.trim().isNotEmpty;
-    final hasInk = !_ink.ink.isEmpty;
-    if (hasInk != hasText) return hasInk;
-    return _lastHandwriting ??
-        (defaultTargetPlatform == TargetPlatform.iOS &&
-            MediaQuery.sizeOf(context).shortestSide >= 600);
-  }
+  late bool _handwriting = _initialMode(
+    context,
+    hasText: widget.note.body.trim().isNotEmpty,
+    hasInk: !_ink.ink.isEmpty,
+  );
 
   void _setMode(bool handwriting) {
     if (handwriting == _handwriting) return;
@@ -392,22 +541,7 @@ class _NoteEditorState extends State<NoteEditor> {
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
           child: Align(
             alignment: Alignment.centerLeft,
-            child: SegmentedButton<bool>(
-              segments: const [
-                ButtonSegment(
-                  value: false,
-                  icon: Icon(Icons.keyboard_outlined),
-                  label: Text('Clavier'),
-                ),
-                ButtonSegment(
-                  value: true,
-                  icon: Icon(Icons.draw_outlined),
-                  label: Text('Stylet'),
-                ),
-              ],
-              selected: {_handwriting},
-              onSelectionChanged: (v) => _setMode(v.single),
-            ),
+            child: _ModeToggle(handwriting: _handwriting, onChanged: _setMode),
           ),
         ),
         Expanded(
@@ -494,7 +628,11 @@ class _NoteEditorState extends State<NoteEditor> {
         ),
         const SizedBox(height: 16),
         if (note.itemId != null)
-          _LinkedItem(itemId: note.itemId!, noteId: note.id)
+          _LinkedItem(
+            itemId: note.itemId!,
+            noteId: note.id,
+            attempt: note.reviewRating,
+          )
         else
           Wrap(
             spacing: 8,
@@ -527,10 +665,13 @@ class _NoteEditorState extends State<NoteEditor> {
 }
 
 class _LinkedItem extends StatelessWidget {
-  const _LinkedItem({required this.itemId, required this.noteId});
+  const _LinkedItem({required this.itemId, required this.noteId, this.attempt});
 
   final String itemId;
   final String noteId;
+
+  /// Note donnée si c'est une tentative de révision (pas un verso).
+  final Rating? attempt;
 
   @override
   Widget build(BuildContext context) {
@@ -544,17 +685,25 @@ class _LinkedItem extends StatelessWidget {
           child: ListTile(
             leading: const Icon(Icons.flip_to_back),
             title: Text(item.title),
-            subtitle: const Text('Cette note est son verso'),
+            subtitle: Text(
+              attempt == null
+                  ? 'Cette note est son verso'
+                  : 'Tentative de révision · ${attempt!.label}',
+            ),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
                 builder: (_) => ItemDetailPage(itemId: item.id),
               ),
             ),
-            trailing: IconButton(
-              tooltip: 'Délier',
-              icon: const Icon(Icons.link_off),
-              onPressed: () => store.updateNote(noteId, itemId: () => null),
-            ),
+            // Une tentative reste attachée à sa connaissance (son historique).
+            trailing: attempt != null
+                ? null
+                : IconButton(
+                    tooltip: 'Délier',
+                    icon: const Icon(Icons.link_off),
+                    onPressed: () =>
+                        store.updateNote(noteId, itemId: () => null),
+                  ),
           ),
         );
       },

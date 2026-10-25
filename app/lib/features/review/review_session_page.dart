@@ -10,18 +10,31 @@ import '../../ui/item_glyph.dart';
 import '../../ui/labels.dart';
 import '../../ui/math_text.dart';
 import '../items/anchors_section.dart';
+import '../notes/ink_editor.dart';
 import '../notes/note_page.dart';
+import '../notes/note_split.dart';
+import '../notes/notes_panel.dart';
 
 /// Session de révision façon cartes : on lit le titre, on tente de se
 /// souvenir, on révèle le contenu, puis on s'évalue. Un exercice corrigé
 /// automatiquement tire un énoncé, corrige les réponses et propose la note.
 ///
-/// Raccourcis clavier : Espace / Entrée pour révéler, 1 à 4 pour noter ;
-/// après correction, Entrée applique la note proposée.
+/// Prise de notes (bouton de la barre) : on rédige sa tentative sous la
+/// carte, au clavier ou au stylet, on la compare au verso une fois révélé ;
+/// à la notation, elle est enregistrée avec la connaissance (tentative de
+/// révision, avec la note donnée).
+///
+/// Raccourcis clavier (hors saisie de texte) : Espace / Entrée pour
+/// révéler, 1 à 4 pour noter ; après correction, Entrée applique la note
+/// proposée.
 class ReviewSessionPage extends StatefulWidget {
   const ReviewSessionPage({super.key, required this.itemIds});
 
   final List<String> itemIds;
+
+  /// Referme la zone de notes des prochaines sessions (tests).
+  @visibleForTesting
+  static void closeNotes() => _ReviewSessionPageState._noting = false;
 
   @override
   State<ReviewSessionPage> createState() => _ReviewSessionPageState();
@@ -59,6 +72,14 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
   List<bool?>? _checks;
   final _random = math.Random();
 
+  /// Zone de notes ouverte ; reste ouverte d'une carte à l'autre et d'une
+  /// session à l'autre.
+  static var _noting = false;
+
+  /// Brouillon de la tentative pour la carte affichée.
+  var _draftText = TextEditingController();
+  var _draftInk = InkEditorController(InkDrawing.empty);
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -68,6 +89,8 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
   @override
   void dispose() {
     _focus.dispose();
+    _draftText.dispose();
+    _draftInk.dispose();
     for (final c in _answers) {
       c.dispose();
     }
@@ -111,15 +134,22 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
     final anchors = item == null
         ? const <Anchor>[]
         : await _store.anchorsOf(item.id);
+    // Le verso : sans les tentatives des révisions précédentes.
     final notes = item == null
         ? const <Note>[]
-        : await _store.notes(itemId: item.id);
+        : [
+            for (final n in await _store.notes(itemId: item.id))
+              if (!n.isReviewAttempt) n,
+          ];
     if (!mounted) return;
     final exercise = _draw(i < _ids.length ? item : null);
     for (final c in _answers) {
       c.dispose();
     }
+    final (oldText, oldInk) = (_draftText, _draftInk);
     setState(() {
+      _draftText = TextEditingController();
+      _draftInk = InkEditorController(InkDrawing.empty);
       _exercise = exercise;
       _answers = [
         for (final _ in exercise?.questions ?? const [])
@@ -135,6 +165,11 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
       _revealed = false;
       _busy = false;
     });
+    // Après la reconstruction : l'ancien brouillon n'est plus affiché.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      oldText.dispose();
+      oldInk.dispose();
+    });
     _card
       ..reset()
       ..start();
@@ -145,6 +180,8 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
     final item = _item;
     if (item == null || !_revealed || _busy) return;
     setState(() => _busy = true);
+    // Tentative lue tout de suite (la carte suivante remplace le brouillon).
+    final text = _draftText.text, ink = _draftInk.ink;
     final scheduler = AppScope.of(context).scheduler;
     final record = scheduler.record(
       item.scheduling,
@@ -156,9 +193,13 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
     try {
       await _store.applyReview(item.id, record);
       _results.add(rating);
+      await _saveDraft(item, text, ink, rating: rating);
       await _afterReview(item, rating, record.reviewedAt);
     } on StaleReviewException {
-      // Révisée ailleurs entre-temps : on passe simplement à la suivante.
+      // Révisée ailleurs entre-temps : on passe à la suivante, sans perdre
+      // ce qui a été écrit (note ordinaire : cette note n'a pas été
+      // retenue).
+      await _saveDraft(item, text, ink);
     } catch (e) {
       // Connaissance supprimée entre-temps, erreur de base… : on prévient
       // et on passe à la suivante plutôt que de bloquer la session.
@@ -169,6 +210,68 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
       }
     }
     await _show(_index + 1);
+  }
+
+  /// Brouillon de la carte affichée non vide.
+  bool get _hasDraft =>
+      _item != null &&
+      (_draftText.text.trim().isNotEmpty || !_draftInk.ink.isEmpty);
+
+  /// Enregistre le brouillon (s'il n'est pas vide) avec la connaissance :
+  /// tentative de révision avec [rating], sinon note ordinaire.
+  Future<void> _saveDraft(
+    KnowledgeItem item,
+    String text,
+    InkDrawing ink, {
+    Rating? rating,
+  }) async {
+    if (text.trim().isEmpty && ink.isEmpty) return;
+    await _store.createNote(
+      body: text,
+      ink: ink.isEmpty ? null : ink,
+      itemId: item.id,
+      reviewRating: rating,
+    );
+  }
+
+  /// Quitter la session (Terminer, retour) : un brouillon non vide est
+  /// gardé (note de la connaissance, sans note de révision) ou jeté, au
+  /// choix ; « Annuler » reste sur la carte.
+  Future<void> _leave() async {
+    final item = _item;
+    if (item == null || !_hasDraft) {
+      Navigator.of(context).pop();
+      return;
+    }
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Garder votre tentative ?'),
+        content: Text(
+          'Elle n\'a pas été notée. Gardée, elle rejoint les notes de '
+          '« ${item.title} ».',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, 'discard'),
+            child: const Text('Jeter'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, 'keep'),
+            child: const Text('Garder'),
+          ),
+        ],
+      ),
+    );
+    if (choice == null || !mounted) return;
+    if (choice == 'keep') {
+      await _saveDraft(item, _draftText.text, _draftInk.ink);
+    }
+    if (mounted) Navigator.of(context).pop();
   }
 
   /// Prérequis directs de [item] encore existants et actifs.
@@ -266,7 +369,12 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
 
   void _reveal() {
     if (_item != null && !_revealed) setState(() => _revealed = true);
+    // Le focus quitte la tentative : 1 à 4 notent la carte.
+    _focus.requestFocus();
   }
+
+  /// Rend les raccourcis à la session (zone de notes fermée, mode changé).
+  void _takeFocus() => _focus.requestFocus();
 
   /// Corrige l'exercice ; tout lu → correction affichée et note proposée.
   void _check() {
@@ -295,6 +403,10 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
 
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    // Saisie de texte en cours (tentative, réponse) : les touches lui vont.
+    final editing = FocusManager.instance.primaryFocus?.context
+        ?.findAncestorWidgetOfExactType<EditableText>();
+    if (editing != null) return KeyEventResult.ignored;
     final key = event.logicalKey;
     final suggested = _suggested;
     if (suggested != null && key == LogicalKeyboardKey.enter) {
@@ -330,33 +442,50 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
   Widget build(BuildContext context) {
     final total = _ids.length;
     final done = _nodes != null && _item == null;
-    return Focus(
-      focusNode: _focus,
-      autofocus: true,
-      onKeyEvent: _onKey,
-      child: Scaffold(
-        appBar: AppBar(
-          leading: IconButton(
-            tooltip: 'Terminer',
-            icon: const Icon(Icons.close),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-          title: done
-              ? const Text('Session terminée')
-              : Text('${(_index + 1).clamp(1, total)} / $total'),
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(3),
-            child: LinearProgressIndicator(
-              value: total == 0 ? 1 : (done ? total : _index) / total,
-              minHeight: 3,
+    return PopScope(
+      // Retour du système : le brouillon en cours n'est pas perdu en silence.
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _leave();
+      },
+      child: Focus(
+        focusNode: _focus,
+        autofocus: true,
+        onKeyEvent: _onKey,
+        child: Scaffold(
+          appBar: AppBar(
+            leading: IconButton(
+              tooltip: 'Terminer',
+              icon: const Icon(Icons.close),
+              onPressed: _leave,
+            ),
+            title: done
+                ? const Text('Session terminée')
+                : Text('${(_index + 1).clamp(1, total)} / $total'),
+            actions: [
+              if (!done && _nodes != null && _exercise == null)
+                IconButton(
+                  tooltip: 'Prendre des notes',
+                  isSelected: _noting,
+                  icon: const Icon(Icons.edit_note),
+                  onPressed: () => setState(() => _noting = !_noting),
+                ),
+              const SizedBox(width: 4),
+            ],
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(3),
+              child: LinearProgressIndicator(
+                value: total == 0 ? 1 : (done ? total : _index) / total,
+                minHeight: 3,
+              ),
             ),
           ),
+          body: _nodes == null
+              ? const Center(child: CircularProgressIndicator())
+              : done
+              ? _Summary(results: _results, elapsed: _session.elapsed)
+              : _buildCard(context, _item!),
         ),
-        body: _nodes == null
-            ? const Center(child: CircularProgressIndicator())
-            : done
-            ? _Summary(results: _results, elapsed: _session.elapsed)
-            : _buildCard(context, _item!),
       ),
     );
   }
@@ -376,132 +505,157 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
     return Column(
       children: [
         Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 720),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      path.join(' → '),
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        color: theme.colorScheme.outline,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        ItemGlyph(
-                          family: item.kind.family,
-                          stage: GrowthStage.of(s),
-                          size: 40,
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          item.typeLabel,
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            color: theme.colorScheme.primary,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Text(item.title, style: theme.textTheme.headlineMedium),
-                    // Recto : l'énoncé encadré dans le cours.
-                    for (final anchor in _anchors.where(
-                      (a) => a.role == AnchorRole.source,
-                    )) ...[
-                      const SizedBox(height: 16),
-                      AnchorSnapshot(
-                        key: ValueKey(anchor.id),
-                        anchor: anchor,
-                        maxHeight: 360,
-                      ),
-                    ],
-                    const SizedBox(height: 32),
-                    if (_exercise case final exercise?) ...[
-                      _ExerciseView(
-                        exercise: exercise,
-                        answers: _answers,
-                        picked: _picked,
-                        checks: _checks,
-                        locked: _revealed,
-                        onPick: (q, choice) =>
-                            setState(() => _picked[q] = choice),
-                        onSubmit: _check,
-                      ),
-                      const SizedBox(height: 24),
-                    ],
-                    if (!_revealed && _exercise == null)
+          child: NoteSplit(
+            title: Text(
+              _revealed
+                  ? 'Votre tentative : comparez au verso'
+                  : 'Votre tentative',
+            ),
+            onClose: () {
+              setState(() => _noting = false);
+              _takeFocus();
+            },
+            // Pas de prise de notes pour un exercice corrigé
+            // automatiquement : les réponses se saisissent dans la carte.
+            note: _noting && _exercise == null
+                ? NoteDraftEditor(
+                    key: ObjectKey(_draftText),
+                    text: _draftText,
+                    ink: _draftInk,
+                    hint: 'Rédigez de mémoire, puis révélez pour comparer',
+                    onModeChanged: _takeFocus,
+                  )
+                : null,
+            content: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 720),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Text(
-                        item.kind.family == ItemFamily.exercise
-                            ? 'Refaites l\'exercice, puis révélez.'
-                            : 'Rappelez-vous l\'énoncé${item.kind.family == ItemFamily.statement ? ' et la démonstration' : ''}, puis révélez.',
-                        style: theme.textTheme.bodyLarge?.copyWith(
+                        path.join(' → '),
+                        style: theme.textTheme.labelLarge?.copyWith(
                           color: theme.colorScheme.outline,
                         ),
-                      )
-                    else if (_revealed) ...[
-                      // Verso : la rédaction manuscrite.
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          ItemGlyph(
+                            family: item.kind.family,
+                            stage: GrowthStage.of(s),
+                            size: 40,
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            item.typeLabel,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              color: theme.colorScheme.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(item.title, style: theme.textTheme.headlineMedium),
+                      // Recto : l'énoncé encadré dans le cours.
                       for (final anchor in _anchors.where(
-                        (a) => a.role == AnchorRole.work,
+                        (a) => a.role == AnchorRole.source,
                       )) ...[
+                        const SizedBox(height: 16),
                         AnchorSnapshot(
                           key: ValueKey(anchor.id),
                           anchor: anchor,
-                          maxHeight: 640,
+                          maxHeight: 360,
                         ),
-                        const SizedBox(height: 16),
                       ],
-                      // Verso : les notes rédigées dans l'application.
-                      for (final note in _notes.where((n) => !n.isBlank)) ...[
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            border: Border.all(
-                              color: theme.colorScheme.outlineVariant,
-                            ),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: NoteContent(note: note),
+                      const SizedBox(height: 32),
+                      if (_exercise case final exercise?) ...[
+                        _ExerciseView(
+                          exercise: exercise,
+                          answers: _answers,
+                          picked: _picked,
+                          checks: _checks,
+                          locked: _revealed,
+                          onPick: (q, choice) =>
+                              setState(() => _picked[q] = choice),
+                          onSubmit: _check,
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 24),
                       ],
-                      if (item.body != null)
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.surfaceContainerLow,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: SelectionArea(
-                            child: MathText(
-                              item.body!,
-                              style: theme.textTheme.bodyLarge,
-                            ),
-                          ),
-                        )
-                      else if (_exercise == null &&
-                          !_anchors.any((a) => a.role == AnchorRole.work) &&
-                          _notes.every((n) => n.isBlank))
+                      if (!_revealed && _exercise == null)
                         Text(
-                          'Pas de contenu enregistré : comparez avec vos notes.',
+                          item.kind.family == ItemFamily.exercise
+                              ? 'Refaites l\'exercice, puis révélez.'
+                              : 'Rappelez-vous l\'énoncé${item.kind.family == ItemFamily.statement ? ' et la démonstration' : ''}, puis révélez.',
                           style: theme.textTheme.bodyLarge?.copyWith(
                             color: theme.colorScheme.outline,
                           ),
+                        )
+                      else if (_revealed) ...[
+                        // Verso : la rédaction manuscrite.
+                        for (final anchor in _anchors.where(
+                          (a) => a.role == AnchorRole.work,
+                        )) ...[
+                          AnchorSnapshot(
+                            key: ValueKey(anchor.id),
+                            anchor: anchor,
+                            maxHeight: 640,
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                        // Verso : les notes rédigées dans l'application.
+                        for (final note in _notes.where((n) => !n.isBlank)) ...[
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: theme.colorScheme.outlineVariant,
+                              ),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: NoteContent(note: note),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                        if (item.body != null)
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.surfaceContainerLow,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: SelectionArea(
+                              child: MathText(
+                                item.body!,
+                                style: theme.textTheme.bodyLarge,
+                              ),
+                            ),
+                          )
+                        else if (_exercise == null &&
+                            !_anchors.any((a) => a.role == AnchorRole.work) &&
+                            _notes.every((n) => n.isBlank))
+                          Text(
+                            'Pas de contenu enregistré : comparez avec vos notes.',
+                            style: theme.textTheme.bodyLarge?.copyWith(
+                              color: theme.colorScheme.outline,
+                            ),
+                          ),
+                        const SizedBox(height: 24),
+                        _StateLine(
+                          state: s,
+                          retrievability: scope.scheduler.retrievability(
+                            s,
+                            now,
+                          ),
+                          history: _history,
                         ),
-                      const SizedBox(height: 24),
-                      _StateLine(
-                        state: s,
-                        retrievability: scope.scheduler.retrievability(s, now),
-                        history: _history,
-                      ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -565,16 +719,9 @@ class _RatingButton extends StatelessWidget {
   /// Note proposée par la correction automatique : mise en avant.
   final bool suggested;
 
-  static const _colors = {
-    Rating.again: Color(0xFFC8553D),
-    Rating.hard: Color(0xFFE09A3E),
-    Rating.good: Color(0xFF5B7F5E),
-    Rating.easy: Color(0xFF3F7CAC),
-  };
-
   @override
   Widget build(BuildContext context) {
-    final color = _colors[rating]!;
+    final color = rating.color;
     return OutlinedButton(
       style: OutlinedButton.styleFrom(
         minimumSize: const Size.fromHeight(64),

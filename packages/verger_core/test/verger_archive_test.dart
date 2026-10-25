@@ -401,4 +401,35 @@ void main() {
       );
     }
   });
+
+  test('version 6 seulement avec des tentatives de révision', () {
+    Note note({Rating? rating}) => Note(
+      id: rating == null ? 'n' : 'a',
+      body: 'Essai',
+      itemId: null,
+      reviewRating: rating,
+      createdAt: t,
+      updatedAt: t,
+    );
+    // Paquet ou sauvegarde sans tentative : lisible par l'appli précédente.
+    final plain = VergerArchive(
+      nodes: const [],
+      items: const [],
+      notes: [note()],
+    );
+    expect(plain.toJson()['version'], 5);
+    final withAttempt = VergerArchive(
+      nodes: const [],
+      items: const [],
+      notes: [
+        note(),
+        note(rating: Rating.hard),
+      ],
+    );
+    final json = jsonDecode(jsonEncode(withAttempt.toJson())) as Map;
+    expect(json['version'], 6);
+    final back = VergerArchive.fromJson(json.cast());
+    expect(back.notes.last.reviewRating, Rating.hard);
+    expect(back.notes.first.isReviewAttempt, isFalse);
+  });
 }

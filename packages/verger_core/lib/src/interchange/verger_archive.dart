@@ -52,7 +52,9 @@ final class VergerArchive {
   /// 4 : écriture manuscrite des notes (une version plus ancienne de
   /// l'appli refuse l'archive plutôt que de la perdre).
   /// 5 : exercices corrigés automatiquement.
-  static const currentVersion = 5;
+  /// 6 : notes prises pendant les révisions (sans quoi une version plus
+  /// ancienne en ferait des versos).
+  static const currentVersion = 6;
 
   final List<KnowledgeNode> nodes;
   final List<KnowledgeItem> items;
@@ -218,6 +220,9 @@ final class VergerArchive {
             ink: n['ink'] == null
                 ? null
                 : InkDrawing.fromJson((n['ink'] as Map).cast()),
+            reviewRating: n['reviewRating'] == null
+                ? null
+                : Rating.values.byName(n['reviewRating'] as String),
             createdAt: date(n['createdAt']),
             updatedAt: n['updatedAt'] == null
                 ? date(n['createdAt'])
@@ -372,9 +377,15 @@ final class VergerArchive {
     }
   }
 
+  /// Version écrite : la 6 seulement si l'archive contient des tentatives
+  /// de révision (jamais un paquet) ; sinon la 5, qu'une version plus
+  /// ancienne de l'appli lit sans rien perdre.
+  int get writtenVersion =>
+      notes.any((n) => n.isReviewAttempt) ? currentVersion : 5;
+
   Map<String, Object?> toJson() => {
     'format': format,
-    'version': currentVersion,
+    'version': writtenVersion,
     'title': ?title,
     'exportedAt': DateTime.now().toUtc().toIso8601String(),
     'settings': ?settings?.toJson(),
@@ -467,6 +478,7 @@ final class VergerArchive {
           'snapshot': ?(n.snapshot == null ? null : base64Encode(n.snapshot!)),
           'itemId': ?n.itemId,
           'ink': ?n.ink?.toJson(),
+          'reviewRating': ?n.reviewRating?.name,
           'createdAt': n.createdAt.toUtc().toIso8601String(),
           'updatedAt': n.updatedAt.toUtc().toIso8601String(),
         },

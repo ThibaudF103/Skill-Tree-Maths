@@ -15,6 +15,7 @@ import '../../ui/coverage.dart';
 import '../../ui/labels.dart';
 import '../items/item_detail_page.dart';
 import '../items/item_editor.dart';
+import '../notes/note_split.dart';
 import '../notes/notes_panel.dart';
 import 'pickers.dart';
 import 'viewer_gestures.dart';
@@ -35,8 +36,8 @@ enum _SidePanel { none, pages, outline }
 ///   zone, créer une connaissance (recto) ou attacher la zone ; tirer les
 ///   bords d'un cadre existant pour le redimensionner.
 /// - Sur ordinateur : barre de défilement, défilement au bouton du milieu.
-/// - Panneau de notes (bouton, balayage depuis le bord droit, ou marqueur
-///   sur la page).
+/// - Panneau de notes sous le PDF, à hauteur réglable (bouton, balayage
+///   depuis le bord droit, ou marqueur sur la page).
 class DocumentViewerPage extends StatefulWidget {
   const DocumentViewerPage({
     super.key,
@@ -266,62 +267,57 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
             key: _viewerKey,
             child: _buildViewer(context, document, bytes, notes),
           );
+          // Pas de balayage pour fermer : un trait du stylet dans la note ne
+          // doit jamais la refermer.
           final notesPanel = KeyedSubtree(
             // Clé globale : l'éditeur de note survit au changement de mise en
             // page (rotation), sans perdre la saisie en cours.
             key: _notesKey,
-            child: GestureDetector(
-              onHorizontalDragEnd: (d) {
-                if ((d.primaryVelocity ?? 0) > 300) {
-                  setState(() => _notesOpen = false);
-                }
-              },
-              child: NotesPanel(
-                document: document,
-                notes: notes,
-                activeNoteId: _activeNote,
-                currentPage: _page ?? 1,
-                onSelect: (id) => setState(() => _activeNote = id),
-                onClose: () => setState(() => _notesOpen = false),
-                onGoTo: (page, _) => _controller.goToPage(pageNumber: page),
-              ),
+            child: NotesPanel(
+              document: document,
+              notes: notes,
+              activeNoteId: _activeNote,
+              currentPage: _page ?? 1,
+              onSelect: (id) => setState(() => _activeNote = id),
+              onGoTo: (page, _) => _controller.goToPage(pageNumber: page),
             ),
           );
           final side = _side == _SidePanel.none
               ? null
               : _buildSidePanel(context, document);
+          // Les notes s'ouvrent sous le PDF (écran partagé), qui reste
+          // visible pendant la prise de note.
           return Column(
             children: [
               if (_searching) _buildSearchBar(context),
               Expanded(
-                child: wide
-                    ? Row(
-                        children: [
-                          if (side != null) ...[
-                            SizedBox(width: 200, child: side),
-                            const VerticalDivider(width: 1),
+                child: NoteSplit(
+                  onClose: () => setState(() => _notesOpen = false),
+                  note: _notesOpen ? notesPanel : null,
+                  content: wide
+                      ? Row(
+                          children: [
+                            if (side != null) ...[
+                              SizedBox(width: 200, child: side),
+                              const VerticalDivider(width: 1),
+                            ],
+                            Expanded(child: viewer),
                           ],
-                          Expanded(child: viewer),
-                          if (_notesOpen) ...[
-                            const VerticalDivider(width: 1),
-                            SizedBox(width: 380, child: notesPanel),
+                        )
+                      : Stack(
+                          children: [
+                            viewer,
+                            if (side != null)
+                              Positioned(
+                                left: 0,
+                                top: 0,
+                                bottom: 0,
+                                width: 200,
+                                child: Material(elevation: 4, child: side),
+                              ),
                           ],
-                        ],
-                      )
-                    : Stack(
-                        children: [
-                          viewer,
-                          if (side != null)
-                            Positioned(
-                              left: 0,
-                              top: 0,
-                              bottom: 0,
-                              width: 200,
-                              child: Material(elevation: 4, child: side),
-                            ),
-                          if (_notesOpen) Positioned.fill(child: notesPanel),
-                        ],
-                      ),
+                        ),
+                ),
               ),
             ],
           );

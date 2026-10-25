@@ -294,4 +294,30 @@ void main() {
       await store.close();
     },
   );
+
+  test(
+    'v9 → v10 : notes conservées, tentatives de révision disponibles',
+    () async {
+      final schema = await verifier.schemaAt(9);
+      final db = schema.rawDatabase;
+      db.execute(
+        "INSERT INTO notes (id, body, document_id, page, start_ms, end_ms, "
+        "\"left\", top, \"right\", bottom, snapshot, item_id, ink, created_at, "
+        "updated_at) VALUES ('n1', 'Texte', NULL, NULL, NULL, NULL, NULL, NULL, "
+        "NULL, NULL, NULL, NULL, NULL, '2026-03-02T09:00:00.000Z', "
+        "'2026-03-02T09:00:00.000Z')",
+      );
+
+      final store = VergerStore(VergerDatabase(schema.newConnection()));
+      final old = (await store.note('n1'))!;
+      expect(old.body, 'Texte');
+      expect(old.isReviewAttempt, isFalse);
+      final attempt = await store.createNote(
+        body: 'Essai',
+        reviewRating: Rating.good,
+      );
+      expect((await store.note(attempt.id))!.reviewRating, Rating.good);
+      await store.close();
+    },
+  );
 }

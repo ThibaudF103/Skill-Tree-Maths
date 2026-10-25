@@ -55,6 +55,12 @@ void main() {
     );
     await source.createNote(body: 'Preuve', itemId: item.id);
     await source.createNote(body: 'Page 2', documentId: poly.id, page: 2);
+    // Tentative de révision : personnelle, ne doit pas voyager.
+    await source.createNote(
+      body: 'Tentative',
+      itemId: item.id,
+      reviewRating: Rating.hard,
+    );
     // Révision : ne doit pas voyager.
     await source.applyReview(
       item.id,
@@ -80,6 +86,7 @@ void main() {
       expect(pack.resourceLinks.single.nodeId, pack.nodes.single.id);
       expect(pack.anchors.single.page, 3);
       expect(pack.notes.map((n) => n.body), containsAll(['Preuve', 'Page 2']));
+      expect(pack.notes.map((n) => n.body), isNot(contains('Tentative')));
     },
   );
 
