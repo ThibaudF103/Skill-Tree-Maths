@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:verger/features/orchard/orchard_page.dart';
+import 'package:verger/ui/graph_viewer.dart';
 import 'package:verger_core/verger_core.dart';
 
 import 'test_app.dart';
@@ -36,6 +37,7 @@ void main() {
     await settle(tester);
     expect(find.byType(OrchardFocusPage), findsOneWidget);
     expect(find.byType(InteractiveViewer), findsOneWidget);
+    expect(find.byType(GraphViewer), findsOneWidget);
     await unmountTestApp(tester);
   });
 }
