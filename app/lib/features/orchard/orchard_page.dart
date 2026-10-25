@@ -3,6 +3,7 @@ import 'package:verger_core/verger_core.dart';
 
 import '../../orchard/orchard_layout.dart';
 import '../../orchard/orchard_painter.dart';
+import '../../ui/graph_viewer.dart';
 import '../../ui/item_glyph.dart';
 import '../items/item_detail_page.dart';
 import '../trees/tree_data.dart';
@@ -178,7 +179,8 @@ class _TreeCard extends StatelessWidget {
 }
 
 /// Un arbre, une branche ou un rameau en grand : toucher une branche pour
-/// s'en approcher, une connaissance pour l'ouvrir. Pincer pour zoomer.
+/// s'en approcher, une connaissance pour l'ouvrir. Pincer (ou Ctrl + molette)
+/// pour zoomer.
 class OrchardFocusPage extends StatelessWidget {
   const OrchardFocusPage({super.key, required this.nodeId});
 
@@ -217,7 +219,7 @@ class OrchardFocusPage extends StatelessWidget {
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final layout = layoutOrchard(scene, constraints.biggest);
-                    return InteractiveViewer(
+                    return GraphViewer(
                       maxScale: 4,
                       child: GestureDetector(
                         behavior: HitTestBehavior.opaque,

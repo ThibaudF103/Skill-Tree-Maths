@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:verger_core/verger_core.dart';
 
 import '../../app/app_scope.dart';
+import '../../ui/graph_viewer.dart';
 import '../../ui/labels.dart';
 import '../items/item_detail_page.dart';
 import '../trees/tree_data.dart';
@@ -352,7 +353,7 @@ class _GraphView extends StatelessWidget {
           };
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    return InteractiveViewer(
+    return GraphViewer(
       constrained: false,
       minScale: 0.2,
       maxScale: 2,

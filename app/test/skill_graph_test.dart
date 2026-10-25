@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:verger_core/verger_core.dart';
 import 'package:verger/features/skills/skill_graph_page.dart';
+import 'package:verger/ui/graph_viewer.dart';
 import 'package:verger_data/verger_data.dart';
 
 import 'test_app.dart';
@@ -47,6 +48,7 @@ void main() {
     await settle(tester);
 
     expect(find.text('Compétences · Algèbre'), findsOneWidget);
+    expect(find.byType(GraphViewer), findsOneWidget);
     expect(find.text('Cayley-Hamilton'), findsOneWidget);
     expect(find.text('Définition · autre branche'), findsOneWidget);
     // L'exercice sans lien est masqué par défaut.
