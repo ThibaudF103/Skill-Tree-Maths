@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
@@ -10,22 +11,23 @@ import 'package:verger_data/verger_data.dart';
 typedef PdfFile = ({SourceDocument? document, Uint8List? bytes});
 
 /// Contenu des PDF récemment affichés en zones, pour ne pas relire la base
-/// à chaque carte (quelques documents au plus). Clé : document et version,
-/// pour ne pas afficher l'ancienne version après une mise à jour.
+/// à chaque carte (quelques documents au plus). Clé : l'empreinte du
+/// fichier, propre à chaque version (un numéro de version peut revenir après
+/// une restauration de sauvegarde).
 class _PdfBytesCache {
   static final _entries = <String, Future<Uint8List?>>{};
 
   static Future<PdfFile> load(VergerStore store, String documentId) async {
     final document = await store.document(documentId);
     if (document == null) return (document: null, bytes: null);
-    final key = '${document.id}-v${document.version}';
+    final key = document.contentHash;
     final future = _entries.remove(key) ?? store.documentBytes(documentId);
     _entries[key] = future; // le plus récent en dernier
     while (_entries.length > 3) {
       _entries.remove(_entries.keys.first);
     }
     final bytes = await future;
-    // Pas de fichier : réessayer après un import (même version).
+    // Pas de fichier : réessayer après un import (même empreinte).
     if (bytes == null) _entries.remove(key);
     return (document: document, bytes: bytes);
   }
@@ -85,11 +87,41 @@ class _PdfRegionViewState extends State<PdfRegionView> {
   /// Échec du rendu vectoriel (PDF illisible, page absente).
   String? _error;
 
+  /// Fichier du document suivi : toutes les zones du même PDF se rechargent
+  /// quand il est importé ou mis à jour, d'où que ce soit.
+  StreamSubscription<Object?>? _file;
+  Object? _fileState;
+  var _fileSeen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _watchFile();
+  }
+
+  void _watchFile() {
+    _file?.cancel();
+    _fileSeen = false;
+    _file = widget.store.watchDocumentFile(widget.documentId).listen((state) {
+      final changed = _fileSeen && state != _fileState;
+      _fileState = state;
+      _fileSeen = true;
+      if (changed && mounted) setState(_reload);
+    });
+  }
+
+  @override
+  void dispose() {
+    _file?.cancel();
+    super.dispose();
+  }
+
   @override
   void didUpdateWidget(PdfRegionView old) {
     super.didUpdateWidget(old);
     if (old.documentId != widget.documentId) {
       _reload();
+      _watchFile();
     } else if (old.page != widget.page || old.region != widget.region) {
       // Autre zone : proportions à recalculer, puis cadrage.
       _error = null;
@@ -137,10 +169,9 @@ class _PdfRegionViewState extends State<PdfRegionView> {
     );
   }
 
-  Future<void> _importMissing(SourceDocument document) async {
-    await widget.onMissingFile!(document);
-    if (mounted) setState(_reload);
-  }
+  /// Le rechargement suit l'import, via [_watchFile].
+  Future<void> _importMissing(SourceDocument document) =>
+      widget.onMissingFile!(document);
 
   /// Pourquoi la zone ne peut pas s'afficher en vectoriel, ou `null`.
   _Problem? _problem(AsyncSnapshot<PdfFile> snapshot) {
@@ -225,7 +256,7 @@ class _PdfRegionViewState extends State<PdfRegionView> {
                 child: PdfViewer.data(
                   bytes,
                   // Même nom que la visionneuse : document partagé.
-                  sourceName: 'verger-${document.id}-v${document.version}',
+                  sourceName: 'verger-${document.contentHash}',
                   controller: _controller,
                   initialPageNumber: widget.page,
                   params: PdfViewerParams(

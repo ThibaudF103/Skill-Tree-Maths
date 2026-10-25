@@ -488,6 +488,30 @@ class VergerStore {
   Stream<List<SourceDocument>> watchDocuments() =>
       _documentsQuery().watch().map((rows) => rows.map(_toDocument).toList());
 
+  /// État du fichier d'un document, suivi sans charger le PDF : change à
+  /// chaque mise à jour (empreinte) et quand le fichier est joint ou retiré.
+  /// `null` si le document n'existe pas.
+  Stream<({String contentHash, bool hasFile})?> watchDocumentFile(
+    String id,
+  ) => _db
+      .customSelect(
+        'SELECT d.content_hash AS hash, EXISTS (SELECT 1 FROM document_files f '
+        'WHERE f.document_id = d.id) AS has_file '
+        'FROM documents d WHERE d.id = ?',
+        variables: [Variable.withString(id)],
+        readsFrom: {_db.documents, _db.documentFiles},
+      )
+      .watchSingleOrNull()
+      .map(
+        (row) => row == null
+            ? null
+            : (
+                contentHash: row.read<String>('hash'),
+                hasFile: row.read<bool>('has_file'),
+              ),
+      )
+      .distinct();
+
   Future<SourceDocument?> document(String id) async {
     final row = await (_db.select(
       _db.documents,

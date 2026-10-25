@@ -30,6 +30,13 @@ Future<void> seed(VergerStore store) async {
     page: 2,
     region: const NormalizedRect(0.1, 0.2, 0.9, 0.4),
   );
+  await store.addAnchor(
+    itemId: item.id,
+    documentId: poly.id,
+    role: AnchorRole.work,
+    page: 3,
+    region: const NormalizedRect(0.1, 0.1, 0.9, 0.6),
+  );
   final archive = await store.exportTree(tree.id);
   await store.deleteNode(tree.id, recursive: true);
   await store.deleteDocument(poly.id);
@@ -60,7 +67,7 @@ void main() {
   testWidgets('zone sans PDF sur l\'appareil : la raison et l\'import', (
     tester,
   ) async {
-    await pumpTestApp(tester, seed: seed);
+    final store = await pumpTestApp(tester, seed: seed);
     await tester.tap(find.text('Arbres'));
     await settle(tester);
     await tester.tap(find.text('Poly').first);
@@ -68,12 +75,27 @@ void main() {
     await tester.tap(find.text('Cayley-Hamilton'));
     await settle(tester);
 
-    expect(find.text('PDF absent de cet appareil'), findsOneWidget);
-    expect(find.textContaining('Importez « Poly-Agreg.pdf »'), findsOneWidget);
+    expect(find.text('PDF absent de cet appareil'), findsNWidgets(2));
+    expect(
+      find.textContaining('Importez « Poly-Agreg.pdf »'),
+      findsNWidgets(2),
+    );
     expect(
       find.widgetWithText(OutlinedButton, 'Importer le PDF…'),
-      findsOneWidget,
+      findsNWidgets(2),
     );
+
+    // Fichier joint (d'ici ou de la Bibliothèque) : recto et verso se
+    // rechargent tous deux (ici sans PDFium : aperçu indisponible).
+    final poly = (await tester.runAsync(
+      store.allDocuments,
+    ))!.firstWhere((d) => d.title == 'Poly-Agreg.pdf');
+    await tester.runAsync(
+      () => store.attachDocumentFile(poly.id, Uint8List.fromList([1])),
+    );
+    await settle(tester);
+    expect(find.text('PDF absent de cet appareil'), findsNothing);
+    expect(find.text('Aperçu indisponible'), findsNWidgets(2));
     await unmountTestApp(tester);
   });
 
