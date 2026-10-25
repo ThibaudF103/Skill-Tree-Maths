@@ -5,6 +5,7 @@ import '../../app/app_scope.dart';
 import '../../ui/dialogs.dart';
 import '../../ui/labels.dart';
 import '../trees/node_picker.dart';
+import 'content_import.dart';
 import 'document_actions.dart';
 
 /// Vue « Bibliothèque » : tous les contenus (PDF, vidéos), filtrables par
@@ -138,16 +139,10 @@ class _LibraryPageState extends State<LibraryPage> {
                         style: theme.textTheme.headlineMedium,
                       ),
                     ),
-                    OutlinedButton.icon(
-                      onPressed: () => addYoutubeVideo(context),
-                      icon: const Icon(Icons.smart_display_outlined),
-                      label: const Text('Vidéo'),
-                    ),
-                    const SizedBox(width: 8),
                     FilledButton.icon(
-                      onPressed: () => importPdf(context),
-                      icon: const Icon(Icons.upload_file),
-                      label: const Text('Importer un PDF'),
+                      onPressed: () => importContent(context),
+                      icon: const Icon(Icons.add),
+                      label: const Text('Importer un contenu'),
                     ),
                   ],
                 ),
@@ -191,8 +186,8 @@ class _LibraryPageState extends State<LibraryPage> {
                   Padding(
                     padding: const EdgeInsets.all(8),
                     child: Text(
-                      'Aucun contenu pour l\'instant : importez un PDF, ici '
-                      'ou depuis une branche de l\'onglet Arbres.',
+                      'Aucun contenu pour l\'instant : importez un PDF ou une '
+                      'vidéo, ici ou depuis une branche de l\'onglet Arbres.',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.outline,
                       ),
