@@ -114,10 +114,13 @@ void main() {
     expect((await target.notes(itemId: item.id)).single.body, 'Preuve');
     expect((await target.notes(documentId: doc.id)), hasLength(1));
 
-    // Second import : le PDF déjà présent est réutilisé.
+    // Second import : l'arbre est mis à jour (pas de doublon), le PDF déjà
+    // présent est réutilisé.
     await target.importPack(pack);
     expect(await target.allDocuments(), hasLength(1));
-    expect(await target.allItems(), hasLength(2));
+    expect(await target.allItems(), hasLength(1));
+    expect(await target.allNodes(), hasLength(1));
+    expect(await target.notes(), hasLength(2));
   });
 
   test('import sans le PDF, fichier joint ensuite', () async {

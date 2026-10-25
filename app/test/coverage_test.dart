@@ -41,8 +41,11 @@ void main() {
         anchor('p', AnchorRole.source, page: 1), // PDF : ignoré
       ],
       [Note(id: 'n', body: '', startMs: 30000, createdAt: t, updatedAt: t)],
+      titles: {'i': 'Pythagore'},
     );
     expect(spans.map((s) => s.start), [1000, 30000, 60000]);
     expect(spans[1].role, isNull);
+    expect(spans.map((s) => s.label), ['Pythagore', 'Note', 'Pythagore']);
+    expect(spans[1].id, 'n');
   });
 }

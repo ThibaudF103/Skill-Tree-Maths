@@ -25,8 +25,8 @@ void _notify(BuildContext context, String message) {
     ..showSnackBar(SnackBar(content: Text(message)));
 }
 
-/// Choisit un PDF ; renvoie son nom (sans extension) et son contenu.
-Future<(String, Uint8List)?> _pickPdf() async {
+/// Choisit un fichier PDF ; renvoie son nom (sans extension) et son contenu.
+Future<(String, Uint8List)?> pickPdfFile() async {
   final file = await FilePicker.pickFile(
     dialogTitle: 'Choisir un PDF',
     type: FileType.custom,
@@ -74,31 +74,23 @@ Future<PdfAnalysis?> _analyzeWithProgress(
   }
 }
 
-/// Importe un PDF dans la bibliothèque, rattaché à [nodeId] s'il est donné
-/// (sinon, au choix dans le formulaire).
-Future<SourceDocument?> importPdf(
+/// Ajoute à la bibliothèque le PDF [bytes] sous le titre [title], rattaché à
+/// [nodeId] s'il est donné. Un PDF identique déjà présent est réutilisé
+/// (et son fichier joint s'il ne le connaissait que par ses empreintes).
+Future<SourceDocument?> savePdf(
   BuildContext context, {
+  required Uint8List bytes,
+  required String title,
   String? nodeId,
 }) async {
   final store = AppScope.of(context).store;
-  final picked = await _pickPdf();
-  if (picked == null || !context.mounted) return null;
-  final (name, bytes) = picked;
-
-  final choice = await showDialog<(String, String?)>(
-    context: context,
-    builder: (_) => _ImportDialog(initialTitle: name, nodeId: nodeId),
-  );
-  if (choice == null || !context.mounted) return null;
-  final (title, targetNode) = choice;
-
   final analysis = await _analyzeWithProgress(context, bytes);
   if (analysis == null || !context.mounted) return null;
   final existing = (await store.allDocuments())
       .where((d) => d.contentHash == analysis.contentHash)
       .firstOrNull;
   if (existing != null) {
-    if (targetNode != null) await store.linkResource(existing.id, targetNode);
+    if (nodeId != null) await store.linkResource(existing.id, nodeId);
     // Connu par ses empreintes seulement (paquet sans le PDF) : le fichier
     // est joint.
     final attached = await store.attachDocumentFile(existing.id, bytes);
@@ -108,7 +100,7 @@ Future<SourceDocument?> importPdf(
         attached
             ? 'Fichier de « ${existing.title} » ajouté à la bibliothèque.'
             : 'Ce PDF est déjà dans la bibliothèque : « ${existing.title} »'
-                  '${targetNode != null ? ', rattaché ici' : ''}.',
+                  '${nodeId != null ? ', rattaché ici' : ''}.',
       );
     }
     return existing;
@@ -118,7 +110,7 @@ Future<SourceDocument?> importPdf(
     bytes: bytes,
     contentHash: analysis.contentHash,
     fingerprints: analysis.fingerprints,
-    nodeIds: [?targetNode],
+    nodeIds: [?nodeId],
   );
   if (context.mounted) {
     _notify(
@@ -129,20 +121,17 @@ Future<SourceDocument?> importPdf(
   return document;
 }
 
-/// Ajoute une vidéo YouTube (adresse collée), rattachée à [nodeId].
-Future<SourceDocument?> addYoutubeVideo(
+/// Ajoute la vidéo YouTube [videoId], rattachée à [nodeId] s'il est donné,
+/// puis l'ouvre pour en marquer les extraits.
+Future<SourceDocument?> saveYoutubeVideo(
   BuildContext context, {
+  required String videoId,
+  required String title,
   String? nodeId,
 }) async {
   final store = AppScope.of(context).store;
-  final result = await showDialog<(String, String)>(
-    context: context,
-    builder: (_) => const _VideoDialog(),
-  );
-  if (result == null || !context.mounted) return null;
-  final (id, title) = result;
   final existing = (await store.allDocuments())
-      .where((d) => d.isVideo && d.contentHash == id)
+      .where((d) => d.isVideo && d.contentHash == videoId)
       .firstOrNull;
   if (existing != null) {
     if (nodeId != null) await store.linkResource(existing.id, nodeId);
@@ -154,114 +143,13 @@ Future<SourceDocument?> addYoutubeVideo(
   }
   final video = await store.addVideo(
     title: title,
-    url: youtubeUrl(id),
-    videoId: id,
+    url: youtubeUrl(videoId),
+    videoId: videoId,
     nodeIds: [?nodeId],
   );
   // La vidéo s'ouvre aussitôt, pour en marquer les extraits.
   if (context.mounted) await openResource(context, video);
   return video;
-}
-
-class _VideoDialog extends StatefulWidget {
-  const _VideoDialog();
-
-  @override
-  State<_VideoDialog> createState() => _VideoDialogState();
-}
-
-class _VideoDialogState extends State<_VideoDialog> {
-  final _url = TextEditingController();
-  final _title = TextEditingController();
-  String? _id;
-  var _fetching = false;
-
-  @override
-  void dispose() {
-    _url.dispose();
-    _title.dispose();
-    super.dispose();
-  }
-
-  Future<void> _onUrl(String text) async {
-    final id = youtubeId(text);
-    setState(() => _id = id);
-    if (id == null || _title.text.isNotEmpty) return;
-    setState(() => _fetching = true);
-    final title = await youtubeTitle(id);
-    if (!mounted || _id != id) return;
-    setState(() {
-      _fetching = false;
-      if (title != null && _title.text.isEmpty) _title.text = title;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final id = _id;
-    return AlertDialog(
-      title: const Text('Ajouter une vidéo YouTube'),
-      content: SizedBox(
-        width: 480,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            TextField(
-              controller: _url,
-              autofocus: true,
-              decoration: InputDecoration(
-                labelText: 'Adresse de la vidéo',
-                hintText: 'https://www.youtube.com/watch?v=…',
-                border: const OutlineInputBorder(),
-                errorText: _url.text.isNotEmpty && id == null
-                    ? 'Adresse YouTube non reconnue'
-                    : null,
-              ),
-              onChanged: _onUrl,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _title,
-              decoration: InputDecoration(
-                labelText: 'Titre',
-                border: const OutlineInputBorder(),
-                suffixIcon: _fetching
-                    ? const Padding(
-                        padding: EdgeInsets.all(12),
-                        child: SizedBox.square(
-                          dimension: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      )
-                    : null,
-              ),
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Annuler'),
-        ),
-        ListenableBuilder(
-          listenable: _title,
-          builder: (context, _) => FilledButton(
-            onPressed: id == null
-                ? null
-                : () => Navigator.pop(context, (
-                    id,
-                    _title.text.trim().isEmpty
-                        ? 'Vidéo $id'
-                        : _title.text.trim(),
-                  )),
-            child: const Text('Ajouter'),
-          ),
-        ),
-      ],
-    );
-  }
 }
 
 /// Rattache [document] à une branche choisie dans l'arbre.
@@ -339,7 +227,7 @@ Future<void> openResource(BuildContext context, SourceDocument document) async {
 /// Remplace le PDF par une nouvelle version et recale les ancres.
 Future<void> updatePdf(BuildContext context, SourceDocument document) async {
   final store = AppScope.of(context).store;
-  final picked = await _pickPdf();
+  final picked = await pickPdfFile();
   if (picked == null || !context.mounted) return;
   final (_, bytes) = picked;
   final analysis = await _analyzeWithProgress(context, bytes);
@@ -395,111 +283,6 @@ Future<void> updatePdf(BuildContext context, SourceDocument document) async {
           initialPage: result.newPages.first,
         ),
       ),
-    );
-  }
-}
-
-class _ImportDialog extends StatefulWidget {
-  const _ImportDialog({required this.initialTitle, this.nodeId});
-
-  final String initialTitle;
-  final String? nodeId;
-
-  @override
-  State<_ImportDialog> createState() => _ImportDialogState();
-}
-
-class _ImportDialogState extends State<_ImportDialog> {
-  late final _title = TextEditingController(text: widget.initialTitle);
-  late String? _nodeId = widget.nodeId;
-  String? _nodePath;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_nodeId != null && _nodePath == null) _loadPath();
-  }
-
-  Future<void> _loadPath() async {
-    final nodes = await AppScope.of(context).store.allNodes();
-    if (!mounted) return;
-    setState(
-      () => _nodePath = nodePath({for (final n in nodes) n.id: n}, _nodeId!),
-    );
-  }
-
-  Future<void> _chooseNode() async {
-    final node = await pickNode(
-      context,
-      title: 'Rattacher à…',
-      initialId: _nodeId,
-    );
-    if (node == null || !mounted) return;
-    _nodeId = node.id;
-    await _loadPath();
-  }
-
-  @override
-  void dispose() {
-    _title.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return AlertDialog(
-      title: const Text('Importer un PDF'),
-      content: SizedBox(
-        width: 460,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            TextField(
-              controller: _title,
-              decoration: const InputDecoration(
-                labelText: 'Titre',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.account_tree_outlined),
-              title: const Text('Rattaché à'),
-              subtitle: Text(
-                _nodeId == null
-                    ? 'Aucune branche (bibliothèque seulement)'
-                    : _nodePath ?? '…',
-              ),
-              trailing: TextButton(
-                onPressed: _chooseNode,
-                child: Text(_nodeId == null ? 'Choisir' : 'Changer'),
-              ),
-            ),
-            Text(
-              'Un même contenu peut servir à plusieurs branches.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.outline,
-              ),
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Annuler'),
-        ),
-        FilledButton(
-          onPressed: () {
-            final title = _title.text.trim();
-            if (title.isNotEmpty) Navigator.pop(context, (title, _nodeId));
-          },
-          child: const Text('Importer'),
-        ),
-      ],
     );
   }
 }

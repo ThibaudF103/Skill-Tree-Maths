@@ -58,6 +58,9 @@ void main() {
     expect(url.path, '/embed/dQw4w9WgXcQ');
     expect(url.queryParameters['start'], '90');
     expect(url.queryParameters['enablejsapi'], '1');
+    // Commandes de YouTube masquées : la barre de lecture est maison.
+    expect(url.queryParameters['controls'], '0');
+    expect(url.queryParameters['iv_load_policy'], '3');
     expect(url.queryParameters['origin'], 'https://verger.app');
     expect(
       Uri.parse(embedUrl('dQw4w9WgXcQ')).queryParameters,

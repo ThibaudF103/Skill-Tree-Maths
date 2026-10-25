@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:verger_core/verger_core.dart';
 
 import '../../app/app_scope.dart';
+import '../documents/content_import.dart';
 import '../documents/document_actions.dart';
 import 'tree_data.dart';
 
@@ -92,14 +93,8 @@ class _NodeContentsState extends State<NodeContents> {
                       MenuItemButton(
                         leadingIcon: const Icon(Icons.upload_file),
                         onPressed: () =>
-                            importPdf(context, nodeId: widget.node.id),
-                        child: const Text('Importer un PDF'),
-                      ),
-                      MenuItemButton(
-                        leadingIcon: const Icon(Icons.smart_display_outlined),
-                        onPressed: () =>
-                            addYoutubeVideo(context, nodeId: widget.node.id),
-                        child: const Text('Ajouter une vidéo YouTube'),
+                            importContent(context, nodeId: widget.node.id),
+                        child: const Text('Importer un contenu (PDF, vidéo)'),
                       ),
                       MenuItemButton(
                         leadingIcon: const Icon(Icons.link),

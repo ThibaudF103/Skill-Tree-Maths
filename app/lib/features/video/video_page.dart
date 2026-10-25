@@ -1,13 +1,14 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:verger_core/verger_core.dart';
 import 'package:verger_data/verger_data.dart';
 
 import '../../app/app_scope.dart';
 import '../../ui/labels.dart';
 import '../../ui/coverage.dart';
-import '../../video/video_timeline.dart';
+import '../../video/video_control_bar.dart';
 import '../../video/youtube_player.dart';
 import '../documents/document_viewer_page.dart'
     show noteColor, rectoColor, versoColor;
@@ -50,16 +51,69 @@ class _VideoPageState extends State<VideoPage> {
   Stream<List<KnowledgeItem>>? _items;
   Stream<List<Anchor>>? _timelineAnchors;
   Stream<List<Note>>? _timelineNotes;
+  Stream<List<KnowledgeItem>>? _timelineItems;
+  final _scroll = ScrollController();
   int? _start;
   int? _end;
-
-  /// Note ouverte sous la vidéo (écran partagé).
-  String? _openNote;
 
   /// Une fenêtre couvre le lecteur : il est masqué le temps de l'échange
   /// (dans la version web, une iframe capterait les clics destinés à la
   /// fenêtre).
   var _covered = false;
+
+  /// Plein cadre : la vidéo et sa barre occupent toute la fenêtre. L'arbre
+  /// des widgets reste le même, pour ne pas recharger le lecteur.
+  var _fullscreen = false;
+
+  /// Note ouverte sous la vidéo (écran partagé, hors plein cadre).
+  String? _openNote;
+
+  /// Reçoit Échap (ordinateur, web) pour quitter le plein cadre.
+  final _keys = FocusNode(debugLabel: 'video-page');
+
+  void _toggleFullscreen() => _setFullscreen(!_fullscreen);
+
+  void _setFullscreen(bool on) {
+    if (on == _fullscreen) return;
+    setState(() {
+      _fullscreen = on;
+      // Le plein cadre referme la note (enregistrée en partant).
+      if (on) _openNote = null;
+    });
+    if (on && _scroll.hasClients) _scroll.jumpTo(0);
+    if (on) _keys.requestFocus();
+    // Masque aussi la barre d'état sur tablette (sans effet sur ordinateur).
+    SystemChrome.setEnabledSystemUIMode(
+      on ? SystemUiMode.immersiveSticky : SystemUiMode.edgeToEdge,
+    );
+  }
+
+  @override
+  void dispose() {
+    if (_fullscreen) {
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    }
+    _scroll.dispose();
+    _keys.dispose();
+    super.dispose();
+  }
+
+  void _open(TimeSpan span) {
+    // La page ouverte ne doit hériter ni du plein cadre ni de la barre
+    // d'état masquée.
+    _setFullscreen(false);
+    if (span.role == null) {
+      setState(() => _openNote = span.id);
+      return;
+    }
+    _covering(
+      () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => ItemDetailPage(itemId: span.id),
+        ),
+      ),
+    );
+  }
 
   Future<T> _covering<T>(Future<T> Function() action) async {
     setState(() => _covered = true);
@@ -81,6 +135,7 @@ class _VideoPageState extends State<VideoPage> {
     _items ??= _store.watchItems();
     _timelineAnchors ??= _store.watchAnchors(documentId: widget.documentId);
     _timelineNotes ??= _store.watchNotes(documentId: widget.documentId);
+    _timelineItems ??= _store.watchItems();
   }
 
   Future<void> _mark({required bool start}) async {
@@ -223,20 +278,21 @@ class _VideoPageState extends State<VideoPage> {
             ),
           );
         }
-        return Scaffold(
-          appBar: AppBar(title: Text(document.title)),
-          body: NoteSplit(
-            title: const Text('Note'),
-            onClose: () => setState(() => _openNote = null),
-            note: _openNote == null
-                ? null
-                : LiveNoteEditor(
-                    key: ValueKey(_openNote),
-                    noteId: _openNote!,
-                    onDeleted: () => setState(() => _openNote = null),
-                  ),
-            content: LayoutBuilder(
-              builder: (context, area) => _body(document, area),
+        return PopScope(
+          // En plein cadre, « retour » quitte d'abord le plein cadre.
+          canPop: !_fullscreen,
+          onPopInvokedWithResult: (didPop, _) {
+            if (!didPop) _setFullscreen(false);
+          },
+          child: CallbackShortcuts(
+            bindings: {
+              const SingleActivator(LogicalKeyboardKey.escape): () =>
+                  _setFullscreen(false),
+            },
+            child: Focus(
+              focusNode: _keys,
+              autofocus: true,
+              child: _scaffold(document),
             ),
           ),
         );
@@ -244,72 +300,169 @@ class _VideoPageState extends State<VideoPage> {
     );
   }
 
-  /// Lecteur, frise, extrait et liens ; avec une note ouverte, le lecteur
-  /// rétrécit pour rester entier au-dessus de la note.
-  Widget _body(SourceDocument document, BoxConstraints area) {
-    final playerWidth = _openNote == null
-        ? double.infinity
-        : math.max(240.0, (area.maxHeight - 24) * 16 / 9);
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-      children: [
-        Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 960),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+  Widget _scaffold(SourceDocument document) => Scaffold(
+    backgroundColor: _fullscreen ? Colors.black : null,
+    appBar: _fullscreen ? null : AppBar(title: Text(document.title)),
+    // En plein cadre, rien sous l'encoche ni l'indicateur d'accueil.
+    body: SafeArea(
+      top: _fullscreen,
+      bottom: _fullscreen,
+      child: NoteSplit(
+        title: const Text('Note'),
+        onClose: () => setState(() => _openNote = null),
+        note: _fullscreen || _openNote == null
+            ? null
+            : LiveNoteEditor(
+                key: ValueKey(_openNote),
+                noteId: _openNote!,
+                onDeleted: () => setState(() => _openNote = null),
+              ),
+        content: LayoutBuilder(
+          builder: (context, viewport) {
+            // Largeur de la vidéo en plein cadre : toute la fenêtre,
+            // moins la hauteur de la barre de lecture.
+            final width = _fullscreen
+                ? viewport.maxWidth.clamp(
+                    0.0,
+                    (viewport.maxHeight - 104).clamp(0.0, double.infinity) *
+                        16 /
+                        9,
+                  )
+                // Avec une note ouverte, la vidéo et sa barre restent entières
+                // au-dessus de la note.
+                : _openNote != null
+                ? math.max(240.0, (viewport.maxHeight - 104) * 16 / 9)
+                : null;
+            return ListView(
+              controller: _scroll,
+              physics: _fullscreen
+                  ? const NeverScrollableScrollPhysics()
+                  : null,
+              padding: _fullscreen
+                  ? EdgeInsets.zero
+                  : const EdgeInsets.fromLTRB(16, 8, 16, 32),
               children: [
                 Center(
                   child: ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: playerWidth),
-                    child: Stack(
+                    constraints: BoxConstraints(
+                      maxWidth: _fullscreen ? double.infinity : 960,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const AspectRatio(
-                          aspectRatio: 16 / 9,
-                          child: ColoredBox(color: Colors.black),
+                        Center(
+                          child: SizedBox(
+                            width: width,
+                            child: Stack(
+                              children: [
+                                const AspectRatio(
+                                  aspectRatio: 16 / 9,
+                                  child: ColoredBox(color: Colors.black),
+                                ),
+                                Offstage(
+                                  offstage: _covered,
+                                  child: YoutubePlayer(
+                                    videoId: document.contentHash,
+                                    controller: _player,
+                                    startMs: widget.startMs ?? 0,
+                                    endMs: widget.endMs,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                        Offstage(
-                          offstage: _covered,
-                          child: YoutubePlayer(
-                            videoId: document.contentHash,
-                            controller: _player,
-                            startMs: widget.startMs ?? 0,
-                            endMs: widget.endMs,
+                        const SizedBox(height: 4),
+                        Theme(
+                          // Barre claire sur fond noir en plein cadre.
+                          data: _fullscreen
+                              ? ThemeData(
+                                  brightness: Brightness.dark,
+                                  colorSchemeSeed: Theme.of(
+                                    context,
+                                  ).colorScheme.primary,
+                                )
+                              : Theme.of(context),
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: _fullscreen ? 16 : 0,
+                            ),
+                            child: _controlBar(),
+                          ),
+                        ),
+                        Visibility(
+                          visible: !_fullscreen,
+                          maintainState: true,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              const SizedBox(height: 8),
+                              _excerptBar(document),
+                              const SizedBox(height: 24),
+                              _linked(context),
+                            ],
                           ),
                         ),
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(height: 8),
-                StreamBuilder<List<Anchor>>(
-                  stream: _timelineAnchors,
-                  builder: (context, anchors) => StreamBuilder<List<Note>>(
-                    stream: _timelineNotes,
-                    builder: (context, notes) => VideoTimeline(
-                      controller: _player,
-                      spans: videoCoverage(
-                        anchors.data ?? const [],
-                        notes.data ?? const [],
-                      ),
-                      selection: _start == null ? null : (_start!, _end),
-                      rectoColor: rectoColor,
-                      versoColor: versoColor,
-                      noteColor: noteColor,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                _excerptBar(document),
-                const SizedBox(height: 24),
-                _linked(context),
               ],
-            ),
-          ),
+            );
+          },
         ),
-      ],
-    );
-  }
+      ),
+    ),
+  );
+
+  /// Barre de lecture, avec la couverture de la vidéo.
+  Widget _controlBar() => StreamBuilder<List<KnowledgeItem>>(
+    stream: _timelineItems,
+    builder: (context, items) => StreamBuilder<List<Anchor>>(
+      stream: _timelineAnchors,
+      builder: (context, anchors) => StreamBuilder<List<Note>>(
+        stream: _timelineNotes,
+        builder: (context, notes) => VideoControlBar(
+          controller: _player,
+          spans: videoCoverage(
+            anchors.data ?? const [],
+            notes.data ?? const [],
+            titles: {
+              for (final i in items.data ?? const <KnowledgeItem>[])
+                i.id: i.title,
+            },
+          ),
+          selection: _start == null ? null : (_start!, _end),
+          rectoColor: rectoColor,
+          versoColor: versoColor,
+          noteColor: noteColor,
+          onOpen: _open,
+          onFullscreen: _toggleFullscreen,
+          fullscreen: _fullscreen,
+          // La barre d'extrait est masquée en plein cadre : le marquage
+          // passe dans la barre de lecture.
+          actions: _fullscreen
+              ? [
+                  IconButton(
+                    tooltip: _start == null
+                        ? 'Marquer le début'
+                        : 'Début : ${formatClock(_start!)}',
+                    icon: const Icon(Icons.first_page),
+                    onPressed: () => _mark(start: true),
+                  ),
+                  IconButton(
+                    tooltip: _end == null
+                        ? 'Marquer la fin'
+                        : 'Fin : ${formatClock(_end!)}',
+                    icon: const Icon(Icons.last_page),
+                    onPressed: () => _mark(start: false),
+                  ),
+                ]
+              : const [],
+        ),
+      ),
+    ),
+  );
 
   Widget _excerptBar(SourceDocument document) {
     final theme = Theme.of(context);
