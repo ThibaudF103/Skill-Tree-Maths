@@ -516,4 +516,112 @@ void main() {
     );
     expect(copy.id, isNot(note.id));
   });
+
+  test('branche réimportée : notes du poly hérité non dupliquées', () async {
+    final poly = (await author.allDocuments()).single; // rattaché à l'arbre
+    await author.createNote(body: 'Page 1', documentId: poly.id, page: 1);
+    // Ni rattaché à la branche ni ancré par elle : seulement hérité.
+    for (final a in await author.anchorsOf(
+      (await itemNamed(author, 'Théorème de Cesàro')).id,
+    )) {
+      await author.deleteAnchor(a.id);
+    }
+    final suites = await nodeNamed(author, 'Suites');
+    final pack = await author.exportTree(suites.id);
+    expect(pack.notes.map((n) => n.body), contains('Page 1'));
+
+    for (var i = 0; i < 2; i++) {
+      final preview = await author.previewPack(pack);
+      expect(preview.notes, 0);
+      await author.importPack(pack);
+      expect((await author.notes(documentId: poly.id)).map((n) => n.body), [
+        'Page 1',
+      ]);
+    }
+  });
+
+  test(
+    'page du paquet introuvable : l\'ancre locale garde la sienne',
+    () async {
+      final source = newStore();
+      addTearDown(source.close);
+      final tree = await source.createNode(title: 'Algèbre');
+      final item = await source.createItem(
+        nodeId: tree.id,
+        kind: ItemKind.theorem,
+        title: 'Cayley-Hamilton',
+      );
+      final pages = [page(1), page(2), page(3)];
+      final poly = await source.importDocument(
+        title: 'Poly',
+        bytes: Uint8List.fromList([1]),
+        contentHash: 'v1',
+        fingerprints: pages,
+        nodeIds: [tree.id],
+      );
+      await source.addAnchor(
+        itemId: item.id,
+        documentId: poly.id,
+        role: AnchorRole.source,
+        page: 2,
+      );
+      final pack = await source.exportTree(tree.id);
+
+      final local = newStore();
+      addTearDown(local.close);
+      await local.importPack(pack);
+      // Version locale sans la page 2 ; l'ancre a été recalée à la main.
+      await local.updateDocument(
+        poly.id,
+        bytes: Uint8List.fromList([2]),
+        contentHash: 'v2',
+        fingerprints: [page(99), page(1), page(3)],
+      );
+      final anchor = (await local.anchorsOf(item.id)).single;
+      await local.relocateAnchor(anchor.id, page: 3);
+
+      await local.importPack(pack, mode: PackImportMode.combine);
+      final after = (await local.anchorsOf(item.id)).single;
+      expect((after.id, after.page, after.needsReview), (anchor.id, 3, true));
+    },
+  );
+
+  test('prérequis du paquet écarté (cycle) : compté comme perdu', () async {
+    final suitesId = (await nodeNamed(author, 'Suites')).id;
+    Future<KnowledgeItem> add(String title) => author.createItem(
+      nodeId: suitesId,
+      kind: ItemKind.theorem,
+      title: title,
+    );
+    final a = await add('A');
+    final b = await add('B');
+    final d = await add('D');
+    await author.addPrerequisite(d.id, b.id);
+    await author.addPrerequisite(b.id, a.id);
+    final pack = await author.exportTree(
+      (await nodeNamed(author, 'Analyse')).id,
+    );
+
+    final fresh = newStore();
+    addTearDown(fresh.close);
+    await fresh.importPack(pack);
+    await fresh.removePrerequisite(d.id, b.id);
+    final other = await fresh.createNode(title: 'Ailleurs');
+    final c = await fresh.createItem(
+      nodeId: other.id,
+      kind: ItemKind.lemma,
+      title: 'C',
+    );
+    await fresh.addPrerequisite(a.id, c.id);
+    await fresh.addPrerequisite(c.id, d.id);
+
+    // Avec D → B repris du paquet, B → A fermerait le cycle B → A → C → D.
+    final preview = await fresh.previewPack(pack);
+    expect(preview.prerequisites, 1);
+    expect(preview.wouldLose, isTrue);
+    await fresh.importPack(pack);
+    final edges = await fresh.prerequisites();
+    expect(edges, contains((itemId: d.id, requiresId: b.id)));
+    expect(edges, isNot(contains((itemId: b.id, requiresId: a.id))));
+  });
 }

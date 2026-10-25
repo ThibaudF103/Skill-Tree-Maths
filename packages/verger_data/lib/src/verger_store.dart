@@ -114,6 +114,8 @@ class _PackPlan {
     required this.pageRemaps,
     required this.lostLinks,
     required this.lostPrerequisites,
+    required this.localAnchorPages,
+    required this.localNotePages,
   });
 
   /// Racines du paquet déjà présentes.
@@ -149,6 +151,11 @@ class _PackPlan {
   /// Pages du paquet → pages du contenu local, quand les versions diffèrent
   /// (clé : identifiant du contenu dans le paquet).
   final Map<String, PageRemap> pageRemaps;
+
+  /// Pages des ancres et des notes locales, gardées quand celle du paquet
+  /// n'est pas retrouvée dans la version locale du contenu.
+  final Map<String, int?> localAnchorPages;
+  final Map<String, int?> localNotePages;
 }
 
 /// Accès aux données du Verger. L'application ne manipule que des types du
@@ -1430,12 +1437,20 @@ class VergerStore {
 
     for (final a in archive.anchors) {
       final placed = place(a.documentId, a.page);
+      final id = plan.anchorIds[a.id]!;
+      if (placed.lost && plan.localAnchorPages.containsKey(id)) {
+        // Page du paquet introuvable : l'ancre locale garde la sienne.
+        await (_db.update(_db.anchors)..where((r) => r.id.equals(id))).write(
+          const AnchorsCompanion(needsReview: Value(true)),
+        );
+        continue;
+      }
       await _db
           .into(_db.anchors)
           .insertOnConflictUpdate(
             _anchorRow(
               Anchor(
-                id: plan.anchorIds[a.id]!,
+                id: id,
                 itemId: plan.itemIds[a.itemId]!,
                 documentId: documentIds[a.documentId]!,
                 role: a.role,
@@ -1451,6 +1466,15 @@ class VergerStore {
             ),
           );
     }
+    int? notePage(Note n) {
+      if (n.documentId == null) return n.page;
+      final placed = place(n.documentId!, n.page);
+      final id = plan.noteIds[n.id]!;
+      return placed.lost && plan.localNotePages.containsKey(id)
+          ? plan.localNotePages[id]
+          : placed.page;
+    }
+
     for (final n in archive.notes) {
       await _db
           .into(_db.notes)
@@ -1462,9 +1486,7 @@ class VergerStore {
                 documentId: n.documentId == null
                     ? null
                     : documentIds[n.documentId],
-                page: n.documentId == null
-                    ? n.page
-                    : place(n.documentId!, n.page).page,
+                page: notePage(n),
                 startMs: n.startMs,
                 endMs: n.endMs,
                 region: n.region,
@@ -1618,18 +1640,55 @@ class VergerStore {
     final anchorIds = ids(archive.anchors.map((a) => a.id), {
       for (final a in anchors) a.id,
     }, targetAnchors);
-    final noteIds = ids(archive.notes.map((n) => n.id), {
-      for (final n in notes) n.id,
-    }, targetNotes);
+    // Une note d'un contenu seulement est aussi retrouvée quand elle porte
+    // sur le même contenu local (contenu hérité d'un ancêtre de la branche
+    // partagée, par exemple) : un réimport ne la duplique pas.
+    final localNotes = {for (final n in notes) n.id: n};
+    final noteIds = {
+      for (final n in archive.notes)
+        n.id: switch (localNotes[n.id]) {
+          null => n.id,
+          final local
+              when targetNotes.contains(local.id) ||
+                  (local.itemId == null &&
+                      n.itemId == null &&
+                      n.documentId != null &&
+                      local.documentId == documentIds[n.documentId]) =>
+            n.id,
+          _ => newId(),
+        },
+    };
     final keptNotes = noteIds.values.toSet();
     final incomingLinks = {
       for (final l in archive.resourceLinks)
         (documentId: documentIds[l.documentId]!, nodeId: nodeIds[l.nodeId]!),
     };
-    final incomingEdges = {
-      for (final e in archive.prerequisites)
-        (itemId: itemIds[e.itemId]!, requiresId: itemIds[e.requiresId]!),
-    };
+    // Prérequis après « Remplacer » : les liens locaux qui restent, puis
+    // ceux du paquet, sauf ceux qui formeraient un cycle (comme à l'import).
+    final lostItems = targetItems.difference(itemIds.values.toSet());
+    final localEdges = await prerequisites();
+    bool internal(Prerequisite e) =>
+        targetItems.contains(e.itemId) && targetItems.contains(e.requiresId);
+    final edges = [
+      for (final e in localEdges)
+        if (!internal(e) &&
+            !lostItems.contains(e.itemId) &&
+            !lostItems.contains(e.requiresId))
+          e,
+    ];
+    for (final e in archive.prerequisites) {
+      final edge = (
+        itemId: itemIds[e.itemId]!,
+        requiresId: itemIds[e.requiresId]!,
+      );
+      if (!edges.contains(edge) &&
+          !PrerequisiteGraph(
+            edges,
+          ).wouldCreateCycle(edge.itemId, edge.requiresId)) {
+        edges.add(edge);
+      }
+    }
+    final keptEdges = edges.toSet();
     return _PackPlan(
       localDocuments: localDocuments,
       documentIds: documentIds,
@@ -1644,7 +1703,7 @@ class VergerStore {
       anchorIds: anchorIds,
       noteIds: noteIds,
       lostNodes: targetNodes.difference(nodeIds.values.toSet()),
-      lostItems: targetItems.difference(itemIds.values.toSet()),
+      lostItems: lostItems,
       lostAnchors: targetAnchors.difference(anchorIds.values.toSet()),
       lostNotes: {
         for (final n in notes)
@@ -1655,12 +1714,14 @@ class VergerStore {
           if (targetNodes.contains(l.nodeId) && !incomingLinks.contains(l)) l,
       ],
       lostPrerequisites: [
-        for (final e in await prerequisites())
-          if (targetItems.contains(e.itemId) &&
-              targetItems.contains(e.requiresId) &&
-              !incomingEdges.contains(e))
-            e,
+        for (final e in localEdges)
+          if (internal(e) && !keptEdges.contains(e)) e,
       ],
+      localAnchorPages: {
+        for (final a in anchors)
+          if (targetAnchors.contains(a.id)) a.id: a.page,
+      },
+      localNotePages: {for (final n in notes) n.id: n.page},
     );
   }
 
