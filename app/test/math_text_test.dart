@@ -50,4 +50,69 @@ void main() {
     // La formule invalide est affichée en clair.
     expect(find.text(r'$\frac{1$'), findsOneWidget);
   });
+
+  testWidgets('une formule en ligne est posée sur la ligne de base du texte', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.topLeft,
+            child: MathText(r'Soit $u \in L(E)$ et $x$ fixé.'),
+          ),
+        ),
+      ),
+    );
+    final spans = <WidgetSpan>[];
+    tester.widget<RichText>(find.byType(RichText).first).text.visitChildren((
+      span,
+    ) {
+      if (span is WidgetSpan) spans.add(span);
+      return true;
+    });
+    expect(spans, hasLength(2));
+    for (final span in spans) {
+      expect(span.alignment, PlaceholderAlignment.baseline);
+      expect(span.baseline, TextBaseline.alphabetic);
+    }
+
+    // Même ligne de base, à l'écran, pour le texte et chaque formule (lue
+    // hors mise en page : valeurs déjà calculées, en cache).
+    RenderObject.debugCheckingIntrinsics = true;
+    addTearDown(() => RenderObject.debugCheckingIntrinsics = false);
+    final paragraph = tester.renderObject<RenderBox>(
+      find.byType(RichText).first,
+    );
+    final textBaseline =
+        paragraph.localToGlobal(Offset.zero).dy +
+        paragraph.getDistanceToBaseline(TextBaseline.alphabetic)!;
+    for (final formula in find.byType(Math).evaluate()) {
+      final box = formula.renderObject! as RenderBox;
+      final baseline =
+          box.localToGlobal(Offset.zero).dy +
+          box.getDistanceToBaseline(TextBaseline.alphabetic)!;
+      expect(baseline, moreOrLessEquals(textBaseline, epsilon: 0.1));
+    }
+  });
+
+  // Mesure « à sec » (puce, largeur intrinsèque, titre de dialogue) : la
+  // ligne de base d'une formule doit pouvoir s'estimer sans plantage.
+  for (final (name, wrap) in <(String, Widget Function(Widget))>[
+    ('une puce', (m) => ChoiceChip(label: m, selected: false)),
+    ('une largeur intrinsèque', (m) => IntrinsicWidth(child: m)),
+    ('un titre de dialogue', (m) => AlertDialog(title: m)),
+  ]) {
+    testWidgets('formule en ligne dans $name', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(child: wrap(const MathText(r'Choix $x^2 + 1$'))),
+          ),
+        ),
+      );
+      expect(tester.takeException(), isNull);
+      expect(find.byType(Math), findsOneWidget);
+    });
+  }
 }

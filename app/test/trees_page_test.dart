@@ -128,6 +128,61 @@ void main() {
     await unmountTestApp(tester);
   });
 
+  testWidgets('connaissances d\'une branche filtrées par type', (tester) async {
+    await pumpTestApp(
+      tester,
+      seed: (store) async {
+        final tree = await store.createNode(title: 'Analyse');
+        final branch = await store.createNode(
+          title: 'Suites',
+          parentId: tree.id,
+        );
+        for (final (kind, title) in [
+          (ItemKind.definition, 'Suite de Cauchy'),
+          (ItemKind.theorem, 'Bolzano-Weierstrass'),
+          (ItemKind.theorem, 'Suites adjacentes'),
+          (ItemKind.exercise, 'Suite récurrente'),
+        ]) {
+          await store.createItem(nodeId: branch.id, kind: kind, title: title);
+        }
+      },
+    );
+    await openTrees(tester);
+    await tester.tap(find.widgetWithText(ListTile, 'Suites'));
+    await settle(tester);
+
+    final titles = [
+      'Suite de Cauchy',
+      'Bolzano-Weierstrass',
+      'Suites adjacentes',
+      'Suite récurrente',
+    ];
+    void expectShown(Set<String> shown) {
+      for (final t in titles) {
+        expect(find.text(t), shown.contains(t) ? findsOneWidget : findsNothing);
+      }
+    }
+
+    expectShown(titles.toSet());
+    expect(find.byType(FilterChip), findsNWidgets(3));
+    await tester.tap(find.widgetWithText(FilterChip, 'Théorème (2)'));
+    await settle(tester);
+    expectShown({'Bolzano-Weierstrass', 'Suites adjacentes'});
+    await tester.tap(find.widgetWithText(FilterChip, 'Exercice (1)'));
+    await settle(tester);
+    expectShown({
+      'Bolzano-Weierstrass',
+      'Suites adjacentes',
+      'Suite récurrente',
+    });
+    // Plus aucun type retenu : tout revient.
+    await tester.tap(find.widgetWithText(FilterChip, 'Théorème (2)'));
+    await tester.tap(find.widgetWithText(FilterChip, 'Exercice (1)'));
+    await settle(tester);
+    expectShown(titles.toSet());
+    await unmountTestApp(tester);
+  });
+
   testWidgets('sur téléphone, la navigation se fait par pages', (tester) async {
     await pumpTestApp(
       tester,

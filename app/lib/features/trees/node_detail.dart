@@ -4,7 +4,9 @@ import 'package:verger_core/verger_core.dart';
 import '../../app/app_scope.dart';
 import '../../ui/dialogs.dart';
 import '../../ui/item_glyph.dart';
+import '../../ui/labels.dart';
 import '../data/pack_actions.dart';
+import '../documents/content_import.dart';
 import '../items/item_detail_page.dart';
 import '../items/item_editor.dart';
 import '../items/item_tile.dart';
@@ -145,25 +147,7 @@ class NodeDetail extends StatelessWidget {
             'Aucune connaissance ici pour l\'instant : un rameau en hiver.',
           )
         else
-          for (final item in items)
-            TreeDropTarget(
-              places: (drag) => itemDropPlaces(item, drag),
-              onDrop: (drag, place) =>
-                  dropOnItem(store, data, item, drag, place),
-              child: TreeDraggable(
-                drag: ItemDrag(item),
-                child: ItemTile(
-                  item: item,
-                  now: data.now,
-                  dragHandle: TreeDragHandle(drag: ItemDrag(item)),
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => ItemDetailPage(itemId: item.id),
-                    ),
-                  ),
-                ),
-              ),
-            ),
+          _NodeItems(key: ValueKey(nodeId), data: data, items: items),
       ],
     );
   }
@@ -176,6 +160,90 @@ class NodeDetail extends StatelessWidget {
       'maîtrise ${(p.meanMastery * 100).round()} %',
     ];
     return parts.join(' · ');
+  }
+}
+
+/// Connaissances d'un nœud, filtrables par type (théorème, exercice…) dès
+/// qu'il y en a de plusieurs types. Le filtre ne dure que le temps de la
+/// visite de la branche.
+class _NodeItems extends StatefulWidget {
+  const _NodeItems({super.key, required this.data, required this.items});
+
+  final TreeData data;
+  final List<KnowledgeItem> items;
+
+  @override
+  State<_NodeItems> createState() => _NodeItemsState();
+}
+
+class _NodeItemsState extends State<_NodeItems> {
+  /// Types retenus ; vide : tous.
+  var _kinds = <ItemKind>{};
+
+  @override
+  Widget build(BuildContext context) {
+    final data = widget.data;
+    final store = AppScope.of(context).store;
+    final counts = <ItemKind, int>{};
+    for (final item in widget.items) {
+      counts[item.kind] = (counts[item.kind] ?? 0) + 1;
+    }
+    // Un type retenu qui n'est plus là (connaissance déplacée…) ne filtre
+    // plus : jamais de liste vide par surprise.
+    final kinds = _kinds.intersection(counts.keys.toSet());
+    final shown = kinds.isEmpty
+        ? widget.items
+        : [
+            for (final item in widget.items)
+              if (kinds.contains(item.kind)) item,
+          ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (counts.length > 1)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: [
+                for (final kind in ItemKind.values)
+                  if (counts[kind] case final count?)
+                    FilterChip(
+                      label: Text('${kind.label} ($count)'),
+                      selected: kinds.contains(kind),
+                      onSelected: (on) => setState(() {
+                        final current = _kinds.intersection(
+                          counts.keys.toSet(),
+                        );
+                        _kinds = on
+                            ? {...current, kind}
+                            : current.difference({kind});
+                      }),
+                    ),
+              ],
+            ),
+          ),
+        for (final item in shown)
+          TreeDropTarget(
+            places: (drag) => itemDropPlaces(item, drag),
+            onDrop: (drag, place) => dropOnItem(store, data, item, drag, place),
+            child: TreeDraggable(
+              drag: ItemDrag(item),
+              child: ItemTile(
+                item: item,
+                now: data.now,
+                dragHandle: TreeDragHandle(drag: ItemDrag(item)),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => ItemDetailPage(itemId: item.id),
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
   }
 }
 
@@ -240,6 +308,8 @@ class _NodeMenu extends StatelessWidget {
             await store.moveNode(node.id);
           case 'skills':
             openSkillGraph(context, node.id);
+          case 'content':
+            await importContent(context, nodeId: node.id);
           case 'share':
             await exportTreePack(context, node);
           case 'worksheets':
@@ -298,6 +368,10 @@ class _NodeMenu extends StatelessWidget {
         const PopupMenuItem(
           value: 'worksheets',
           child: Text('Fiches d\'exercices par élève (PDF)…'),
+        ),
+        const PopupMenuItem(
+          value: 'content',
+          child: Text('Importer un contenu (PDF, vidéo)…'),
         ),
         const PopupMenuDivider(),
         const PopupMenuItem(

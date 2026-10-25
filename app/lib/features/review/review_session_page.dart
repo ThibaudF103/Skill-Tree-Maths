@@ -414,7 +414,11 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
                       (a) => a.role == AnchorRole.source,
                     )) ...[
                       const SizedBox(height: 16),
-                      AnchorSnapshot(anchor: anchor, maxHeight: 360),
+                      AnchorSnapshot(
+                        key: ValueKey(anchor.id),
+                        anchor: anchor,
+                        maxHeight: 360,
+                      ),
                     ],
                     const SizedBox(height: 32),
                     if (_exercise case final exercise?) ...[
@@ -444,7 +448,11 @@ class _ReviewSessionPageState extends State<ReviewSessionPage> {
                       for (final anchor in _anchors.where(
                         (a) => a.role == AnchorRole.work,
                       )) ...[
-                        AnchorSnapshot(anchor: anchor, maxHeight: 640),
+                        AnchorSnapshot(
+                          key: ValueKey(anchor.id),
+                          anchor: anchor,
+                          maxHeight: 640,
+                        ),
                         const SizedBox(height: 16),
                       ],
                       // Verso : les notes rédigées dans l'application.

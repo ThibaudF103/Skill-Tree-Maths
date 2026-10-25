@@ -85,7 +85,7 @@ void main() {
     await tester.tap(find.text('Bibliothèque'));
     await settle(tester);
 
-    expect(find.text('Importer un PDF'), findsOneWidget);
+    expect(find.text('Importer un contenu'), findsOneWidget);
     expect(find.text('Algèbre.pdf'), findsOneWidget);
     expect(find.text('Carnet CollaNote'), findsOneWidget);
     expect(find.text('Cours filmé'), findsOneWidget);
@@ -184,6 +184,14 @@ void main() {
     await settle(tester);
     expect(find.text('Verso'), findsNothing);
     expect(find.byType(Image), findsOneWidget);
+
+    // … puis annuler : il revient tel quel, miniature comprise.
+    expect(find.text('Verso retiré'), findsOneWidget);
+    await tester.tap(find.widgetWithText(SnackBarAction, 'Annuler'));
+    await settle(tester);
+    expect(find.text('Verso'), findsOneWidget);
+    expect(find.text('Page à vérifier'), findsOneWidget);
+    expect(find.byType(Image), findsNWidgets(2));
     await unmountTestApp(tester);
   });
 

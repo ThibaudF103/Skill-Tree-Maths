@@ -38,13 +38,47 @@ class PlatformYoutubeController implements YoutubePlayerController {
       _js('window.vergerSeek && window.vergerSeek(${ms / 1000}, $play)');
 
   @override
-  Future<void> playSegment(int startMs, int? endMs) => _js(
+  Future<void> playSegment(int startMs, int? endMs, {bool play = true}) => _js(
     'window.vergerSegment && window.vergerSegment(${startMs / 1000}, '
-    '${endMs == null ? 'null' : endMs / 1000})',
+    '${endMs == null ? 'null' : endMs / 1000}, $play)',
   );
 
   @override
   Future<void> pause() => _js('window.vergerPause && window.vergerPause()');
+
+  @override
+  Future<void> play() => _js('window.vergerPlay && window.vergerPlay()');
+
+  @override
+  Future<VideoPlayback?> playback() async {
+    var value = await _js('window.vergerState ? window.vergerState() : null');
+    // Selon la plateforme, la vue web rend la chaîne JSON ou l'objet décodé.
+    if (value is String) value = jsonDecode(value);
+    if (value is! Map || value['t'] is! num) return null;
+    final duration = value['d'];
+    final rate = value['r'];
+    return (
+      positionMs: ((value['t'] as num) * 1000).round(),
+      durationMs: duration is num && duration > 0
+          ? (duration * 1000).round()
+          : null,
+      playing: value['p'] == true,
+      muted: value['m'] == true,
+      rate: rate is num ? rate.toDouble() : 1.0,
+    );
+  }
+
+  @override
+  Future<void> setMuted(bool muted) =>
+      _js('window.vergerMute && window.vergerMute($muted)');
+
+  @override
+  Future<void> setCaptions(bool on) =>
+      _js('window.vergerCaptions && window.vergerCaptions($on)');
+
+  @override
+  Future<void> setRate(double rate) =>
+      _js('window.vergerRate && window.vergerRate($rate)');
 }
 
 /// Page hôte du lecteur : paramètres `v` (vidéo), `start` et `end` (s).
@@ -69,7 +103,22 @@ function jump(s, play) {
 // Un saut libre annule l'arrêt programmé d'un extrait.
 window.vergerSeek = function (s, play) { window.vergerStopAt = null; jump(s, play); };
 window.vergerPause = function () { if (player && player.pauseVideo) player.pauseVideo(); };
-window.vergerSegment = function (a, b) { window.vergerStopAt = b; jump(a, true); };
+window.vergerSegment = function (a, b, play) { window.vergerStopAt = b; jump(a, play !== false); };
+window.vergerCaptions = function (on) {
+  if (!player || !player.loadModule) return;
+  if (on) player.loadModule('captions'); else player.unloadModule('captions');
+};
+window.vergerPlay = function () { if (player && player.playVideo) player.playVideo(); };
+window.vergerMute = function (m) { if (player && player.mute) { if (m) player.mute(); else player.unMute(); } };
+window.vergerRate = function (r) { if (player && player.setPlaybackRate) player.setPlaybackRate(r); };
+// État pour la barre de lecture : lecture ou chargement (1, 3) comptent
+// comme « en lecture ».
+window.vergerState = function () {
+  if (!player || !player.getCurrentTime) return null;
+  var s = player.getPlayerState();
+  return JSON.stringify({ t: player.getCurrentTime(), d: player.getDuration(),
+    p: s === 1 || s === 3, m: player.isMuted(), r: player.getPlaybackRate() });
+};
 setInterval(function () {
   var t = window.vergerTime();
   if (t !== null && window.vergerStopAt !== null && t >= window.vergerStopAt) {
@@ -79,7 +128,7 @@ setInterval(function () {
 function onYouTubeIframeAPIReady() {
   player = new YT.Player('player', {
     videoId: q.get('v'),
-    playerVars: { start: Math.floor(start), playsinline: 1, rel: 0, origin: location.origin },
+    playerVars: Object.assign({ start: Math.floor(start), origin: location.origin }, VARS),
   });
 }
 </script>
@@ -96,7 +145,9 @@ Future<int> _serve() => _port ??= () async {
     final response = request.response;
     if (request.uri.path == '/player') {
       response.headers.contentType = ContentType.html;
-      response.add(utf8.encode(_page));
+      response.add(
+        utf8.encode(_page.replaceFirst('VARS', jsonEncode(playerVars))),
+      );
     } else {
       response.statusCode = HttpStatus.notFound;
     }
