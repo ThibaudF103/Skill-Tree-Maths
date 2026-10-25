@@ -3,7 +3,9 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 
 /// Ordinateur (souris, molette, pavé tactile) plutôt que tablette.
 bool get isDesktopPlatform => switch (defaultTargetPlatform) {
@@ -179,7 +181,8 @@ class _ViewerScrollbarState extends State<ViewerScrollbar> {
 /// - Appui maintenu et déplacement : le défilement s'arrête au relâchement.
 /// - Simple clic (relâché sans bouger) : le défilement continue en déplaçant
 ///   la souris, jusqu'au clic suivant (n'importe quel bouton), qui est
-///   consommé.
+///   consommé. Un clic ailleurs (barre d'outils, notes) ou Échap l'arrêtent
+///   aussi.
 class MiddleClickAutoscroll extends StatefulWidget {
   const MiddleClickAutoscroll({
     super.key,
@@ -230,6 +233,7 @@ class _MiddleClickAutoscrollState extends State<MiddleClickAutoscroll>
 
   @override
   void dispose() {
+    _unlisten();
     _ticker.dispose();
     super.dispose();
   }
@@ -243,6 +247,41 @@ class _MiddleClickAutoscrollState extends State<MiddleClickAutoscroll>
     _ticker
       ..stop()
       ..start();
+    if (!_listening) {
+      _listening = true;
+      GestureBinding.instance.pointerRouter.addGlobalRoute(_onAnyPointer);
+      HardwareKeyboard.instance.addHandler(_onKey);
+    }
+  }
+
+  /// Clics et touche Échap écoutés partout pendant le défilement.
+  var _listening = false;
+
+  void _unlisten() {
+    if (!_listening) return;
+    _listening = false;
+    GestureBinding.instance.pointerRouter.removeGlobalRoute(_onAnyPointer);
+    HardwareKeyboard.instance.removeHandler(_onKey);
+  }
+
+  /// Clic hors de la visionneuse : arrêt (dedans, le geste s'en charge).
+  void _onAnyPointer(PointerEvent event) {
+    if (event is! PointerDownEvent || _anchor == null) return;
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return;
+    if (!(Offset.zero & box.size).contains(box.globalToLocal(event.position))) {
+      _stop();
+    }
+  }
+
+  bool _onKey(KeyEvent event) {
+    if (event is! KeyDownEvent ||
+        event.logicalKey != LogicalKeyboardKey.escape ||
+        _anchor == null) {
+      return false;
+    }
+    _stop();
+    return true;
   }
 
   void _move(Offset global) {
@@ -263,6 +302,7 @@ class _MiddleClickAutoscrollState extends State<MiddleClickAutoscroll>
 
   void _stop() {
     if (_anchor == null) return;
+    _unlisten();
     _ticker.stop();
     setState(() => _anchor = null);
   }
@@ -395,12 +435,14 @@ class _AutoscrollRecognizer extends OneSequenceGestureRecognizer {
 }
 
 /// Poignées pour redimensionner un cadre existant (mode « Encadrer ») :
-/// quatre coins et quatre côtés, assez larges pour le doigt et le stylet,
-/// avec le curseur adapté à la souris.
+/// quatre coins et quatre côtés, avec le curseur adapté à la souris.
+///
+/// Les zones de prise débordent largement à l'extérieur du bord (doigt,
+/// stylet) mais peu à l'intérieur : on peut encore tracer un nouveau cadre
+/// dans celui-ci, même petit.
 ///
 /// À placer dans le [Stack] de la page ; [rect], [bounds] et [minSize] sont
-/// en pixels de la page. L'intérieur du cadre reste libre : on peut y tracer
-/// un nouveau cadre.
+/// en pixels de la page.
 class FrameResizer extends StatefulWidget {
   const FrameResizer({
     super.key,
@@ -410,7 +452,9 @@ class FrameResizer extends StatefulWidget {
     required this.color,
     required this.onResized,
     required this.child,
-    this.handleExtent = 18,
+    this.onHandleTap,
+    this.outerExtent = 18,
+    this.innerExtent = 10,
   });
 
   final Rect rect;
@@ -421,11 +465,19 @@ class FrameResizer extends StatefulWidget {
   /// Nouveau rectangle, à la fin du geste.
   final ValueChanged<Rect> onResized;
 
+  /// Poignée touchée sans glisser (cadres superposés : passer à celui de
+  /// dessous).
+  final VoidCallback? onHandleTap;
+
   /// Dessin du cadre, qui suit le redimensionnement.
   final Widget child;
 
-  /// Demi-largeur des zones de prise, de part et d'autre du bord.
-  final double handleExtent;
+  /// Largeur des zones de prise à l'extérieur du bord.
+  final double outerExtent;
+
+  /// Largeur maximale des zones de prise à l'intérieur du bord (réduite sur
+  /// un petit cadre, pour lui laisser un intérieur libre).
+  final double innerExtent;
 
   /// Rectangle [start] dont on déplace les côtés désignés par [h] et [v]
   /// (-1 : gauche ou haut, 1 : droite ou bas, 0 : aucun) de [delta], borné à
@@ -438,16 +490,46 @@ class FrameResizer extends StatefulWidget {
     Size bounds,
     Size minSize,
   ) {
-    double clamp(double x, double lo, double hi) =>
-        x.clamp(lo, math.max(lo, hi));
-    final minW = math.min(minSize.width, bounds.width);
-    final minH = math.min(minSize.height, bounds.height);
-    var left = start.left, top = start.top;
-    var right = start.right, bottom = start.bottom;
-    if (h < 0) left = clamp(left + delta.dx, 0, right - minW);
-    if (h > 0) right = clamp(right + delta.dx, left + minW, bounds.width);
-    if (v < 0) top = clamp(top + delta.dy, 0, bottom - minH);
-    if (v > 0) bottom = clamp(bottom + delta.dy, top + minH, bounds.height);
+    (double, double) axis(
+      double lo,
+      double hi,
+      int side,
+      double d,
+      double max,
+      double min,
+    ) {
+      min = math.min(min, max);
+      lo = lo.clamp(0.0, max);
+      hi = hi.clamp(lo, max);
+      if (side < 0) lo = (lo + d).clamp(0.0, math.max(0.0, hi - min));
+      if (side > 0) hi = (hi + d).clamp(math.min(lo + min, max), max);
+      // Taille minimale, sans sortir de la page.
+      if (side != 0 && hi - lo < min) {
+        if (side < 0) {
+          hi = math.min(max, lo + min);
+        } else {
+          lo = math.max(0, hi - min);
+        }
+      }
+      return (lo, hi);
+    }
+
+    final (left, right) = axis(
+      start.left,
+      start.right,
+      h,
+      delta.dx,
+      bounds.width,
+      minSize.width,
+    );
+    final (top, bottom) = axis(
+      start.top,
+      start.bottom,
+      v,
+      delta.dy,
+      bounds.height,
+      minSize.height,
+    );
     return Rect.fromLTRB(left, top, right, bottom);
   }
 
@@ -459,16 +541,28 @@ class _FrameResizerState extends State<FrameResizer> {
   /// Rectangle affiché pendant le geste, puis jusqu'à l'enregistrement.
   Rect? _live;
   Rect? _start;
+
+  /// Point de départ du geste, dans le repère de la page (suit un
+  /// défilement pendant le geste).
   var _origin = Offset.zero;
 
   @override
   void didUpdateWidget(FrameResizer oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Nouveau rectangle enregistré (ou page redimensionnée).
-    if (_start == null &&
-        (widget.rect != oldWidget.rect || widget.bounds != oldWidget.bounds)) {
+    if (widget.bounds != oldWidget.bounds) {
+      // Zoom pendant le geste : les pixels de départ ne valent plus rien.
+      _start = null;
+      _live = null;
+    } else if (_start == null && widget.rect != oldWidget.rect) {
+      // Nouveau rectangle enregistré.
       _live = null;
     }
+  }
+
+  /// [global] dans le repère de la page (le [Stack] qui contient le cadre).
+  Offset _toPage(Offset global) {
+    final page = context.findAncestorRenderObjectOfType<RenderStack>();
+    return page == null ? global : page.globalToLocal(global);
   }
 
   static MouseCursor _cursor(int h, int v) => switch ((h, v)) {
@@ -502,9 +596,10 @@ class _FrameResizerState extends State<FrameResizer> {
           behavior: HitTestBehavior.opaque,
           supportedDevices: frameDevices,
           dragStartBehavior: DragStartBehavior.down,
+          onTap: widget.onHandleTap,
           onPanStart: (d) => setState(() {
             _start = _live ?? widget.rect;
-            _origin = d.globalPosition;
+            _origin = _toPage(d.globalPosition);
           }),
           onPanUpdate: (d) {
             final start = _start;
@@ -514,7 +609,7 @@ class _FrameResizerState extends State<FrameResizer> {
                 start,
                 h,
                 v,
-                d.globalPosition - _origin,
+                _toPage(d.globalPosition) - _origin,
                 widget.bounds,
                 widget.minSize,
               ),
@@ -522,61 +617,130 @@ class _FrameResizerState extends State<FrameResizer> {
           },
           onPanEnd: (_) {
             final live = _live;
+            final dragging = _start != null;
             setState(() => _start = null);
-            if (live != null && live != widget.rect) widget.onResized(live);
+            if (dragging && live != null && live != widget.rect) {
+              widget.onResized(live);
+            }
           },
           onPanCancel: () => setState(() {
             _start = null;
             _live = null;
           }),
-          child: Center(
-            child: Container(
-              width: 10,
-              height: 10,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(color: widget.color, width: 1.5),
-                shape: h == 0 || v == 0 ? BoxShape.circle : BoxShape.rectangle,
-              ),
-            ),
-          ),
         ),
       ),
     );
   }
 
+  Widget _knob(Offset at, bool round) => Positioned(
+    left: at.dx - 5,
+    top: at.dy - 5,
+    width: 10,
+    height: 10,
+    child: DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: widget.color, width: 1.5),
+        shape: round ? BoxShape.circle : BoxShape.rectangle,
+      ),
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
     final rect = _live ?? widget.rect;
-    final e = widget.handleExtent;
-    final grip = 2 * e;
+    final o = widget.outerExtent;
+    // Part intérieure : au plus le quart du cadre, qui garde la moitié de
+    // sa largeur et de sa hauteur libre pour tracer.
+    final ix = math.min(widget.innerExtent, rect.width / 4);
+    final iy = math.min(widget.innerExtent, rect.height / 4);
+    final w = rect.width + 2 * o;
+    final h = rect.height + 2 * o;
     return Positioned.fromRect(
-      rect: rect.inflate(e),
+      rect: rect.inflate(o),
       child: Stack(
         clipBehavior: Clip.none,
         children: [
           Positioned(
-            left: e,
-            top: e,
-            right: e,
-            bottom: e,
+            left: o,
+            top: o,
+            right: o,
+            bottom: o,
             child: IgnorePointer(child: widget.child),
           ),
-          // Côtés (s'il reste de la place entre les coins), puis coins.
-          if (rect.width > grip) ...[
-            _handle(0, -1, left: grip, right: grip, top: 0, height: grip),
-            _handle(0, 1, left: grip, right: grip, bottom: 0, height: grip),
+          // Côtés entre les coins (pas sur un cadre minuscule), puis coins.
+          if (rect.width - 2 * ix >= 8) ...[
+            _handle(0, -1, left: o + ix, right: o + ix, top: 0, height: o + iy),
+            _handle(
+              0,
+              1,
+              left: o + ix,
+              right: o + ix,
+              bottom: 0,
+              height: o + iy,
+            ),
           ],
-          if (rect.height > grip) ...[
-            _handle(-1, 0, top: grip, bottom: grip, left: 0, width: grip),
-            _handle(1, 0, top: grip, bottom: grip, right: 0, width: grip),
+          if (rect.height - 2 * iy >= 8) ...[
+            _handle(-1, 0, top: o + iy, bottom: o + iy, left: 0, width: o + ix),
+            _handle(1, 0, top: o + iy, bottom: o + iy, right: 0, width: o + ix),
           ],
-          _handle(-1, -1, left: 0, top: 0, width: grip, height: grip),
-          _handle(1, -1, right: 0, top: 0, width: grip, height: grip),
-          _handle(-1, 1, left: 0, bottom: 0, width: grip, height: grip),
-          _handle(1, 1, right: 0, bottom: 0, width: grip, height: grip),
+          for (final (cx, cy) in const [(-1, -1), (1, -1), (-1, 1), (1, 1)])
+            _handle(
+              cx,
+              cy,
+              left: cx < 0 ? 0 : null,
+              right: cx > 0 ? 0 : null,
+              top: cy < 0 ? 0 : null,
+              bottom: cy > 0 ? 0 : null,
+              width: o + ix,
+              height: o + iy,
+            ),
+          IgnorePointer(
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                for (final (x, y) in [
+                  (o, o),
+                  (w - o, o),
+                  (o, h - o),
+                  (w - o, h - o),
+                ])
+                  _knob(Offset(x, y), false),
+                if (rect.width - 2 * ix >= 8) ...[
+                  _knob(Offset(w / 2, o), true),
+                  _knob(Offset(w / 2, h - o), true),
+                ],
+                if (rect.height - 2 * iy >= 8) ...[
+                  _knob(Offset(o, h / 2), true),
+                  _knob(Offset(w - o, h / 2), true),
+                ],
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
+}
+
+/// Ordre d'empilement des cadres en mode « Encadrer » : le dernier reçoit
+/// les poignées en priorité. Les cadres de [sentBack] (touchés sans glisser,
+/// du plus récent au plus ancien) passent dessous ; [front] (la note
+/// active) passe dessus.
+List<String> stackFrames(
+  List<String> keys, {
+  List<String> sentBack = const [],
+  String? front,
+}) {
+  final top = front != null && sentBack.contains(front) ? null : front;
+  final back = [
+    for (final k in sentBack)
+      if (keys.contains(k) && k != top) k,
+  ];
+  return [
+    ...back,
+    for (final k in keys)
+      if (!back.contains(k) && k != top) k,
+    if (top != null && keys.contains(top)) top,
+  ];
 }

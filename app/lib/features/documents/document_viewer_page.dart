@@ -398,11 +398,16 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
                         bottom: 0,
                         child: ScrollPassThrough(
                           onScroll: _controller.handlePointerSignalEvent,
-                          child: ViewerScrollbar(
-                            extent: _controller.documentSize.height,
-                            viewport: _controller.visibleRect.height,
-                            offset: _controller.visibleRect.top,
-                            onScrollTo: _scrollTo,
+                          // Reçu avant le Listener de la visionneuse : un
+                          // glissé sur la barre n'est pas une sélection.
+                          child: Listener(
+                            onPointerDown: (e) => _scrollbarPointer = e.pointer,
+                            child: ViewerScrollbar(
+                              extent: _controller.documentSize.height,
+                              viewport: _controller.visibleRect.height,
+                              offset: _controller.visibleRect.top,
+                              onScrollTo: _scrollTo,
+                            ),
                           ),
                         ),
                       ),
@@ -710,6 +715,39 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
           for (final anchor in anchors)
             if (anchor.page == number && anchor.region != null) anchor,
         ];
+        void sendBack(String key) => setState(
+          () => _framesBack
+            ..remove(key)
+            ..insert(0, key),
+        );
+        final frames = <String, Widget>{
+          if (_selecting) ...{
+            for (final note in pageNotes)
+              if (note.region != null)
+                'note-${note.id}': FrameResizer(
+                  key: ValueKey('note-${note.id}'),
+                  rect: toRect(note.region!),
+                  bounds: size,
+                  minSize: minFrame,
+                  color: noteColor,
+                  onResized: (r) => _resizeFrame(page, toRegion(r), note: note),
+                  onHandleTap: () => sendBack('note-${note.id}'),
+                  child: _noteFrame(note),
+                ),
+            for (final anchor in pageAnchors)
+              'anchor-${anchor.id}': FrameResizer(
+                key: ValueKey('anchor-${anchor.id}'),
+                rect: toRect(anchor.region!),
+                bounds: size,
+                minSize: minFrame,
+                color: _anchorColor(anchor),
+                onResized: (r) =>
+                    _resizeFrame(page, toRegion(r), anchor: anchor),
+                onHandleTap: () => sendBack('anchor-${anchor.id}'),
+                child: _anchorFrame(anchor),
+              ),
+          },
+        };
         final children = <Widget>[
           // En mode « Encadrer », les cadres sont dessinés avec leurs
           // poignées, au-dessus de la zone de tracé (plus bas).
@@ -800,30 +838,20 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
                 onPanEnd: (_) => _finishDrag(page),
               ),
             ),
-          // Cadres existants : poignées pour les redimensionner.
+          // Cadres existants : poignées pour les redimensionner. Cadres
+          // superposés : la note active d'abord ; toucher une poignée sans
+          // glisser passe au cadre de dessous.
           if (_selecting) ...[
-            for (final note in pageNotes)
-              if (note.region != null)
-                FrameResizer(
-                  key: ValueKey('note-${note.id}'),
-                  rect: toRect(note.region!),
-                  bounds: size,
-                  minSize: minFrame,
-                  color: noteColor,
-                  onResized: (r) => _resizeFrame(page, toRegion(r), note: note),
-                  child: _noteFrame(note),
-                ),
-            for (final anchor in pageAnchors)
-              FrameResizer(
-                key: ValueKey('anchor-${anchor.id}'),
-                rect: toRect(anchor.region!),
-                bounds: size,
-                minSize: minFrame,
-                color: _anchorColor(anchor),
-                onResized: (r) =>
-                    _resizeFrame(page, toRegion(r), anchor: anchor),
-                child: _anchorFrame(anchor),
-              ),
+            for (final key in stackFrames(
+              [
+                for (final note in pageNotes)
+                  if (note.region != null) 'note-${note.id}',
+                for (final anchor in pageAnchors) 'anchor-${anchor.id}',
+              ],
+              sentBack: _framesBack,
+              front: _activeNote == null ? null : 'note-$_activeNote',
+            ))
+              ?frames[key],
           ],
           if (_dragPage == number && _dragStart != null && _dragEnd != null)
             Positioned.fromRect(
@@ -891,23 +919,43 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
     _controller.value = m;
   }
 
-  /// Cadre redimensionné : nouvelle zone et nouvel aperçu.
+  /// Redimensionnements en cours, par cadre : seul le dernier enregistre
+  /// son aperçu.
+  final _resizes = <String, int>{};
+
+  /// Cadres touchés sans glisser, passés dessous (le plus récent d'abord).
+  final _framesBack = <String>[];
+
+  /// Cadre redimensionné : la zone est enregistrée tout de suite (dans
+  /// l'ordre des gestes), puis l'aperçu, s'il n'y a pas eu d'autre geste
+  /// entre-temps.
   Future<void> _resizeFrame(
     PdfPage page,
     NormalizedRect region, {
     Anchor? anchor,
     Note? note,
   }) async {
-    final snapshot = await renderRegionPng(page, region);
-    if (anchor != null) {
-      await _store.relocateAnchor(
-        anchor.id,
-        page: page.pageNumber,
-        region: region,
-        snapshot: snapshot,
-      );
-    } else if (note != null) {
-      await _store.relocateNote(note.id, region: region, snapshot: snapshot);
+    final key = anchor != null ? 'anchor-${anchor.id}' : 'note-${note!.id}';
+    final gesture = (_resizes[key] ?? 0) + 1;
+    _resizes[key] = gesture;
+    Future<void> save(Uint8List? snapshot) => anchor != null
+        ? _store.relocateAnchor(
+            anchor.id,
+            page: page.pageNumber,
+            region: region,
+            snapshot: snapshot,
+          )
+        : _store.relocateNote(note!.id, region: region, snapshot: snapshot);
+    try {
+      await save(null);
+      final snapshot = await renderRegionPng(page, region);
+      if (snapshot == null || _resizes[key] != gesture) return;
+      await save(snapshot);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Cadre non enregistré : $e')));
     }
   }
 
@@ -1008,6 +1056,9 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
     await delegate.setTextSelectionPointRange(word);
   }
 
+  /// Dernier pointeur posé sur la barre de défilement.
+  int? _scrollbarPointer;
+
   /// Clic glissé (souris, stylet) en cours, en coordonnées globales.
   Offset? _dragFrom;
   Offset? _dragTo;
@@ -1056,6 +1107,11 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
   void _onTextSelectionChange(PdfTextSelection _) => _fixDragSelection();
 
   void _onPointerDown(PointerDownEvent event) {
+    // Barre de défilement : la sélection de texte en cours reste intacte.
+    if (event.pointer == _scrollbarPointer) {
+      _dragFrom = _dragTo = null;
+      return;
+    }
     final mouseLike =
         event.kind == PointerDeviceKind.mouse ||
         event.kind == PointerDeviceKind.stylus ||
