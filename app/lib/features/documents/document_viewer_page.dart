@@ -352,7 +352,8 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
             },
             child: PdfViewer.data(
               bytes,
-              sourceName: 'verger-${document.id}-v${document.version}',
+              // Par empreinte : partagé avec les zones du même fichier.
+              sourceName: 'verger-${document.contentHash}',
               controller: _controller,
               initialPageNumber: _startPage ?? 1,
               params: PdfViewerParams(

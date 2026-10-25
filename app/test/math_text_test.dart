@@ -95,4 +95,24 @@ void main() {
       expect(baseline, moreOrLessEquals(textBaseline, epsilon: 0.1));
     }
   });
+
+  // Mesure « à sec » (puce, largeur intrinsèque, titre de dialogue) : la
+  // ligne de base d'une formule doit pouvoir s'estimer sans plantage.
+  for (final (name, wrap) in <(String, Widget Function(Widget))>[
+    ('une puce', (m) => ChoiceChip(label: m, selected: false)),
+    ('une largeur intrinsèque', (m) => IntrinsicWidth(child: m)),
+    ('un titre de dialogue', (m) => AlertDialog(title: m)),
+  ]) {
+    testWidgets('formule en ligne dans $name', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(child: wrap(const MathText(r'Choix $x^2 + 1$'))),
+          ),
+        ),
+      );
+      expect(tester.takeException(), isNull);
+      expect(find.byType(Math), findsOneWidget);
+    });
+  }
 }

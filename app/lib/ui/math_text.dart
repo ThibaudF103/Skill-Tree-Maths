@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
 
 /// Morceau d'un texte mathématique.
@@ -122,7 +123,9 @@ class MathText extends StatelessWidget {
             WidgetSpan(
               alignment: PlaceholderAlignment.baseline,
               baseline: TextBaseline.alphabetic,
-              child: _formula(tex, MathStyle.text, style, theme),
+              child: DryBaseline(
+                child: _formula(tex, MathStyle.text, style, theme),
+              ),
             ),
           );
         case FormulaSegment(:final tex, display: true):
@@ -175,5 +178,51 @@ class MathText extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Donne une ligne de base « à sec » à une formule. Posée sur la ligne de
+/// base du texte, elle est interrogée pendant les mesures intrinsèques
+/// (puce, largeur intrinsèque, titre de dialogue) ; or flutter_math ne sait
+/// pas la calculer sans mise en page (erreur en debug, ligne de base nulle
+/// en release). On reprend celle de la dernière mise en page pour les mêmes
+/// contraintes, sinon on l'estime au bas de la formule.
+class DryBaseline extends SingleChildRenderObjectWidget {
+  const DryBaseline({super.key, super.child});
+
+  @override
+  RenderObject createRenderObject(BuildContext context) => _RenderDryBaseline();
+}
+
+class _RenderDryBaseline extends RenderProxyBox {
+  BoxConstraints? _laidOutWith;
+  final _baselines = <TextBaseline, double?>{};
+
+  @override
+  void performLayout() {
+    super.performLayout();
+    _laidOutWith = constraints;
+    _baselines.clear();
+    final child = this.child;
+    if (child == null) return;
+    for (final baseline in TextBaseline.values) {
+      _baselines[baseline] = child.getDistanceToBaseline(
+        baseline,
+        onlyReal: true,
+      );
+    }
+  }
+
+  @override
+  double? computeDryBaseline(
+    BoxConstraints constraints,
+    TextBaseline baseline,
+  ) {
+    final child = this.child;
+    if (child == null) return null;
+    if (constraints == _laidOutWith && _baselines[baseline] != null) {
+      return _baselines[baseline];
+    }
+    return child.getDryLayout(constraints).height;
   }
 }

@@ -80,4 +80,31 @@ void main() {
     expect(notes.single.body, 'Preuve par densité');
     await unmountTestApp(tester);
   });
+
+  testWidgets('annulation impossible : la raison, en clair', (tester) async {
+    final store = await pumpTestApp(tester, seed: seed);
+    await tester.tap(find.text('Arbres'));
+    await settle(tester);
+    await tester.tap(find.text('Cayley-Hamilton'));
+    await settle(tester);
+    await tester.tap(find.byType(PopupMenuButton<String>));
+    await settle(tester);
+    await tester.tap(find.text('Supprimer'));
+    await settle(tester);
+
+    // La branche disparaît entre-temps.
+    final tree = (await tester.runAsync(store.allNodes))!.single;
+    await tester.runAsync(() => store.deleteNode(tree.id, recursive: true));
+    await settle(tester);
+    await tester.tap(find.widgetWithText(SnackBarAction, 'Annuler'));
+    await settle(tester);
+    expect(
+      find.text(
+        'Impossible d\'annuler : La branche de la connaissance a été '
+        'supprimée.',
+      ),
+      findsOneWidget,
+    );
+    await unmountTestApp(tester);
+  });
 }

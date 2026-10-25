@@ -125,14 +125,15 @@ void showUndoSnackBar(
           onPressed: () async {
             try {
               await onUndo();
-            } catch (e) {
+            } on StateError catch (e) {
               messenger.showSnackBar(
-                SnackBar(
-                  content: Text(
-                    'Impossible d\'annuler : '
-                    '${e is StateError ? e.message : e}',
-                  ),
-                ),
+                SnackBar(content: Text('Impossible d\'annuler : ${e.message}')),
+              );
+            } catch (e) {
+              // Pas d'erreur technique (SQL…) à l'écran.
+              debugPrint('Annulation impossible : $e');
+              messenger.showSnackBar(
+                const SnackBar(content: Text('Impossible d\'annuler.')),
               );
             }
           },
