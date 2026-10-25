@@ -103,4 +103,43 @@ void main() {
       expect(await store.prerequisites(), hasLength(2));
     },
   );
+
+  test('annulation impossible : message clair, pas d\'erreur SQL', () async {
+    Matcher refused(String message) =>
+        throwsA(isA<StateError>().having((e) => e.message, 'message', message));
+
+    // Déjà revenue (sauvegarde restaurée avec le même identifiant).
+    final deletion = await store.deleteItem(cor.id);
+    await store.undoDeletion(deletion);
+    expect(
+      () => store.undoDeletion(deletion),
+      refused('La connaissance est déjà revenue (sauvegarde restaurée ?).'),
+    );
+
+    final anchor = await store.addAnchor(
+      itemId: def.id,
+      documentId: course.id,
+      role: AnchorRole.source,
+      page: 1,
+    );
+    final unlinked = await store.deleteAnchor(anchor.id);
+    await store.undoDeletion(unlinked);
+    expect(
+      () => store.undoDeletion(unlinked),
+      refused('Ce lien est déjà revenu (sauvegarde restaurée ?).'),
+    );
+    final again = await store.deleteAnchor(anchor.id);
+    await store.deleteDocument(course.id);
+    expect(
+      () => store.undoDeletion(again),
+      refused('Le contenu (PDF ou vidéo) a été supprimé.'),
+    );
+
+    final removed = await store.removePrerequisite(thm.id, def.id);
+    await store.deleteItem(def.id);
+    expect(
+      () => store.undoDeletion(removed),
+      refused('L\'une des deux connaissances a été supprimée.'),
+    );
+  });
 }

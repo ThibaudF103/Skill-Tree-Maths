@@ -337,6 +337,11 @@ class VergerStore {
       if (await node(item.nodeId) == null) {
         throw StateError('La branche de la connaissance a été supprimée.');
       }
+      if (await this.item(item.id) != null) {
+        throw StateError(
+          'La connaissance est déjà revenue (sauvegarde restaurée ?).',
+        );
+      }
       await _db.into(_db.items).insert(item);
       for (final log in logs) {
         await _db.into(_db.reviewLogs).insert(log);
@@ -367,8 +372,10 @@ class VergerStore {
   });
 
   /// Défait une suppression ([deleteItem], [deleteAnchor],
-  /// [removePrerequisite]). Lève une erreur si ce dont elle dépend a disparu
-  /// entre-temps (branche, connaissance…).
+  /// [removePrerequisite]). Lève une [StateError] (message en français) si
+  /// ce dont elle dépend a disparu entre-temps (branche, connaissance,
+  /// contenu…) ou si ce qu'elle remet est déjà revenu (sauvegarde
+  /// restaurée).
   Future<void> undoDeletion(Deletion deletion) =>
       _db.transaction(deletion._undo);
 
@@ -652,7 +659,12 @@ class VergerStore {
           (p) => p.itemId.equals(itemId) & p.requiresId.equals(requiresId),
         ))
         .go();
-    return Deletion._(() => addPrerequisite(itemId, requiresId));
+    return Deletion._(() async {
+      if (await item(itemId) == null || await item(requiresId) == null) {
+        throw StateError('L\'une des deux connaissances a été supprimée.');
+      }
+      await addPrerequisite(itemId, requiresId);
+    });
   }
 
   Future<List<Prerequisite>> prerequisites() async =>
@@ -814,7 +826,20 @@ class VergerStore {
     )..where((a) => a.id.equals(id))).getSingleOrNull();
     await (_db.delete(_db.anchors)..where((a) => a.id.equals(id))).go();
     return Deletion._(() async {
-      if (row != null) await _db.into(_db.anchors).insert(row);
+      if (row == null) return;
+      if (await item(row.itemId) == null) {
+        throw StateError('La connaissance a été supprimée.');
+      }
+      if (await document(row.documentId) == null) {
+        throw StateError('Le contenu (PDF ou vidéo) a été supprimé.');
+      }
+      final existing = await (_db.select(
+        _db.anchors,
+      )..where((a) => a.id.equals(row.id))).getSingleOrNull();
+      if (existing != null) {
+        throw StateError('Ce lien est déjà revenu (sauvegarde restaurée ?).');
+      }
+      await _db.into(_db.anchors).insert(row);
     });
   });
 
