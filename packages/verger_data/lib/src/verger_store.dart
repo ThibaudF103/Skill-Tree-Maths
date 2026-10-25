@@ -1035,6 +1035,22 @@ class VergerStore {
     ),
   );
 
+  /// Redimensionne la zone d'une note sur sa page (et son aperçu).
+  Future<void> relocateNote(
+    String id, {
+    required NormalizedRect region,
+    Uint8List? snapshot,
+  }) => (_db.update(_db.notes)..where((n) => n.id.equals(id))).write(
+    NotesCompanion(
+      left: Value(region.left),
+      top: Value(region.top),
+      right: Value(region.right),
+      bottom: Value(region.bottom),
+      snapshot: snapshot == null ? const Value.absent() : Value(snapshot),
+      updatedAt: Value(_now()),
+    ),
+  );
+
   Future<void> deleteNote(String id) =>
       (_db.delete(_db.notes)..where((n) => n.id.equals(id))).go();
 
