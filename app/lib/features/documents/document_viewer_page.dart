@@ -446,7 +446,13 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
               // À gauche de la barre de défilement sur ordinateur.
               right: isDesktopPlatform ? 26 : 12,
               top: 12,
-              child: Chip(label: Text('p. $_page / ${document.pageCount}')),
+              // Disparaît au bout de 5 s sans défilement ; revient au
+              // défilement suivant ou au changement de page (#67).
+              child: IdleFade(
+                activity: _controller,
+                value: _page,
+                child: Chip(label: Text('p. $_page / ${document.pageCount}')),
+              ),
             ),
           // Balayer depuis le bord droit ouvre les notes.
           if (!_notesOpen && !_selecting)
@@ -747,16 +753,22 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
         };
         final children = <Widget>[
           // En mode « Encadrer », les cadres sont dessinés avec leurs
-          // poignées, au-dessus de la zone de tracé (plus bas).
+          // poignées, au-dessus de la zone de tracé (plus bas). Sinon, un
+          // toucher ouvre la connaissance ; un glissé fait défiler la page
+          // (la visionneuse reçoit aussi le pointeur).
           if (!_selecting)
             for (final anchor in pageAnchors)
               Positioned.fromRect(
                 rect: toRect(anchor.region!),
-                child: Tooltip(
-                  message: anchor.role == AnchorRole.source ? 'Recto' : 'Verso',
-                  child: GestureDetector(
-                    onTap: () => _openItem(anchor.itemId),
-                    child: _anchorFrame(anchor),
+                child: PointerPassThrough(
+                  child: Tooltip(
+                    message: anchor.role == AnchorRole.source
+                        ? 'Recto'
+                        : 'Verso',
+                    child: GestureDetector(
+                      onTap: () => _openItem(anchor.itemId),
+                      child: _anchorFrame(anchor),
+                    ),
                   ),
                 ),
               ),
@@ -782,14 +794,16 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
                       0,
                       size.height - 28,
                     ),
-              child: _NoteMarker(
-                active: note.id == _activeNote,
-                onTap: _selecting
-                    ? null
-                    : () => setState(() {
-                        _notesOpen = true;
-                        _activeNote = note.id;
-                      }),
+              child: PointerPassThrough(
+                child: _NoteMarker(
+                  active: note.id == _activeNote,
+                  onTap: _selecting
+                      ? null
+                      : () => setState(() {
+                          _notesOpen = true;
+                          _activeNote = note.id;
+                        }),
+                ),
               ),
             ),
           if (widget.highlight != null && number == _startPage)
@@ -817,22 +831,24 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
             ),
           if (_selecting)
             Positioned.fill(
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                // Le pavé tactile fait défiler (voir Listener) au lieu de
-                // tracer.
-                supportedDevices: frameDevices,
-                onPanStart: (d) => setState(() {
+              // Le doigt posé dans un cadre fait défiler la page (la
+              // visionneuse ne glisse pas d'elle-même dans ce mode).
+              child: FrameDrawLayer(
+                frames: [
+                  for (final note in pageNotes)
+                    if (note.region != null) toRect(note.region!),
+                  for (final anchor in pageAnchors) toRect(anchor.region!),
+                ],
+                onDrawStart: (p) => setState(() {
                   _dragPage = number;
-                  _dragStart = normalize(d.localPosition);
+                  _dragStart = normalize(p);
                   _dragEnd = _dragStart;
                 }),
-                onPanUpdate: (d) => setState(() {
-                  if (_dragPage == number) {
-                    _dragEnd = normalize(d.localPosition);
-                  }
+                onDrawUpdate: (p) => setState(() {
+                  if (_dragPage == number) _dragEnd = normalize(p);
                 }),
-                onPanEnd: (_) => _finishDrag(page),
+                onDrawEnd: () => _finishDrag(page),
+                onScroll: _panBy,
               ),
             ),
           // Cadres existants : poignées pour les redimensionner. Cadres

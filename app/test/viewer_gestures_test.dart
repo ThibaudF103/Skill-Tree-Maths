@@ -615,4 +615,281 @@ void main() {
       ]);
     });
   });
+
+  group('doigt sur un cadre : la page défile (#15)', () {
+    /// Fausse visionneuse comme celle de pdfrx : un [InteractiveViewer]
+    /// (défilement au doigt, toucher et double toucher sur les pages) sous
+    /// le calque de la page, dans le même [Stack].
+    Future<(TransformationController, List<String>)> pumpViewer(
+      WidgetTester tester,
+    ) async {
+      final transform = TransformationController();
+      addTearDown(transform.dispose);
+      final events = <String>[];
+      await tester.pumpWidget(
+        host(
+          Stack(
+            children: [
+              InteractiveViewer(
+                transformationController: transform,
+                constrained: false,
+                boundaryMargin: const EdgeInsets.all(double.infinity),
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTapUp: (_) => events.add('tap page'),
+                  onDoubleTapDown: (_) => events.add('double tap page'),
+                  // Sélection du texte à la souris et au stylet.
+                  child: GestureDetector(
+                    dragStartBehavior: DragStartBehavior.down,
+                    supportedDevices: const {
+                      PointerDeviceKind.mouse,
+                      PointerDeviceKind.stylus,
+                    },
+                    onPanStart: (_) => events.add('sélection'),
+                    child: const SizedBox(width: 400, height: 2000),
+                  ),
+                ),
+              ),
+              // Calque de la page, comme dans la visionneuse.
+              Positioned.fill(
+                child: ScrollPassThrough(
+                  onScroll: (_) {},
+                  child: Stack(
+                    children: [
+                      Positioned(
+                        left: 50,
+                        top: 50,
+                        width: 200,
+                        height: 200,
+                        child: PointerPassThrough(
+                          child: Tooltip(
+                            message: 'Recto',
+                            child: GestureDetector(
+                              onTap: () => events.add('tap cadre'),
+                              child: const DecoratedBox(
+                                decoration: BoxDecoration(
+                                  color: Color(0x10000000),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+      return (transform, events);
+    }
+
+    testWidgets('glisser le doigt sur un cadre fait défiler', (tester) async {
+      final (transform, events) = await pumpViewer(tester);
+      await tester.dragFrom(
+        const Offset(150, 200),
+        const Offset(0, -120),
+        kind: PointerDeviceKind.touch,
+      );
+      await tester.pumpAndSettle();
+      expect(transform.value.getTranslation().y, lessThan(-50));
+      expect(events, isEmpty);
+    });
+
+    testWidgets('toucher un cadre l\'ouvre toujours', (tester) async {
+      final (transform, events) = await pumpViewer(tester);
+      await tester.tapAt(const Offset(150, 150));
+      // Le double toucher de la visionneuse retient le geste un instant.
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(events, ['tap cadre']);
+      // Clic de souris aussi.
+      await tester.tapAt(const Offset(150, 150), kind: PointerDeviceKind.mouse);
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(events, ['tap cadre', 'tap cadre']);
+      expect(transform.value.getTranslation().y, 0);
+    });
+
+    testWidgets('souris et stylet sur un cadre : pas de sélection dessous', (
+      tester,
+    ) async {
+      final (transform, events) = await pumpViewer(tester);
+      for (final kind in [PointerDeviceKind.mouse, PointerDeviceKind.stylus]) {
+        await tester.dragFrom(
+          const Offset(150, 150),
+          const Offset(60, 60),
+          kind: kind,
+        );
+        await tester.pump(const Duration(milliseconds: 500));
+        expect(events, isEmpty, reason: '$kind');
+      }
+      expect(transform.value.isIdentity(), isTrue);
+      // Hors du cadre, la visionneuse reçoit la souris (sélection ou
+      // déplacement).
+      await tester.dragFrom(
+        const Offset(320, 320),
+        const Offset(40, 40),
+        kind: PointerDeviceKind.mouse,
+      );
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(events.isNotEmpty || !transform.value.isIdentity(), isTrue);
+    });
+
+    testWidgets('mode « Encadrer » : le doigt dans un cadre fait défiler', (
+      tester,
+    ) async {
+      final drawn = <String>[];
+      final scrolled = <Offset>[];
+      await tester.pumpWidget(
+        host(
+          Stack(
+            children: [
+              Positioned.fill(
+                child: FrameDrawLayer(
+                  frames: const [Rect.fromLTWH(50, 50, 200, 200)],
+                  onDrawStart: (_) => drawn.add('start'),
+                  onDrawUpdate: (_) => drawn.add('update'),
+                  onDrawEnd: () => drawn.add('end'),
+                  onScroll: scrolled.add,
+                ),
+              ),
+              // Poignées du cadre, au-dessus de la zone de tracé.
+              FrameResizer(
+                rect: const Rect.fromLTWH(50, 50, 200, 200),
+                bounds: const Size(400, 400),
+                minSize: const Size(10, 10),
+                color: Colors.blue,
+                onResized: (_) {},
+                child: const SizedBox(),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      // Doigt dans le cadre : défilement, pas de tracé.
+      await tester.dragFrom(
+        const Offset(150, 150),
+        const Offset(0, -100),
+        kind: PointerDeviceKind.touch,
+      );
+      await tester.pumpAndSettle();
+      expect(drawn, isEmpty);
+      expect(scrolled.fold<double>(0, (sum, d) => sum + d.dy), lessThan(-50));
+
+      // Doigt hors du cadre : on trace.
+      scrolled.clear();
+      await tester.dragFrom(
+        const Offset(320, 320),
+        const Offset(40, 40),
+        kind: PointerDeviceKind.touch,
+      );
+      await tester.pumpAndSettle();
+      expect(drawn.first, 'start');
+      expect(drawn.last, 'end');
+      expect(scrolled, isEmpty);
+
+      // Stylet et souris dans le cadre : on trace (cadre dans un cadre).
+      for (final kind in [PointerDeviceKind.stylus, PointerDeviceKind.mouse]) {
+        drawn.clear();
+        await tester.dragFrom(
+          const Offset(150, 150),
+          const Offset(40, 40),
+          kind: kind,
+        );
+        await tester.pumpAndSettle();
+        expect(drawn.first, 'start', reason: '$kind');
+        expect(drawn.last, 'end', reason: '$kind');
+        expect(scrolled, isEmpty, reason: '$kind');
+      }
+
+      // Second doigt posé hors du cadre avant le départ du glissé, et qui
+      // glisse : le geste reste un défilement, décidé par le premier appui.
+      drawn.clear();
+      final first = await tester.startGesture(
+        const Offset(150, 150),
+        kind: PointerDeviceKind.touch,
+      );
+      final second = await tester.startGesture(
+        const Offset(330, 330),
+        pointer: 99,
+        kind: PointerDeviceKind.touch,
+      );
+      for (var i = 0; i < 5; i++) {
+        await second.moveBy(const Offset(0, -20));
+        await tester.pump();
+      }
+      await second.up();
+      await first.up();
+      await tester.pumpAndSettle();
+      expect(drawn, isEmpty);
+      expect(scrolled, isNotEmpty);
+    });
+  });
+
+  group('numéro de page (#67)', () {
+    double opacity(WidgetTester tester) =>
+        tester.widget<AnimatedOpacity>(find.byType(AnimatedOpacity)).opacity;
+
+    Widget chip(Listenable activity, int page) => host(
+      IdleFade(
+        activity: activity,
+        value: page,
+        child: Chip(label: Text('p. $page / 9')),
+      ),
+    );
+
+    testWidgets('disparaît après 5 s sans défiler, revient au défilement', (
+      tester,
+    ) async {
+      final view = ValueNotifier(0.0);
+      addTearDown(view.dispose);
+      await tester.pumpWidget(chip(view, 1));
+      expect(opacity(tester), 1);
+
+      await tester.pump(const Duration(seconds: 4));
+      expect(opacity(tester), 1);
+      // Le défilement relance le délai.
+      view.value = 10;
+      await tester.pump(const Duration(seconds: 4));
+      expect(opacity(tester), 1);
+      await tester.pump(const Duration(seconds: 1));
+      expect(opacity(tester), 0);
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .renderObject<RenderAnimatedOpacity>(find.byType(AnimatedOpacity))
+            .opacity
+            .value,
+        0,
+      );
+
+      // Défilement : réapparaît en fondu.
+      view.value = 20;
+      await tester.pump();
+      expect(opacity(tester), 1);
+      await tester.pump(const Duration(milliseconds: 150));
+      final halfway = tester
+          .renderObject<RenderAnimatedOpacity>(find.byType(AnimatedOpacity))
+          .opacity
+          .value;
+      expect(halfway, inExclusiveRange(0, 1));
+      await tester.pump(const Duration(seconds: 5));
+      expect(opacity(tester), 0);
+    });
+
+    testWidgets('changement de page : réapparaît', (tester) async {
+      final view = ValueNotifier(0.0);
+      addTearDown(view.dispose);
+      await tester.pumpWidget(chip(view, 1));
+      await tester.pump(const Duration(seconds: 6));
+      expect(opacity(tester), 0);
+      await tester.pumpWidget(chip(view, 2));
+      expect(opacity(tester), 1);
+      expect(find.text('p. 2 / 9'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 5));
+      expect(opacity(tester), 0);
+    });
+  });
 }
