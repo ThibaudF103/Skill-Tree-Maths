@@ -1,11 +1,15 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:verger/app/app_scope.dart';
 import 'package:verger/app/resume.dart';
+import 'package:verger/features/documents/document_viewer_page.dart';
 import 'package:verger/features/items/item_detail_page.dart';
+import 'package:verger/features/video/video_page.dart';
 import 'package:verger_core/verger_core.dart';
+import 'package:verger_data/verger_data.dart';
 
 import 'test_app.dart';
 
@@ -15,10 +19,11 @@ void main() {
 
   /// Remplace les pages PDF et vidéo (pas de lecteur dans les tests) ; la
   /// fiche d'une connaissance reste la vraie.
-  List<OpenPage> captureBuiltPages() {
+  List<OpenPage> captureBuiltPages({List<String?>? attachedTo}) {
     final built = <OpenPage>[];
-    ResumeTracker.debugPageBuilder = (page) {
+    ResumeTracker.debugPageBuilder = (page, {attachTo}) {
       built.add(page);
+      attachedTo?.add(attachTo?.title);
       if (page.kind == OpenPageKind.item) return ResumeTracker.build(page);
       return Scaffold(
         appBar: AppBar(),
@@ -31,7 +36,8 @@ void main() {
   testWidgets('rouvre le PDF, la fiche et la vidéo enregistrés', (
     tester,
   ) async {
-    final built = captureBuiltPages();
+    final attachedTo = <String?>[];
+    final built = captureBuiltPages(attachedTo: attachedTo);
     late List<OpenPage> saved;
     final store = await pumpTestApp(
       tester,
@@ -56,7 +62,13 @@ void main() {
         saved = [
           OpenPage.document(pdf.id, page: 3),
           OpenPage.item(item.id),
-          OpenPage.video(video.id, positionMs: 42000),
+          // Extrait à attacher à une connaissance : portée conservée.
+          OpenPage.video(
+            video.id,
+            positionMs: 42000,
+            endMs: 60000,
+            attachToItemId: item.id,
+          ),
         ];
         await store.setOpenPages(saved);
         await store.setHomeTab(2);
@@ -64,6 +76,7 @@ void main() {
     );
 
     expect(built, saved);
+    expect(attachedTo, [null, null, 'Cayley-Hamilton']);
     expect(find.text('video 42000'), findsOneWidget);
 
     // Le retour redescend la pile jusqu'à l'accueil, sur l'onglet « Arbres ».
@@ -156,4 +169,115 @@ void main() {
     expect(await tester.runAsync(store.openPages), isEmpty);
     await unmountTestApp(tester);
   });
+
+  test('pages construites avec la page, la position et la portée', () {
+    final item = KnowledgeItem(
+      id: 'i',
+      nodeId: 'n',
+      kind: ItemKind.theorem,
+      title: 'Cayley-Hamilton',
+      createdAt: DateTime.utc(2026),
+      updatedAt: DateTime.utc(2026),
+    );
+    final pdf =
+        ResumeTracker.build(
+              const OpenPage.document('d', page: 3, attachToItemId: 'i'),
+              attachTo: item,
+            )
+            as DocumentViewerPage;
+    expect(pdf.documentId, 'd');
+    expect(pdf.initialPage, 3);
+    expect(pdf.attachToItem, item);
+
+    final video =
+        ResumeTracker.build(
+              const OpenPage.video('v', positionMs: 42000, endMs: 60000),
+              attachTo: item,
+            )
+            as VideoPage;
+    expect(video.documentId, 'v');
+    expect(video.startMs, 42000);
+    expect(video.endMs, 60000);
+    expect(video.attachToItem, item);
+
+    // Extrait dépassé : la lecture n'est plus arrêtée à sa fin.
+    final past =
+        ResumeTracker.build(
+              const OpenPage.video('v', positionMs: 70000, endMs: 60000),
+            )
+            as VideoPage;
+    expect(past.endMs, isNull);
+  });
+
+  testWidgets('pages ouvertes avant la fin de la reprise, échec retenté, '
+      'relevé avant l\'arrière-plan', (tester) async {
+    final store = await pumpTestApp(tester);
+    final navigator = tester.state<NavigatorState>(find.byType(Navigator));
+    final flaky = _FlakyStore(store);
+    final tracker = ResumeTracker(flaky);
+
+    // Ouverte pendant la reprise : rien n'est encore enregistré…
+    final token = tracker.open(const OpenPage.document('d', page: 1));
+    await settle(tester);
+    expect(await tester.runAsync(store.openPages), isEmpty);
+    // … mais la reprise terminée l'enregistre.
+    await tester.runAsync(() => tracker.restore(navigator));
+    expect(await tester.runAsync(store.openPages), const [
+      OpenPage.document('d', page: 1),
+    ]);
+
+    // Un enregistrement qui échoue est retenté, même sans changement.
+    flaky.failures = 1;
+    tracker.update(token, const OpenPage.document('d', page: 2));
+    await tester.runAsync(
+      () => expectLater(tracker.flush(), throwsA(isA<StateError>())),
+    );
+    await tester.runAsync(tracker.flush);
+    expect(await tester.runAsync(store.openPages), const [
+      OpenPage.document('d', page: 2),
+    ]);
+
+    // Passage en arrière-plan : la position courante est relevée d'abord ;
+    // un relevé qui ne répond pas ne bloque pas l'enregistrement.
+    tracker.open(
+      const OpenPage.video('v', positionMs: 1000),
+      refresh: () async => const OpenPage.video('v', positionMs: 9000),
+    );
+    tracker.open(
+      const OpenPage.video('w', positionMs: 5),
+      refresh: () => Completer<OpenPage?>().future,
+    );
+    await tester.runAsync(() => tracker.flush(refresh: true));
+    expect(await tester.runAsync(store.openPages), const [
+      OpenPage.document('d', page: 2),
+      OpenPage.video('v', positionMs: 9000),
+      OpenPage.video('w', positionMs: 5),
+    ]);
+    tracker.dispose();
+    await unmountTestApp(tester);
+  });
+}
+
+/// Magasin dont les [failures] prochains enregistrements de la reprise
+/// échouent.
+class _FlakyStore implements VergerStore {
+  _FlakyStore(this._store);
+
+  final VergerStore _store;
+  var failures = 0;
+
+  @override
+  Future<void> setOpenPages(List<OpenPage> pages) async {
+    if (failures > 0) {
+      failures--;
+      throw StateError('écriture impossible');
+    }
+    await _store.setOpenPages(pages);
+  }
+
+  @override
+  Future<List<OpenPage>> openPages() => _store.openPages();
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

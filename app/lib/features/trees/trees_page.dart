@@ -46,7 +46,7 @@ class _TreesPageState extends State<TreesPage> {
       _selected = id;
       if (id != null) _expanded.addAll(data.pathTo(id).map((n) => n.id));
     });
-    if (id != null) AppScope.of(context).store.setTreeSelection(id);
+    AppScope.of(context).store.setTreeSelection(id);
   }
 
   Future<void> _createTree(TreeData data) async {

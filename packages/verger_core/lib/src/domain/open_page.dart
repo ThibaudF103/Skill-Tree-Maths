@@ -10,20 +10,29 @@ final class OpenPage {
     required this.id,
     this.page,
     this.positionMs,
+    this.endMs,
+    this.attachToItemId,
   });
 
-  const OpenPage.document(this.id, {this.page})
+  const OpenPage.document(this.id, {this.page, this.attachToItemId})
     : kind = OpenPageKind.document,
-      positionMs = null;
+      positionMs = null,
+      endMs = null;
 
-  const OpenPage.video(this.id, {this.positionMs})
-    : kind = OpenPageKind.video,
-      page = null;
+  const OpenPage.video(
+    this.id, {
+    this.positionMs,
+    this.endMs,
+    this.attachToItemId,
+  }) : kind = OpenPageKind.video,
+       page = null;
 
   const OpenPage.item(this.id)
     : kind = OpenPageKind.item,
       page = null,
-      positionMs = null;
+      positionMs = null,
+      endMs = null,
+      attachToItemId = null;
 
   final OpenPageKind kind;
 
@@ -36,17 +45,38 @@ final class OpenPage {
   /// Position de lecture d'une vidéo, en millisecondes.
   final int? positionMs;
 
-  OpenPage withPage(int page) =>
-      OpenPage(kind: kind, id: id, page: page, positionMs: positionMs);
+  /// Fin de l'extrait vidéo en cours de lecture, en millisecondes.
+  final int? endMs;
 
-  OpenPage withPosition(int positionMs) =>
-      OpenPage(kind: kind, id: id, page: page, positionMs: positionMs);
+  /// Connaissance à laquelle la page attache directement la zone ou
+  /// l'extrait marqué.
+  final String? attachToItemId;
+
+  OpenPage withPage(int page) => OpenPage(
+    kind: kind,
+    id: id,
+    page: page,
+    positionMs: positionMs,
+    endMs: endMs,
+    attachToItemId: attachToItemId,
+  );
+
+  OpenPage withPosition(int positionMs) => OpenPage(
+    kind: kind,
+    id: id,
+    page: page,
+    positionMs: positionMs,
+    endMs: endMs,
+    attachToItemId: attachToItemId,
+  );
 
   Map<String, Object?> toJson() => {
     'kind': kind.name,
     'id': id,
     'page': ?page,
     'positionMs': ?positionMs,
+    'endMs': ?endMs,
+    'attachToItemId': ?attachToItemId,
   };
 
   /// `null` si [json] est illisible (valeur d'une ancienne version, par
@@ -59,12 +89,16 @@ final class OpenPage {
     final id = json['id'];
     final page = json['page'];
     final position = json['positionMs'];
+    final end = json['endMs'];
+    final attachTo = json['attachToItemId'];
     if (kind == null || id is! String) return null;
     return OpenPage(
       kind: kind,
       id: id,
       page: page is int && page >= 1 ? page : null,
       positionMs: position is int && position >= 0 ? position : null,
+      endMs: end is int && end >= 0 ? end : null,
+      attachToItemId: attachTo is String ? attachTo : null,
     );
   }
 
@@ -74,10 +108,13 @@ final class OpenPage {
       other.kind == kind &&
       other.id == id &&
       other.page == page &&
-      other.positionMs == positionMs;
+      other.positionMs == positionMs &&
+      other.endMs == endMs &&
+      other.attachToItemId == attachToItemId;
 
   @override
-  int get hashCode => Object.hash(kind, id, page, positionMs);
+  int get hashCode =>
+      Object.hash(kind, id, page, positionMs, endMs, attachToItemId);
 
   @override
   String toString() => 'OpenPage(${toJson()})';

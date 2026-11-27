@@ -380,6 +380,66 @@ void main() {
       expect(await store.openPages(), const [OpenPage.document('d2')]);
       await store.setOpenPages(const []);
       expect(await store.openPages(), isEmpty);
+      await store.setTreeSelection(null);
+      expect(await store.treeSelection(), isNull);
+    });
+
+    test('reprise : conservée après fermeture de la base (fichier)', () async {
+      final dir = await Directory.systemTemp.createTemp('verger_resume');
+      final file = File('${dir.path}/verger.sqlite');
+      try {
+        var fileStore = VergerStore(VergerDatabase(NativeDatabase(file)));
+        await fileStore.setHomeTab(1);
+        await fileStore.setTreeSelection('n1');
+        await fileStore.setOpenPages(const [
+          OpenPage.video(
+            'v',
+            positionMs: 5000,
+            endMs: 9000,
+            attachToItemId: 'i',
+          ),
+        ]);
+        await fileStore.close();
+        fileStore = VergerStore(VergerDatabase(NativeDatabase(file)));
+        expect(await fileStore.homeTab(), 1);
+        expect(await fileStore.treeSelection(), 'n1');
+        expect(await fileStore.openPages(), const [
+          OpenPage.video(
+            'v',
+            positionMs: 5000,
+            endMs: 9000,
+            attachToItemId: 'i',
+          ),
+        ]);
+        await fileStore.close();
+      } finally {
+        await dir.delete(recursive: true);
+      }
+    });
+
+    test('reprise : entrées illisibles oubliées', () async {
+      final db = VergerDatabase(NativeDatabase.memory());
+      final raw = VergerStore(db);
+      Future<void> write(String json) => db.customStatement(
+        'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
+        ['openPages', json],
+      );
+      Future<String?> stored() async =>
+          (await db
+                  .customSelect(
+                    "SELECT value FROM settings WHERE key = 'openPages'",
+                  )
+                  .getSingleOrNull())
+              ?.read<String>('value');
+
+      await write('[{"kind":"film","id":"a"}]');
+      expect(await raw.openPages(), isEmpty);
+      expect(await stored(), isNull);
+
+      await write('[{"kind":"item","id":"a"},{"id":"b"}]');
+      expect(await raw.openPages(), const [OpenPage.item('a')]);
+      expect(await stored(), '[{"kind":"item","id":"a"}]');
+      await raw.close();
     });
 
     test('reprise : valeurs illisibles ignorées', () {

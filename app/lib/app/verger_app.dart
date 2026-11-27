@@ -24,8 +24,8 @@ class _VergerAppState extends State<VergerApp> {
   /// Enregistre la page ouverte dès que l'application passe en
   /// arrière-plan : iOS peut la fermer ensuite sans prévenir.
   late final _lifecycle = AppLifecycleListener(
-    onInactive: _resume.flush,
-    onHide: _resume.flush,
+    onInactive: () => _resume.flush(refresh: true),
+    onHide: () => _resume.flush(refresh: true),
     onPause: _resume.flush,
   );
 

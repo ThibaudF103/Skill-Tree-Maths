@@ -624,6 +624,9 @@ class VergerStore {
       .into(_db.settings)
       .insertOnConflictUpdate(SettingRow(key: key, value: jsonEncode(value)));
 
+  Future<void> _deleteSetting(String key) =>
+      (_db.delete(_db.settings)..where((s) => s.key.equals(key))).go();
+
   /// Onglet de la navigation principale choisi en dernier (0 : Verger).
   Future<int> homeTab() async {
     final tab = await _setting(_homeTabKey);
@@ -638,22 +641,27 @@ class VergerStore {
     return id is String ? id : null;
   }
 
-  Future<void> setTreeSelection(String nodeId) =>
-      _putSetting(_treeSelectionKey, nodeId);
+  /// [nodeId] `null` : aucun nœud retenu.
+  Future<void> setTreeSelection(String? nodeId) => nodeId == null
+      ? _deleteSetting(_treeSelectionKey)
+      : _putSetting(_treeSelectionKey, nodeId);
 
   /// Pages de contenu ouvertes, de la plus ancienne (au-dessus de l'accueil)
   /// à celle du dessus, à rouvrir au lancement.
+  /// Les entrées illisibles sont écartées et oubliées.
   Future<List<OpenPage>> openPages() async {
-    final pages = await _setting(_openPagesKey);
-    if (pages is! List) return const [];
-    return [for (final p in pages) ?OpenPage.fromJson(p)];
+    final raw = await _setting(_openPagesKey);
+    final entries = raw is List ? raw : const [];
+    final pages = [for (final p in entries) ?OpenPage.fromJson(p)];
+    if (pages.length != entries.length || (raw != null && raw is! List)) {
+      await setOpenPages(pages);
+    }
+    return pages;
   }
 
   Future<void> setOpenPages(List<OpenPage> pages) async {
     if (pages.isEmpty) {
-      await (_db.delete(
-        _db.settings,
-      )..where((s) => s.key.equals(_openPagesKey))).go();
+      await _deleteSetting(_openPagesKey);
     } else {
       await _putSetting(_openPagesKey, [for (final p in pages) p.toJson()]);
     }

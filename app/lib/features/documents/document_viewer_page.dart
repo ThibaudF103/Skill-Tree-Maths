@@ -118,9 +118,7 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
     _store = scope.store;
     if (_resume == null && scope.resume != null) {
       _resume = scope.resume;
-      _resumeToken = _resume!.open(
-        OpenPage.document(widget.documentId, page: widget.initialPage),
-      );
+      _resumeToken = _resume!.open(_openPage(widget.initialPage));
     }
     _bytes ??= _store.documentBytes(widget.documentId);
     _documents ??= _store.watchDocuments();
@@ -149,14 +147,18 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
     if (mounted) setState(() {});
   }
 
+  /// Cette page, pour la reprise au lancement.
+  OpenPage _openPage(int? page) => OpenPage.document(
+    widget.documentId,
+    page: page,
+    attachToItemId: widget.attachToItem?.id,
+  );
+
   void _onPageChanged(int? page) {
     if (page == null) return;
     setState(() => _page = page);
     if (_resumeToken != null) {
-      _resume!.update(
-        _resumeToken!,
-        OpenPage.document(widget.documentId, page: page),
-      );
+      _resume!.update(_resumeToken!, _openPage(page));
     }
     _saveLastPage?.cancel();
     _saveLastPage = Timer(

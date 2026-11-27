@@ -78,17 +78,32 @@ class _VideoPageState extends State<VideoPage> {
   ResumeTracker? _resume;
   Object? _resumeToken;
   Timer? _positionPoll;
-  AppLifecycleListener? _lifecycle;
 
-  /// Relève la position de lecture pour la reprise ; [now] : enregistrer
-  /// sans attendre (passage en arrière-plan).
-  Future<void> _notePosition({bool now = false}) async {
-    final token = _resumeToken;
-    if (token == null) return;
+  /// Numéro du dernier relevé de position : un relevé dépassé par un plus
+  /// récent est ignoré.
+  var _positionRead = 0;
+
+  /// Cette vidéo, pour la reprise au lancement.
+  OpenPage _openPage(int? positionMs) => OpenPage.video(
+    widget.documentId,
+    positionMs: positionMs,
+    endMs: widget.endMs,
+    attachToItemId: widget.attachToItem?.id,
+  );
+
+  /// Relève la position de lecture ; `null` si elle est inconnue ou si un
+  /// relevé plus récent a été demandé entre-temps.
+  Future<OpenPage?> _readPosition() async {
+    final read = ++_positionRead;
     final ms = await _player.currentMs();
-    if (ms == null || !mounted) return;
-    _resume!.update(token, OpenPage.video(widget.documentId, positionMs: ms));
-    if (now) await _resume!.flush();
+    if (ms == null || !mounted || read != _positionRead) return null;
+    return _openPage(ms);
+  }
+
+  Future<void> _notePosition() async {
+    final page = await _readPosition();
+    final token = _resumeToken;
+    if (page != null && token != null) _resume!.update(token, page);
   }
 
   void _toggleFullscreen() => _setFullscreen(!_fullscreen);
@@ -111,7 +126,6 @@ class _VideoPageState extends State<VideoPage> {
   @override
   void dispose() {
     _positionPoll?.cancel();
-    _lifecycle?.dispose();
     if (_resumeToken != null) _resume!.close(_resumeToken!);
     if (_fullscreen) {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
@@ -155,15 +169,15 @@ class _VideoPageState extends State<VideoPage> {
     final resume = AppScope.of(context).resume;
     if (_resume == null && resume != null) {
       _resume = resume;
+      // Relevé périodique, et relevé attendu par l'enregistrement du
+      // passage en arrière-plan.
       _resumeToken = resume.open(
-        OpenPage.video(widget.documentId, positionMs: widget.startMs),
+        _openPage(widget.startMs),
+        refresh: _readPosition,
       );
       _positionPoll = Timer.periodic(
         const Duration(seconds: 5),
         (_) => _notePosition(),
-      );
-      _lifecycle = AppLifecycleListener(
-        onInactive: () => _notePosition(now: true),
       );
     }
     _document ??= _store.document(widget.documentId);
