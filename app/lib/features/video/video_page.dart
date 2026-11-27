@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import 'package:verger_core/verger_core.dart';
 import 'package:verger_data/verger_data.dart';
 
 import '../../app/app_scope.dart';
+import '../../app/resume.dart';
 import '../../ui/labels.dart';
 import '../../ui/coverage.dart';
 import '../../video/video_control_bar.dart';
@@ -71,6 +73,39 @@ class _VideoPageState extends State<VideoPage> {
   /// Reçoit Échap (ordinateur, web) pour quitter le plein cadre.
   final _keys = FocusNode(debugLabel: 'video-page');
 
+  /// Reprise au lancement : la vidéo et sa position restent à rouvrir tant
+  /// qu'on ne quitte pas la page.
+  ResumeTracker? _resume;
+  Object? _resumeToken;
+  Timer? _positionPoll;
+
+  /// Numéro du dernier relevé de position : un relevé dépassé par un plus
+  /// récent est ignoré.
+  var _positionRead = 0;
+
+  /// Cette vidéo, pour la reprise au lancement.
+  OpenPage _openPage(int? positionMs) => OpenPage.video(
+    widget.documentId,
+    positionMs: positionMs,
+    endMs: widget.endMs,
+    attachToItemId: widget.attachToItem?.id,
+  );
+
+  /// Relève la position de lecture ; `null` si elle est inconnue ou si un
+  /// relevé plus récent a été demandé entre-temps.
+  Future<OpenPage?> _readPosition() async {
+    final read = ++_positionRead;
+    final ms = await _player.currentMs();
+    if (ms == null || !mounted || read != _positionRead) return null;
+    return _openPage(ms);
+  }
+
+  Future<void> _notePosition() async {
+    final page = await _readPosition();
+    final token = _resumeToken;
+    if (page != null && token != null) _resume!.update(token, page);
+  }
+
   void _toggleFullscreen() => _setFullscreen(!_fullscreen);
 
   void _setFullscreen(bool on) {
@@ -90,6 +125,8 @@ class _VideoPageState extends State<VideoPage> {
 
   @override
   void dispose() {
+    _positionPoll?.cancel();
+    if (_resumeToken != null) _resume!.close(_resumeToken!);
     if (_fullscreen) {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     }
@@ -129,6 +166,20 @@ class _VideoPageState extends State<VideoPage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final resume = AppScope.of(context).resume;
+    if (_resume == null && resume != null) {
+      _resume = resume;
+      // Relevé périodique, et relevé attendu par l'enregistrement du
+      // passage en arrière-plan.
+      _resumeToken = resume.open(
+        _openPage(widget.startMs),
+        refresh: _readPosition,
+      );
+      _positionPoll = Timer.periodic(
+        const Duration(seconds: 5),
+        (_) => _notePosition(),
+      );
+    }
     _document ??= _store.document(widget.documentId);
     _anchors ??= _store.watchAnchors(documentId: widget.documentId);
     _notes ??= _store.watchNotes(documentId: widget.documentId);

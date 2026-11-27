@@ -2,6 +2,8 @@ import 'package:flutter/widgets.dart';
 import 'package:verger_core/verger_core.dart';
 import 'package:verger_data/verger_data.dart';
 
+import 'resume.dart';
+
 /// Rend les services de l'application disponibles dans l'arbre de widgets.
 class AppScope extends InheritedWidget {
   const AppScope({
@@ -10,6 +12,7 @@ class AppScope extends InheritedWidget {
     required this.scheduler,
     this.mastery = const MasteryModel(),
     required this.reloadSettings,
+    this.resume,
     required super.child,
   });
 
@@ -20,6 +23,9 @@ class AppScope extends InheritedWidget {
   /// Relit les réglages enregistrés (après une restauration, par exemple).
   final Future<void> Function() reloadSettings;
 
+  /// Reprise au lancement (absente dans certains tests de widgets).
+  final ResumeTracker? resume;
+
   static AppScope of(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<AppScope>()!;
 
@@ -27,5 +33,6 @@ class AppScope extends InheritedWidget {
   bool updateShouldNotify(AppScope oldWidget) =>
       store != oldWidget.store ||
       scheduler != oldWidget.scheduler ||
-      mastery != oldWidget.mastery;
+      mastery != oldWidget.mastery ||
+      resume != oldWidget.resume;
 }

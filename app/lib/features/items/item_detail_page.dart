@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:verger_core/verger_core.dart';
 
 import '../../app/app_scope.dart';
+import '../../app/resume.dart';
 import '../../ui/dialogs.dart';
 import '../../ui/item_glyph.dart';
 import '../../ui/labels.dart';
@@ -31,13 +32,29 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
   /// Note ouverte sous la fiche (écran partagé).
   String? _openNote;
 
+  /// Reprise au lancement : la fiche reste à rouvrir tant qu'on ne la
+  /// quitte pas.
+  ResumeTracker? _resume;
+  Object? _resumeToken;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final store = AppScope.of(context).store;
+    final scope = AppScope.of(context);
+    if (_resume == null && scope.resume != null) {
+      _resume = scope.resume;
+      _resumeToken = _resume!.open(OpenPage.item(widget.itemId));
+    }
+    final store = scope.store;
     _items ??= store.watchItems();
     _nodes ??= store.watchNodes();
     _history ??= store.history(widget.itemId);
+  }
+
+  @override
+  void dispose() {
+    if (_resumeToken != null) _resume!.close(_resumeToken!);
+    super.dispose();
   }
 
   @override

@@ -36,12 +36,38 @@ const _destinations = [
 
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
+  var _chosen = false;
   Stream<List<KnowledgeItem>>? _items;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _resume());
+  }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _items ??= AppScope.of(context).store.watchItems();
+  }
+
+  /// Reprise au lancement : dernier onglet, puis pages de contenu restées
+  /// ouvertes, poussées au-dessus de l'accueil (le retour y ramène).
+  Future<void> _resume() async {
+    if (!mounted) return;
+    final scope = AppScope.of(context);
+    final navigator = Navigator.of(context);
+    final tab = await scope.store.homeTab();
+    if (!mounted) return;
+    // Un onglet choisi entre-temps l'emporte.
+    if (!_chosen && tab < _destinations.length) setState(() => _index = tab);
+    await scope.resume?.restore(navigator);
+  }
+
+  void _select(int index) {
+    _chosen = true;
+    setState(() => _index = index);
+    AppScope.of(context).store.setHomeTab(index);
   }
 
   /// Icône avec, pour « Révisions », le nombre de connaissances dues.
@@ -86,7 +112,7 @@ class _HomeShellState extends State<HomeShell> {
           children: [
             NavigationRail(
               selectedIndex: _index,
-              onDestinationSelected: (i) => setState(() => _index = i),
+              onDestinationSelected: _select,
               labelType: NavigationRailLabelType.all,
               destinations: [
                 for (final (i, d) in _destinations.indexed)
@@ -107,7 +133,7 @@ class _HomeShellState extends State<HomeShell> {
       body: page,
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
+        onDestinationSelected: _select,
         destinations: [
           for (final (i, d) in _destinations.indexed)
             NavigationDestination(
