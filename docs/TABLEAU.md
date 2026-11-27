@@ -77,8 +77,8 @@ connaissances), les nouveaux venus sont placés.
 
 | Étape | Contenu |
 |---|---|
-| 1 | Tableau en lecture seule généré depuis l'arbre (données prêtes pour l'étape 2) |
-| 2 | Déplacer / redimensionner les régions, glisser les cartes (met l'arbre à jour) |
+| 1 | Tableau en lecture seule généré depuis l'arbre (données prêtes pour l'étape 2) ✅ |
+| 2 | Déplacer / redimensionner les régions, glisser les cartes (met l'arbre à jour) ✅ |
 | 3 | Créer des cartes au stylet sur le tableau, et depuis les notes |
 | 4 | Liens, cartes « modèle », mise en évidence |
 | 5 | Cartes-références, tableaux de leçon |
@@ -103,3 +103,48 @@ connaissances), les nouveaux venus sont placés.
 - Toucher une carte ouvre sa fiche ; toucher un titre de région ouvre le
   nœud ; « Recentrer » cadre tout ; la vue (zoom, décalage) est retenue
   dans les réglages.
+
+## Étape 2 (faite) : éditer la géométrie
+
+Le tableau décide des places, l'arbre de la hiérarchie ; un geste met les
+deux à jour ensemble.
+
+- **Mode « Édition »** (puce en haut à droite, désactivée par défaut). Un
+  doigt (ou la souris) sur une carte, un bandeau de titre ou une poignée
+  déplace l'élément ; sur le vide, il déplace la vue ; deux doigts pincent
+  et déplacent toujours la vue (un deuxième doigt annule le geste en
+  cours). La vue est figée pendant le geste. Un simple toucher ouvre
+  toujours la fiche ou le nœud.
+- **Carte** : déposée dans une région, elle rejoint le nœud de la région la
+  plus profonde sous le doigt (changement de nœud : historique et état de
+  révision intacts), à la position déposée aimantée sur une grille de 8,
+  poussée vers la place libre la plus proche. Hors de toute région : dans
+  « Non classées ». La région d'arrivée est mise en évidence pendant le
+  glissé. De loin (cartes en blocs), les cartes ne se saisissent pas.
+- **Région** (par son bandeau de titre) : elle emporte sous-régions et
+  cartes ; déposée dans une autre région, elle en devient l'enfant (jamais
+  dans elle-même ou sa descendance) ; hors de toute région, elle devient un
+  arbre. Les voisines qu'elle recouvre sont poussées vers le bas (règles de
+  la mise en page) ; elle reste dans la zone utile de son parent.
+- **Redimensionner** : poignées sur les bords et les coins (36 px à
+  l'écran, curseurs de redimensionnement à la souris). Jamais plus petite
+  que son contenu plus les marges (une région vide garde la place d'une
+  carte), jamais hors de la zone utile de son parent ; agrandie, elle
+  pousse ses voisines et son parent grandit.
+- **« Non classées »** : un arbre ordinaire à l'identifiant réservé
+  (`KnowledgeNode.unsortedId`), créé à la demande par le premier dépôt hors
+  région et retiré quand un geste le vide. Région grise, placée comme un
+  nouvel arbre ; elle n'accueille que des cartes (une région n'y entre pas,
+  et elle reste un arbre). Visible dans « Arbres » (on peut y classer les
+  cartes aussi) et dans les révisions comme un arbre : ses connaissances
+  restent des connaissances à réviser. Aucun changement de schéma ni
+  d'archive : une version plus ancienne y voit un arbre « Non classées ».
+- **Calcul** : `BoardEditor` (verger_core) sur l'instantané du début du
+  geste ; **enregistrement** : `VergerStore.applyBoardEdit`, une
+  transaction par geste (donc un seul instantané `watchBoard`, sans boucle
+  d'écriture) ; **annulation** : « Annuler » dans le bandeau qui suit,
+  `undoBoardEdit` remet parents, ordre et géométrie d'avant.
+- Limites : changer une région de profondeur ne réduit pas son bandeau
+  (elle s'étend vers le haut si le nouveau bandeau est plus haut) ; une
+  région ne rétrécit jamais seule ; le parent ne grandit que vers la droite
+  et le bas.

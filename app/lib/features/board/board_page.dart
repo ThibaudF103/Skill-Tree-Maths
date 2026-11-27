@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:verger_core/verger_core.dart';
 
@@ -11,8 +12,13 @@ import '../trees/trees_page.dart';
 import 'board_canvas.dart';
 
 /// Vue « Tableau » : toute la hiérarchie sur une toile infinie, les nœuds en
-/// régions imbriquées et les connaissances en cartes (lecture seule pour
-/// l'instant, voir docs/TABLEAU.md).
+/// régions imbriquées et les connaissances en cartes (voir docs/TABLEAU.md).
+///
+/// En mode « Édition », un doigt sur une carte la déplace (vers une autre
+/// région : elle change de nœud ; hors de toute région : « Non classées »),
+/// sur un bandeau de titre déplace la région avec son contenu, sur une
+/// poignée la redimensionne ; ailleurs il déplace la vue, et deux doigts
+/// zooment toujours.
 ///
 /// À l'ouverture puis à chaque changement des nœuds ou connaissances, ce
 /// qui n'est pas encore placé l'est automatiquement, et enregistré.
@@ -45,6 +51,19 @@ class _BoardPageState extends State<BoardPage> {
   /// Vrai pendant un changement de vue par programme (pas à retenir).
   var _programmatic = false;
   Timer? _saveView;
+
+  /// Mode édition (désactivé par défaut : lire et se déplacer sans risque).
+  var _editing = false;
+  _EditGesture? _gesture;
+  BoardDrag? _drag;
+
+  /// Doigts (ou pointeurs) posés sur le tableau.
+  final _pointers = <int>{};
+  final _canvasKey = GlobalKey();
+
+  /// Une modification vient d'être enregistrée : l'aperçu reste affiché
+  /// jusqu'à l'instantané suivant.
+  var _awaitingSnapshot = false;
 
   @override
   void didChangeDependencies() {
@@ -95,7 +114,13 @@ class _BoardPageState extends State<BoardPage> {
             ),
     );
     final previous = _scene;
-    setState(() => _scene = scene);
+    setState(() {
+      _scene = scene;
+      if (_awaitingSnapshot) {
+        _awaitingSnapshot = false;
+        _drag = null;
+      }
+    });
     // Le repère du dessin a bougé (contenu étendu vers le haut ou la
     // gauche) : la vue suit, rien ne saute à l'écran.
     if (previous != null && previous.origin != scene.origin) {
@@ -213,6 +238,208 @@ class _BoardPageState extends State<BoardPage> {
     });
   }
 
+  // --- Édition -------------------------------------------------------------
+
+  void _setEditing(bool editing) {
+    _cancelGesture();
+    setState(() => _editing = editing);
+  }
+
+  /// Point du tableau sous un point de l'écran.
+  BoardPoint? _boardPoint(Offset global) {
+    final box = _canvasKey.currentContext?.findRenderObject() as RenderBox?;
+    final scene = _scene;
+    if (box == null || scene == null) return null;
+    final local = box.globalToLocal(global);
+    return BoardPoint(local.dx + scene.origin.dx, local.dy + scene.origin.dy);
+  }
+
+  /// Appui sur une carte, un bandeau de titre ou une poignée (mode
+  /// édition) : à un seul doigt, le geste déplacera l'élément, pas la vue.
+  void _onEditDown(PointerDownEvent event, BoardTarget target) {
+    final nodes = _nodes, items = _items;
+    if (!_editing ||
+        _gesture != null ||
+        _pointers.isNotEmpty ||
+        nodes == null ||
+        items == null ||
+        (event.kind == PointerDeviceKind.mouse &&
+            event.buttons != kPrimaryMouseButton)) {
+      return;
+    }
+    setState(() {
+      _gesture = _EditGesture(
+        pointer: event.pointer,
+        start: event.position,
+        target: target,
+        editor: BoardEditor(nodes, items),
+        matrix: _controller.value.clone(),
+      );
+    });
+  }
+
+  void _onPointerDown(PointerDownEvent event) {
+    _pointers.add(event.pointer);
+    // Deuxième doigt : pincer et déplacer la vue l'emportent.
+    if (_pointers.length > 1) _cancelGesture();
+  }
+
+  void _onPointerMove(PointerMoveEvent event) {
+    final g = _gesture;
+    if (g == null || event.pointer != g.pointer) return;
+    // La vue reste immobile pendant le geste.
+    if (_controller.value != g.matrix) _setView(g.matrix.clone());
+    final delta = event.position - g.start;
+    if (!g.active && delta.distance < kTouchSlop / 2) return;
+    final at = _boardPoint(event.position);
+    if (at == null) return;
+    g
+      ..active = true
+      ..delta = delta / g.matrix.getMaxScaleOnAxis()
+      ..at = at;
+    setState(() => _drag = _preview(g));
+  }
+
+  void _onPointerUp(PointerUpEvent event) {
+    _pointers.remove(event.pointer);
+    final g = _gesture;
+    if (g == null || event.pointer != g.pointer) return;
+    if (!g.active) {
+      // Simple toucher : la carte ou le nœud s'ouvre.
+      setState(() => _gesture = null);
+      return;
+    }
+    _commit(g);
+  }
+
+  void _onPointerCancel(PointerCancelEvent event) {
+    _pointers.remove(event.pointer);
+    if (_gesture?.pointer == event.pointer) _cancelGesture();
+  }
+
+  void _cancelGesture() {
+    if (_gesture == null && _drag == null) return;
+    setState(() {
+      _gesture = null;
+      _drag = null;
+    });
+  }
+
+  /// Rectangle demandé par une poignée tirée de [delta].
+  static BoardRect _resized(BoardRect r, ResizeTarget t, Offset delta) {
+    var left = r.x, top = r.y, right = r.right, bottom = r.bottom;
+    if (t.hx < 0) left += delta.dx;
+    if (t.hx > 0) right += delta.dx;
+    if (t.hy < 0) top += delta.dy;
+    if (t.hy > 0) bottom += delta.dy;
+    return BoardRect(left, top, right - left, bottom - top);
+  }
+
+  BoardDrag _preview(_EditGesture g) {
+    final editor = g.editor;
+    final origin = _scene!.origin;
+    return switch (g.target) {
+      CardTarget() => BoardDrag(
+        target: g.target,
+        delta: g.delta,
+        highlight: editor.regionAt(g.at),
+      ),
+      RegionTarget(:final nodeId) => BoardDrag(
+        target: g.target,
+        delta: g.delta,
+        highlight: nodeId == KnowledgeNode.unsortedId
+            ? null
+            : editor.regionAt(g.at, excluding: nodeId, forRegion: true),
+      ),
+      final ResizeTarget t => () {
+        final r = editor.clampResize(
+          t.nodeId,
+          _resized(editor.region(t.nodeId)!, t, g.delta),
+        );
+        return BoardDrag(
+          target: t,
+          resized: Rect.fromLTWH(
+            r.x - origin.dx,
+            r.y - origin.dy,
+            r.width,
+            r.height,
+          ),
+        );
+      }(),
+    };
+  }
+
+  /// Fin du geste : la modification est enregistrée en une transaction,
+  /// avec « Annuler ».
+  Future<void> _commit(_EditGesture g) async {
+    final editor = g.editor;
+    final d = g.delta;
+    final edit = switch (g.target) {
+      CardTarget(:final itemId) => editor.moveCard(
+        itemId,
+        topLeft: editor.card(itemId)!.translate(d.dx, d.dy),
+        at: g.at,
+      ),
+      RegionTarget(:final nodeId) => editor.moveRegion(
+        nodeId,
+        topLeft: editor.region(nodeId)!.topLeft.translate(d.dx, d.dy),
+        at: g.at,
+      ),
+      final ResizeTarget t => editor.resizeRegion(
+        t.nodeId,
+        _resized(editor.region(t.nodeId)!, t, d),
+      ),
+    };
+    _gesture = null;
+    if (edit.isEmpty) {
+      setState(() => _drag = null);
+      return;
+    }
+    // L'aperçu reste jusqu'au prochain instantané (pas de saut en arrière).
+    _awaitingSnapshot = true;
+    final store = AppScope.of(context).store;
+    final messenger = ScaffoldMessenger.of(context);
+    final message = _describe(g.target, edit);
+    try {
+      final undo = await store.applyBoardEdit(edit);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(message),
+          action: SnackBarAction(
+            label: 'Annuler',
+            onPressed: () => store.undoBoardEdit(undo),
+          ),
+        ),
+      );
+    } on ArgumentError catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _awaitingSnapshot = false;
+        _drag = null;
+      });
+      messenger.showSnackBar(SnackBar(content: Text('${e.message}')));
+    }
+  }
+
+  String _describe(BoardTarget target, BoardEdit edit) {
+    String title(String? id) =>
+        _nodes?.where((n) => n.id == id).firstOrNull?.title ??
+        KnowledgeNode.unsortedTitle;
+    return switch (target) {
+      CardTarget() => switch (edit.itemMove) {
+        null => 'Carte déplacée',
+        (nodeId: final n, itemId: _) => 'Carte rangée dans « ${title(n)} »',
+      },
+      RegionTarget(:final nodeId) => switch (edit.nodeMove) {
+        null => 'Région déplacée',
+        (parentId: null, nodeId: _) => '« ${title(nodeId)} » devient un arbre',
+        (parentId: final p?, nodeId: _) =>
+          '« ${title(nodeId)} » rattachée à « ${title(p)} »',
+      },
+      ResizeTarget() => 'Région redimensionnée',
+    };
+  }
+
   void _openItem(KnowledgeItem item) => Navigator.of(context).push(
     MaterialPageRoute<void>(builder: (_) => ItemDetailPage(itemId: item.id)),
   );
@@ -256,19 +483,46 @@ class _BoardPageState extends State<BoardPage> {
             Positioned.fill(
               child: ColoredBox(
                 color: Theme.of(context).colorScheme.surfaceContainerLowest,
-                child: GraphViewer(
-                  transformationController: _controller,
-                  constrained: false,
-                  minScale: BoardPage.minScale,
-                  maxScale: BoardPage.maxScale,
-                  boundaryMargin: const EdgeInsets.all(double.infinity),
-                  child: BoardCanvas(
-                    scene: scene,
-                    controller: _controller,
-                    viewport: viewport,
-                    onOpenItem: _openItem,
-                    onOpenNode: _openNode,
+                child: Listener(
+                  behavior: HitTestBehavior.translucent,
+                  onPointerDown: _onPointerDown,
+                  onPointerMove: _onPointerMove,
+                  onPointerUp: _onPointerUp,
+                  onPointerCancel: _onPointerCancel,
+                  child: GraphViewer(
+                    transformationController: _controller,
+                    constrained: false,
+                    minScale: BoardPage.minScale,
+                    maxScale: BoardPage.maxScale,
+                    boundaryMargin: const EdgeInsets.all(double.infinity),
+                    panEnabled: _gesture == null,
+                    child: BoardCanvas(
+                      key: _canvasKey,
+                      scene: scene,
+                      controller: _controller,
+                      viewport: viewport,
+                      onOpenItem: _openItem,
+                      onOpenNode: _openNode,
+                      editing: _editing,
+                      drag: _drag,
+                      onEditDown: _onEditDown,
+                    ),
                   ),
+                ),
+              ),
+            ),
+            Positioned(
+              right: 16,
+              top: 16,
+              child: SafeArea(
+                child: FilterChip(
+                  avatar: const Icon(Icons.edit_outlined),
+                  label: const Text('Édition'),
+                  tooltip: 'Déplacer et redimensionner cartes et régions',
+                  selected: _editing,
+                  showCheckmark: false,
+                  elevation: 2,
+                  onSelected: _setEditing,
                 ),
               ),
             ),
@@ -289,4 +543,36 @@ class _BoardPageState extends State<BoardPage> {
       },
     );
   }
+}
+
+/// Geste d'édition en cours (un seul doigt).
+class _EditGesture {
+  _EditGesture({
+    required this.pointer,
+    required this.start,
+    required this.target,
+    required this.editor,
+    required this.matrix,
+  });
+
+  final int pointer;
+
+  /// Point de départ, à l'écran.
+  final Offset start;
+  final BoardTarget target;
+
+  /// Opérations sur l'instantané du début du geste.
+  final BoardEditor editor;
+
+  /// Vue au début du geste, maintenue pendant le geste.
+  final Matrix4 matrix;
+
+  /// Au-delà du seuil de glissé (sinon : simple toucher).
+  var active = false;
+
+  /// Déplacement, en unités du tableau.
+  var delta = Offset.zero;
+
+  /// Point du tableau sous le doigt.
+  var at = const BoardPoint(0, 0);
 }
