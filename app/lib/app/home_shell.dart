@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:verger_core/verger_core.dart';
 
+import '../features/board/board_page.dart';
 import '../features/documents/documents_page.dart';
 import '../features/orchard/orchard_page.dart';
 import '../features/review/reviews_page.dart';
@@ -17,17 +18,35 @@ class HomeShell extends StatefulWidget {
 }
 
 class _Destination {
-  const _Destination(this.label, this.icon, this.selectedIcon);
+  const _Destination(this.id, this.label, this.icon, this.selectedIcon);
+
+  /// Identifiant enregistré pour l'onglet retenu : stable quand l'ordre
+  /// d'affichage change.
+  final int id;
   final String label;
   final IconData icon;
   final IconData selectedIcon;
 }
 
+const _orchard = 0, _reviews = 1, _trees = 2, _library = 3, _board = 4;
+
 const _destinations = [
-  _Destination('Verger', Icons.park_outlined, Icons.park),
-  _Destination('Révisions', Icons.event_repeat_outlined, Icons.event_repeat),
-  _Destination('Arbres', Icons.account_tree_outlined, Icons.account_tree),
+  _Destination(_orchard, 'Verger', Icons.park_outlined, Icons.park),
+  _Destination(_board, 'Tableau', Icons.dashboard_outlined, Icons.dashboard),
   _Destination(
+    _reviews,
+    'Révisions',
+    Icons.event_repeat_outlined,
+    Icons.event_repeat,
+  ),
+  _Destination(
+    _trees,
+    'Arbres',
+    Icons.account_tree_outlined,
+    Icons.account_tree,
+  ),
+  _Destination(
+    _library,
     'Bibliothèque',
     Icons.local_library_outlined,
     Icons.local_library,
@@ -60,19 +79,20 @@ class _HomeShellState extends State<HomeShell> {
     final tab = await scope.store.homeTab();
     if (!mounted) return;
     // Un onglet choisi entre-temps l'emporte.
-    if (!_chosen && tab < _destinations.length) setState(() => _index = tab);
+    final index = _destinations.indexWhere((d) => d.id == tab);
+    if (!_chosen && index >= 0) setState(() => _index = index);
     await scope.resume?.restore(navigator);
   }
 
   void _select(int index) {
     _chosen = true;
     setState(() => _index = index);
-    AppScope.of(context).store.setHomeTab(index);
+    AppScope.of(context).store.setHomeTab(_destinations[index].id);
   }
 
   /// Icône avec, pour « Révisions », le nombre de connaissances dues.
   Widget _icon(int index, IconData icon) {
-    if (index != 1) return Icon(icon);
+    if (_destinations[index].id != _reviews) return Icon(icon);
     return StreamBuilder<List<KnowledgeItem>>(
       stream: _items,
       builder: (context, snapshot) {
@@ -99,10 +119,11 @@ class _HomeShellState extends State<HomeShell> {
   @override
   Widget build(BuildContext context) {
     final wide = MediaQuery.sizeOf(context).width >= 700;
-    final page = switch (_index) {
-      1 => const ReviewsPage(),
-      2 => const TreesPage(),
-      3 => const LibraryPage(),
+    final page = switch (_destinations[_index].id) {
+      _reviews => const ReviewsPage(),
+      _trees => const TreesPage(),
+      _library => const LibraryPage(),
+      _board => const BoardPage(),
       _ => const OrchardPage(),
     };
 

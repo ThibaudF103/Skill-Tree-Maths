@@ -432,4 +432,77 @@ void main() {
     expect(back.notes.last.reviewRating, Rating.hard);
     expect(back.notes.first.isReviewAttempt, isFalse);
   });
+
+  test('géométrie du tableau : aller-retour, facultative, sans changer '
+      'la version', () {
+    final archive = VergerArchive(
+      nodes: [
+        KnowledgeNode(
+          id: 'n',
+          title: 'Mécanique',
+          sortIndex: 0,
+          createdAt: t,
+          board: const BoardRect(10, 20, 600.5, 400),
+        ),
+        KnowledgeNode(id: 'm', title: 'Optique', sortIndex: 1, createdAt: t),
+      ],
+      items: [
+        KnowledgeItem(
+          id: 'i',
+          nodeId: 'n',
+          kind: ItemKind.definition,
+          title: 'Oscillateur harmonique',
+          createdAt: t,
+          updatedAt: t,
+          boardPosition: const BoardPoint(34, 108.25),
+        ),
+        KnowledgeItem(
+          id: 'j',
+          nodeId: 'm',
+          kind: ItemKind.definition,
+          title: 'Dioptre',
+          createdAt: t,
+          updatedAt: t,
+        ),
+      ],
+    );
+    final json = jsonDecode(jsonEncode(archive.toJson())) as Map;
+    // Lisible par l'appli précédente, qui ignore la géométrie.
+    expect(json['version'], 5);
+    expect((json['nodes'] as List).last, isNot(contains('board')));
+    final back = VergerArchive.fromJson(json.cast());
+    expect(back.nodes.first.board, const BoardRect(10, 20, 600.5, 400));
+    expect(back.nodes.last.board, equals(null));
+    expect(back.items.first.boardPosition, const BoardPoint(34, 108.25));
+    expect(back.items.last.boardPosition, equals(null));
+  });
+
+  test('géométrie mal formée : ignorée, l\'archive reste lisible', () {
+    for (final bad in [
+      [1, 2],
+      'x',
+      [1, 2, 'a', 4],
+      [1, 2, -3, 4],
+      [1, 2, 3, double.nan],
+    ]) {
+      final archive = VergerArchive.fromJson({
+        'format': 'verger',
+        'version': 5,
+        'nodes': [
+          {'id': 'n', 'title': 'Optique', 'board': bad},
+        ],
+        'items': [
+          {
+            'id': 'i',
+            'nodeId': 'n',
+            'kind': 'definition',
+            'title': 'Dioptre',
+            'board': bad is List ? [1, 'y'] : bad,
+          },
+        ],
+      });
+      expect(archive.nodes.single.board, equals(null), reason: '$bad');
+      expect(archive.items.single.boardPosition, equals(null), reason: '$bad');
+    }
+  });
 }

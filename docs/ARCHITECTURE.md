@@ -335,4 +335,5 @@ de démonstration (deux mois de révisions simulées).
 | 11 | Vidéos YouTube : lecteur intégré, extraits recto/verso ✅ |
 | 12 | Arbre de compétences : prérequis entre connaissances (modèle, fiche) ✅, liens tirés du poly ✅, vue graphe ✅, déblocage progressif des nouvelles cartes et révisions implicites ✅ |
 | 13 | Notes manuscrites : stylet (Apple Pencil), souris ou doigt ; stylo, surligneur, gomme, annuler ✅ |
+| 14 | Tableau (voir [TABLEAU.md](TABLEAU.md)) : étape 1, tableau en lecture seule généré depuis l'arbre, schéma v11 ✅ |
 | ensuite | Déplacement par l'interface, LaTeX, statistiques, programme officiel, verger, iPad… |

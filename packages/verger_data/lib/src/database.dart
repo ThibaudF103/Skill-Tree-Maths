@@ -17,6 +17,13 @@ class Nodes extends Table {
   TextColumn get origin => textEnum<NodeOrigin>()();
   DateTimeColumn get createdAt => dateTime()();
 
+  /// Région sur le tableau, en unités du tableau (v11) ; nulle tant
+  /// qu'elle n'est pas placée.
+  RealColumn get boardX => real().nullable()();
+  RealColumn get boardY => real().nullable()();
+  RealColumn get boardWidth => real().nullable()();
+  RealColumn get boardHeight => real().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -47,6 +54,11 @@ class Items extends Table {
   DateTimeColumn get lastReview => dateTime().nullable()();
   IntColumn get reps => integer().withDefault(const Constant(0))();
   IntColumn get lapses => integer().withDefault(const Constant(0))();
+
+  /// Position de la carte sur le tableau (v11) ; nulle tant qu'elle n'est
+  /// pas placée.
+  RealColumn get boardX => real().nullable()();
+  RealColumn get boardY => real().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -244,7 +256,7 @@ class VergerDatabase extends _$VergerDatabase {
   VergerDatabase(super.executor);
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -328,6 +340,16 @@ class VergerDatabase extends _$VergerDatabase {
       from9To10: (m, schema) async {
         // v10 : notes prises pendant les révisions (tentatives).
         await m.addColumn(schema.notes, schema.notes.reviewRating);
+      },
+      from10To11: (m, schema) async {
+        // v11 : géométrie du tableau (régions des nœuds, cartes), calculée
+        // à la première ouverture du tableau.
+        await m.addColumn(schema.nodes, schema.nodes.boardX);
+        await m.addColumn(schema.nodes, schema.nodes.boardY);
+        await m.addColumn(schema.nodes, schema.nodes.boardWidth);
+        await m.addColumn(schema.nodes, schema.nodes.boardHeight);
+        await m.addColumn(schema.items, schema.items.boardX);
+        await m.addColumn(schema.items, schema.items.boardY);
       },
     ),
     beforeOpen: (details) async {

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import '../board/board_geometry.dart';
 import '../domain/anchor.dart';
 import '../domain/item_kind.dart';
 import '../domain/knowledge_item.dart';
@@ -54,6 +55,10 @@ final class VergerArchive {
   /// 5 : exercices corrigés automatiquement.
   /// 6 : notes prises pendant les révisions (sans quoi une version plus
   /// ancienne en ferait des versos).
+  ///
+  /// La géométrie du tableau (`board` des nœuds et des connaissances) est
+  /// facultative et ne change pas la version : une version plus ancienne
+  /// l'ignore, et la mise en page automatique la recrée.
   static const currentVersion = 6;
 
   final List<KnowledgeNode> nodes;
@@ -109,6 +114,7 @@ final class VergerArchive {
             createdAt: n['createdAt'] == null
                 ? DateTime.now().toUtc()
                 : date(n['createdAt']),
+            board: _rect(n['board']),
           ),
       ];
       final items = [
@@ -134,6 +140,7 @@ final class VergerArchive {
             scheduling: i['scheduling'] == null
                 ? SchedulingState.initial
                 : SchedulingState.fromJson((i['scheduling'] as Map).cast()),
+            boardPosition: _point(i['board']),
           ),
       ];
       final reviews = <ArchivedReview>[
@@ -265,6 +272,31 @@ final class VergerArchive {
     } catch (e) {
       throw ArchiveFormatException('Contenu invalide : $e');
     }
+  }
+
+  /// Région du tableau : `[x, y, largeur, hauteur]`. Facultative et
+  /// recalculable : un champ mal formé est ignoré (la mise en page
+  /// automatique replacera le nœud).
+  static BoardRect? _rect(Object? v) {
+    final r = _numbers(v, 4);
+    if (r == null || r[2] <= 0 || r[3] <= 0) return null;
+    return BoardRect(r[0], r[1], r[2], r[3]);
+  }
+
+  /// Position d'une carte : `[x, y]` (ignorée si mal formée).
+  static BoardPoint? _point(Object? v) {
+    final p = _numbers(v, 2);
+    return p == null ? null : BoardPoint(p[0], p[1]);
+  }
+
+  /// [count] nombres finis, sinon `null`.
+  static List<double>? _numbers(Object? v, int count) {
+    if (v is! List || v.length != count) return null;
+    final values = [
+      for (final x in v)
+        if (x is num && x.isFinite) x.toDouble(),
+    ];
+    return values.length == count ? values : null;
   }
 
   /// Archives antérieures aux rattachements : chaque PDF est rattaché à la
@@ -399,6 +431,9 @@ final class VergerArchive {
           'curriculumKey': ?n.curriculumKey,
           'origin': n.origin.name,
           'createdAt': n.createdAt.toUtc().toIso8601String(),
+          'board': ?(n.board == null
+              ? null
+              : [n.board!.x, n.board!.y, n.board!.width, n.board!.height]),
         },
     ],
     'items': [
@@ -416,6 +451,9 @@ final class VergerArchive {
           'createdAt': i.createdAt.toUtc().toIso8601String(),
           'updatedAt': i.updatedAt.toUtc().toIso8601String(),
           'scheduling': i.scheduling.toJson(),
+          'board': ?(i.boardPosition == null
+              ? null
+              : [i.boardPosition!.x, i.boardPosition!.y]),
         },
     ],
     'documents': [

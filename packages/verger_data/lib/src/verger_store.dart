@@ -253,6 +253,8 @@ class VergerStore {
           NodesCompanion(parentId: Value(newParentId)),
         );
         await _renumber(ids);
+        // Ailleurs dans l'arbre : la branche sera replacée sur le tableau.
+        if (moving.parentId != newParentId) await _clearBranchGeometry(id);
       });
 
   /// Supprime un nœud. Sans [recursive], refuse s'il n'est pas vide ; avec,
@@ -382,6 +384,9 @@ class VergerStore {
         sortIndex: moved
             ? Value(await _nextItemIndex(nodeId))
             : const Value.absent(),
+        // Changée de nœud : replacée sur le tableau, dans sa région.
+        boardX: moved ? const Value(null) : const Value.absent(),
+        boardY: moved ? const Value(null) : const Value.absent(),
         suspended: Value.absentIfNull(suspended),
         updatedAt: Value(_now()),
       ),
@@ -412,7 +417,12 @@ class VergerStore {
         );
         if (moving.nodeId != nodeId) {
           await (_db.update(_db.items)..where((i) => i.id.equals(id))).write(
-            ItemsCompanion(nodeId: Value(nodeId), updatedAt: Value(_now())),
+            ItemsCompanion(
+              nodeId: Value(nodeId),
+              updatedAt: Value(_now()),
+              boardX: const Value(null),
+              boardY: const Value(null),
+            ),
           );
         }
         await _renumberItems(siblings);
@@ -457,7 +467,13 @@ class VergerStore {
           'La connaissance est déjà revenue (sauvegarde restaurée ?).',
         );
       }
-      await _db.into(_db.items).insert(item);
+      // Sans sa place sur le tableau : une autre carte a pu la prendre ; la
+      // mise en page automatique la replace.
+      await _db
+          .into(_db.items)
+          .insert(
+            item.copyWith(boardX: const Value(null), boardY: const Value(null)),
+          );
       for (final log in logs) {
         await _db.into(_db.reviewLogs).insert(log);
       }
@@ -493,6 +509,77 @@ class VergerStore {
   /// restaurée).
   Future<void> undoDeletion(Deletion deletion) =>
       _db.transaction(deletion._undo);
+
+  // --- Tableau -------------------------------------------------------------
+
+  /// Nœuds et connaissances lus ensemble, à chaque changement de l'une ou
+  /// l'autre table : un instantané cohérent (jamais les régions d'une
+  /// écriture sans ses cartes), base de la mise en page du tableau.
+  Stream<({List<KnowledgeNode> nodes, List<KnowledgeItem> items})>
+  watchBoard() => _db
+      .customSelect('SELECT 1', readsFrom: {_db.nodes, _db.items})
+      .watch()
+      .asyncMap(
+        (_) => _db.transaction(
+          () async => (nodes: await allNodes(), items: await allItems()),
+        ),
+      );
+
+  /// Enregistre, en une transaction, des régions de nœuds et des positions
+  /// de cartes (unités du tableau). Les identifiants inconnus sont ignorés.
+  Future<void> saveBoardGeometry({
+    Map<String, BoardRect> regions = const {},
+    Map<String, BoardPoint> cards = const {},
+  }) => _db.transaction(() async {
+    for (final MapEntry(key: id, value: r) in regions.entries) {
+      await (_db.update(_db.nodes)..where((n) => n.id.equals(id))).write(
+        NodesCompanion(
+          boardX: Value(r.x),
+          boardY: Value(r.y),
+          boardWidth: Value(r.width),
+          boardHeight: Value(r.height),
+        ),
+      );
+    }
+    for (final MapEntry(key: id, value: p) in cards.entries) {
+      await (_db.update(_db.items)..where((i) => i.id.equals(id))).write(
+        ItemsCompanion(boardX: Value(p.x), boardY: Value(p.y)),
+      );
+    }
+  });
+
+  /// Efface la géométrie d'un nœud, de sa descendance et de leurs cartes.
+  Future<void> _clearBranchGeometry(String nodeId) async {
+    final all = await allNodes();
+    final branch = <String>[nodeId];
+    for (var i = 0; i < branch.length; i++) {
+      branch.addAll(all.where((n) => n.parentId == branch[i]).map((n) => n.id));
+    }
+    await (_db.update(_db.nodes)..where((n) => n.id.isIn(branch))).write(
+      const NodesCompanion(
+        boardX: Value(null),
+        boardY: Value(null),
+        boardWidth: Value(null),
+        boardHeight: Value(null),
+      ),
+    );
+    await (_db.update(_db.items)..where((i) => i.nodeId.isIn(branch))).write(
+      const ItemsCompanion(boardX: Value(null), boardY: Value(null)),
+    );
+  }
+
+  /// Vue du tableau retenue : zoom et décalage (`null` : tout cadrer).
+  Future<({double scale, double dx, double dy})?> boardViewport() async {
+    final v = await _setting(_boardViewportKey);
+    if (v is! List || v.length != 3 || v.any((x) => x is! num)) return null;
+    final [scale, dx, dy] = [for (final x in v) (x as num).toDouble()];
+    return scale > 0 ? (scale: scale, dx: dx, dy: dy) : null;
+  }
+
+  Future<void> setBoardViewport(({double scale, double dx, double dy})? view) =>
+      view == null
+      ? _deleteSetting(_boardViewportKey)
+      : _putSetting(_boardViewportKey, [view.scale, view.dx, view.dy]);
 
   // --- Révisions -----------------------------------------------------------
 
@@ -607,6 +694,7 @@ class VergerStore {
   static const _homeTabKey = 'homeTab';
   static const _treeSelectionKey = 'treeSelection';
   static const _openPagesKey = 'openPages';
+  static const _boardViewportKey = 'boardViewport';
 
   Future<Object?> _setting(String key) async {
     final row = await (_db.select(
@@ -1333,16 +1421,16 @@ class VergerStore {
     final nodes = [
       for (final n in all)
         if (subtree.contains(n.id))
-          n.id == nodeId
-              ? KnowledgeNode(
-                  id: n.id,
-                  title: n.title,
-                  sortIndex: 0,
-                  curriculumKey: n.curriculumKey,
-                  origin: n.origin,
-                  createdAt: n.createdAt,
-                )
-              : n,
+          // Sans géométrie : l'arbre est mis en page à l'import.
+          KnowledgeNode(
+            id: n.id,
+            parentId: n.id == nodeId ? null : n.parentId,
+            title: n.title,
+            sortIndex: n.id == nodeId ? 0 : n.sortIndex,
+            curriculumKey: n.curriculumKey,
+            origin: n.origin,
+            createdAt: n.createdAt,
+          ),
     ];
     final items = [
       for (final i in await allItems())
@@ -1509,6 +1597,8 @@ class VergerStore {
         final id = nodeIds[n.id]!;
         final isRoot = n.parentId == null;
         if (plan.localNodes.containsKey(id)) {
+          final reparented =
+              !isRoot && plan.localNodes[id]!.parentId != nodeIds[n.parentId];
           await (_db.update(_db.nodes)..where((r) => r.id.equals(id))).write(
             NodesCompanion(
               title: Value(n.title),
@@ -1520,6 +1610,7 @@ class VergerStore {
               sortIndex: isRoot ? const Value.absent() : Value(n.sortIndex),
             ),
           );
+          if (reparented) await _clearBranchGeometry(id);
         } else {
           await _db
               .into(_db.nodes)
@@ -1544,8 +1635,11 @@ class VergerStore {
       final id = plan.itemIds[item.id]!;
       final nodeId = nodeIds[item.nodeId]!;
       if (plan.localItems.contains(id)) {
+        final moved = (await this.item(id))?.nodeId != nodeId;
         await (_db.update(_db.items)..where((i) => i.id.equals(id))).write(
           ItemsCompanion(
+            boardX: moved ? const Value(null) : const Value.absent(),
+            boardY: moved ? const Value(null) : const Value.absent(),
             nodeId: Value(nodeId),
             kind: Value(item.kind),
             title: Value(item.title),
@@ -1978,6 +2072,10 @@ class VergerStore {
                 curriculumKey: n.curriculumKey,
                 origin: n.origin,
                 createdAt: n.createdAt.toUtc(),
+                boardX: n.board?.x,
+                boardY: n.board?.y,
+                boardWidth: n.board?.width,
+                boardHeight: n.board?.height,
               ),
             );
         inserted.add(n.id);
@@ -2209,6 +2307,18 @@ class VergerStore {
     curriculumKey: row.curriculumKey,
     origin: row.origin,
     createdAt: row.createdAt.toUtc(),
+    board:
+        row.boardX == null ||
+            row.boardY == null ||
+            row.boardWidth == null ||
+            row.boardHeight == null
+        ? null
+        : BoardRect(
+            row.boardX!,
+            row.boardY!,
+            row.boardWidth!,
+            row.boardHeight!,
+          ),
   );
 
   static KnowledgeItem _toItem(ItemRow row) => KnowledgeItem(
@@ -2233,6 +2343,9 @@ class VergerStore {
       reps: row.reps,
       lapses: row.lapses,
     ),
+    boardPosition: row.boardX == null || row.boardY == null
+        ? null
+        : BoardPoint(row.boardX!, row.boardY!),
   );
 
   static ItemsCompanion _itemCompanion(KnowledgeItem item) =>
@@ -2248,6 +2361,8 @@ class VergerStore {
         suspended: Value(item.suspended),
         createdAt: Value(item.createdAt),
         updatedAt: Value(item.updatedAt),
+        boardX: Value(item.boardPosition?.x),
+        boardY: Value(item.boardPosition?.y),
       );
 
   static ItemsCompanion _schedulingCompanion(SchedulingState s) =>

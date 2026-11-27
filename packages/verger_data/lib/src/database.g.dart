@@ -82,6 +82,46 @@ class $NodesTable extends Nodes with TableInfo<$NodesTable, NodeRow> {
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _boardXMeta = const VerificationMeta('boardX');
+  @override
+  late final GeneratedColumn<double> boardX = GeneratedColumn<double>(
+    'board_x',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _boardYMeta = const VerificationMeta('boardY');
+  @override
+  late final GeneratedColumn<double> boardY = GeneratedColumn<double>(
+    'board_y',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _boardWidthMeta = const VerificationMeta(
+    'boardWidth',
+  );
+  @override
+  late final GeneratedColumn<double> boardWidth = GeneratedColumn<double>(
+    'board_width',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _boardHeightMeta = const VerificationMeta(
+    'boardHeight',
+  );
+  @override
+  late final GeneratedColumn<double> boardHeight = GeneratedColumn<double>(
+    'board_height',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -91,6 +131,10 @@ class $NodesTable extends Nodes with TableInfo<$NodesTable, NodeRow> {
     curriculumKey,
     origin,
     createdAt,
+    boardX,
+    boardY,
+    boardWidth,
+    boardHeight,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -148,6 +192,33 @@ class $NodesTable extends Nodes with TableInfo<$NodesTable, NodeRow> {
     } else if (isInserting) {
       context.missing(_createdAtMeta);
     }
+    if (data.containsKey('board_x')) {
+      context.handle(
+        _boardXMeta,
+        boardX.isAcceptableOrUnknown(data['board_x']!, _boardXMeta),
+      );
+    }
+    if (data.containsKey('board_y')) {
+      context.handle(
+        _boardYMeta,
+        boardY.isAcceptableOrUnknown(data['board_y']!, _boardYMeta),
+      );
+    }
+    if (data.containsKey('board_width')) {
+      context.handle(
+        _boardWidthMeta,
+        boardWidth.isAcceptableOrUnknown(data['board_width']!, _boardWidthMeta),
+      );
+    }
+    if (data.containsKey('board_height')) {
+      context.handle(
+        _boardHeightMeta,
+        boardHeight.isAcceptableOrUnknown(
+          data['board_height']!,
+          _boardHeightMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -187,6 +258,22 @@ class $NodesTable extends Nodes with TableInfo<$NodesTable, NodeRow> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
       )!,
+      boardX: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}board_x'],
+      ),
+      boardY: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}board_y'],
+      ),
+      boardWidth: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}board_width'],
+      ),
+      boardHeight: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}board_height'],
+      ),
     );
   }
 
@@ -207,6 +294,13 @@ class NodeRow extends DataClass implements Insertable<NodeRow> {
   final String? curriculumKey;
   final NodeOrigin origin;
   final DateTime createdAt;
+
+  /// Région sur le tableau, en unités du tableau (v11) ; nulle tant
+  /// qu'elle n'est pas placée.
+  final double? boardX;
+  final double? boardY;
+  final double? boardWidth;
+  final double? boardHeight;
   const NodeRow({
     required this.id,
     this.parentId,
@@ -215,6 +309,10 @@ class NodeRow extends DataClass implements Insertable<NodeRow> {
     this.curriculumKey,
     required this.origin,
     required this.createdAt,
+    this.boardX,
+    this.boardY,
+    this.boardWidth,
+    this.boardHeight,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -234,6 +332,18 @@ class NodeRow extends DataClass implements Insertable<NodeRow> {
       );
     }
     map['created_at'] = Variable<DateTime>(createdAt);
+    if (!nullToAbsent || boardX != null) {
+      map['board_x'] = Variable<double>(boardX);
+    }
+    if (!nullToAbsent || boardY != null) {
+      map['board_y'] = Variable<double>(boardY);
+    }
+    if (!nullToAbsent || boardWidth != null) {
+      map['board_width'] = Variable<double>(boardWidth);
+    }
+    if (!nullToAbsent || boardHeight != null) {
+      map['board_height'] = Variable<double>(boardHeight);
+    }
     return map;
   }
 
@@ -250,6 +360,18 @@ class NodeRow extends DataClass implements Insertable<NodeRow> {
           : Value(curriculumKey),
       origin: Value(origin),
       createdAt: Value(createdAt),
+      boardX: boardX == null && nullToAbsent
+          ? const Value.absent()
+          : Value(boardX),
+      boardY: boardY == null && nullToAbsent
+          ? const Value.absent()
+          : Value(boardY),
+      boardWidth: boardWidth == null && nullToAbsent
+          ? const Value.absent()
+          : Value(boardWidth),
+      boardHeight: boardHeight == null && nullToAbsent
+          ? const Value.absent()
+          : Value(boardHeight),
     );
   }
 
@@ -268,6 +390,10 @@ class NodeRow extends DataClass implements Insertable<NodeRow> {
         serializer.fromJson<String>(json['origin']),
       ),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      boardX: serializer.fromJson<double?>(json['boardX']),
+      boardY: serializer.fromJson<double?>(json['boardY']),
+      boardWidth: serializer.fromJson<double?>(json['boardWidth']),
+      boardHeight: serializer.fromJson<double?>(json['boardHeight']),
     );
   }
   @override
@@ -283,6 +409,10 @@ class NodeRow extends DataClass implements Insertable<NodeRow> {
         $NodesTable.$converterorigin.toJson(origin),
       ),
       'createdAt': serializer.toJson<DateTime>(createdAt),
+      'boardX': serializer.toJson<double?>(boardX),
+      'boardY': serializer.toJson<double?>(boardY),
+      'boardWidth': serializer.toJson<double?>(boardWidth),
+      'boardHeight': serializer.toJson<double?>(boardHeight),
     };
   }
 
@@ -294,6 +424,10 @@ class NodeRow extends DataClass implements Insertable<NodeRow> {
     Value<String?> curriculumKey = const Value.absent(),
     NodeOrigin? origin,
     DateTime? createdAt,
+    Value<double?> boardX = const Value.absent(),
+    Value<double?> boardY = const Value.absent(),
+    Value<double?> boardWidth = const Value.absent(),
+    Value<double?> boardHeight = const Value.absent(),
   }) => NodeRow(
     id: id ?? this.id,
     parentId: parentId.present ? parentId.value : this.parentId,
@@ -304,6 +438,10 @@ class NodeRow extends DataClass implements Insertable<NodeRow> {
         : this.curriculumKey,
     origin: origin ?? this.origin,
     createdAt: createdAt ?? this.createdAt,
+    boardX: boardX.present ? boardX.value : this.boardX,
+    boardY: boardY.present ? boardY.value : this.boardY,
+    boardWidth: boardWidth.present ? boardWidth.value : this.boardWidth,
+    boardHeight: boardHeight.present ? boardHeight.value : this.boardHeight,
   );
   NodeRow copyWithCompanion(NodesCompanion data) {
     return NodeRow(
@@ -316,6 +454,14 @@ class NodeRow extends DataClass implements Insertable<NodeRow> {
           : this.curriculumKey,
       origin: data.origin.present ? data.origin.value : this.origin,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      boardX: data.boardX.present ? data.boardX.value : this.boardX,
+      boardY: data.boardY.present ? data.boardY.value : this.boardY,
+      boardWidth: data.boardWidth.present
+          ? data.boardWidth.value
+          : this.boardWidth,
+      boardHeight: data.boardHeight.present
+          ? data.boardHeight.value
+          : this.boardHeight,
     );
   }
 
@@ -328,7 +474,11 @@ class NodeRow extends DataClass implements Insertable<NodeRow> {
           ..write('sortIndex: $sortIndex, ')
           ..write('curriculumKey: $curriculumKey, ')
           ..write('origin: $origin, ')
-          ..write('createdAt: $createdAt')
+          ..write('createdAt: $createdAt, ')
+          ..write('boardX: $boardX, ')
+          ..write('boardY: $boardY, ')
+          ..write('boardWidth: $boardWidth, ')
+          ..write('boardHeight: $boardHeight')
           ..write(')'))
         .toString();
   }
@@ -342,6 +492,10 @@ class NodeRow extends DataClass implements Insertable<NodeRow> {
     curriculumKey,
     origin,
     createdAt,
+    boardX,
+    boardY,
+    boardWidth,
+    boardHeight,
   );
   @override
   bool operator ==(Object other) =>
@@ -353,7 +507,11 @@ class NodeRow extends DataClass implements Insertable<NodeRow> {
           other.sortIndex == this.sortIndex &&
           other.curriculumKey == this.curriculumKey &&
           other.origin == this.origin &&
-          other.createdAt == this.createdAt);
+          other.createdAt == this.createdAt &&
+          other.boardX == this.boardX &&
+          other.boardY == this.boardY &&
+          other.boardWidth == this.boardWidth &&
+          other.boardHeight == this.boardHeight);
 }
 
 class NodesCompanion extends UpdateCompanion<NodeRow> {
@@ -364,6 +522,10 @@ class NodesCompanion extends UpdateCompanion<NodeRow> {
   final Value<String?> curriculumKey;
   final Value<NodeOrigin> origin;
   final Value<DateTime> createdAt;
+  final Value<double?> boardX;
+  final Value<double?> boardY;
+  final Value<double?> boardWidth;
+  final Value<double?> boardHeight;
   final Value<int> rowid;
   const NodesCompanion({
     this.id = const Value.absent(),
@@ -373,6 +535,10 @@ class NodesCompanion extends UpdateCompanion<NodeRow> {
     this.curriculumKey = const Value.absent(),
     this.origin = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.boardX = const Value.absent(),
+    this.boardY = const Value.absent(),
+    this.boardWidth = const Value.absent(),
+    this.boardHeight = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   NodesCompanion.insert({
@@ -383,6 +549,10 @@ class NodesCompanion extends UpdateCompanion<NodeRow> {
     this.curriculumKey = const Value.absent(),
     required NodeOrigin origin,
     required DateTime createdAt,
+    this.boardX = const Value.absent(),
+    this.boardY = const Value.absent(),
+    this.boardWidth = const Value.absent(),
+    this.boardHeight = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        title = Value(title),
@@ -397,6 +567,10 @@ class NodesCompanion extends UpdateCompanion<NodeRow> {
     Expression<String>? curriculumKey,
     Expression<String>? origin,
     Expression<DateTime>? createdAt,
+    Expression<double>? boardX,
+    Expression<double>? boardY,
+    Expression<double>? boardWidth,
+    Expression<double>? boardHeight,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -407,6 +581,10 @@ class NodesCompanion extends UpdateCompanion<NodeRow> {
       if (curriculumKey != null) 'curriculum_key': curriculumKey,
       if (origin != null) 'origin': origin,
       if (createdAt != null) 'created_at': createdAt,
+      if (boardX != null) 'board_x': boardX,
+      if (boardY != null) 'board_y': boardY,
+      if (boardWidth != null) 'board_width': boardWidth,
+      if (boardHeight != null) 'board_height': boardHeight,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -419,6 +597,10 @@ class NodesCompanion extends UpdateCompanion<NodeRow> {
     Value<String?>? curriculumKey,
     Value<NodeOrigin>? origin,
     Value<DateTime>? createdAt,
+    Value<double?>? boardX,
+    Value<double?>? boardY,
+    Value<double?>? boardWidth,
+    Value<double?>? boardHeight,
     Value<int>? rowid,
   }) {
     return NodesCompanion(
@@ -429,6 +611,10 @@ class NodesCompanion extends UpdateCompanion<NodeRow> {
       curriculumKey: curriculumKey ?? this.curriculumKey,
       origin: origin ?? this.origin,
       createdAt: createdAt ?? this.createdAt,
+      boardX: boardX ?? this.boardX,
+      boardY: boardY ?? this.boardY,
+      boardWidth: boardWidth ?? this.boardWidth,
+      boardHeight: boardHeight ?? this.boardHeight,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -459,6 +645,18 @@ class NodesCompanion extends UpdateCompanion<NodeRow> {
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
+    if (boardX.present) {
+      map['board_x'] = Variable<double>(boardX.value);
+    }
+    if (boardY.present) {
+      map['board_y'] = Variable<double>(boardY.value);
+    }
+    if (boardWidth.present) {
+      map['board_width'] = Variable<double>(boardWidth.value);
+    }
+    if (boardHeight.present) {
+      map['board_height'] = Variable<double>(boardHeight.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -475,6 +673,10 @@ class NodesCompanion extends UpdateCompanion<NodeRow> {
           ..write('curriculumKey: $curriculumKey, ')
           ..write('origin: $origin, ')
           ..write('createdAt: $createdAt, ')
+          ..write('boardX: $boardX, ')
+          ..write('boardY: $boardY, ')
+          ..write('boardWidth: $boardWidth, ')
+          ..write('boardHeight: $boardHeight, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -683,6 +885,24 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _boardXMeta = const VerificationMeta('boardX');
+  @override
+  late final GeneratedColumn<double> boardX = GeneratedColumn<double>(
+    'board_x',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _boardYMeta = const VerificationMeta('boardY');
+  @override
+  late final GeneratedColumn<double> boardY = GeneratedColumn<double>(
+    'board_y',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -704,6 +924,8 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
     lastReview,
     reps,
     lapses,
+    boardX,
+    boardY,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -823,6 +1045,18 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
         lapses.isAcceptableOrUnknown(data['lapses']!, _lapsesMeta),
       );
     }
+    if (data.containsKey('board_x')) {
+      context.handle(
+        _boardXMeta,
+        boardX.isAcceptableOrUnknown(data['board_x']!, _boardXMeta),
+      );
+    }
+    if (data.containsKey('board_y')) {
+      context.handle(
+        _boardYMeta,
+        boardY.isAcceptableOrUnknown(data['board_y']!, _boardYMeta),
+      );
+    }
     return context;
   }
 
@@ -914,6 +1148,14 @@ class $ItemsTable extends Items with TableInfo<$ItemsTable, ItemRow> {
         DriftSqlType.int,
         data['${effectivePrefix}lapses'],
       )!,
+      boardX: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}board_x'],
+      ),
+      boardY: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}board_y'],
+      ),
     );
   }
 
@@ -952,6 +1194,11 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
   final DateTime? lastReview;
   final int reps;
   final int lapses;
+
+  /// Position de la carte sur le tableau (v11) ; nulle tant qu'elle n'est
+  /// pas placée.
+  final double? boardX;
+  final double? boardY;
   const ItemRow({
     required this.id,
     required this.nodeId,
@@ -972,6 +1219,8 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     this.lastReview,
     required this.reps,
     required this.lapses,
+    this.boardX,
+    this.boardY,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1017,6 +1266,12 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     }
     map['reps'] = Variable<int>(reps);
     map['lapses'] = Variable<int>(lapses);
+    if (!nullToAbsent || boardX != null) {
+      map['board_x'] = Variable<double>(boardX);
+    }
+    if (!nullToAbsent || boardY != null) {
+      map['board_y'] = Variable<double>(boardY);
+    }
     return map;
   }
 
@@ -1051,6 +1306,12 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
           : Value(lastReview),
       reps: Value(reps),
       lapses: Value(lapses),
+      boardX: boardX == null && nullToAbsent
+          ? const Value.absent()
+          : Value(boardX),
+      boardY: boardY == null && nullToAbsent
+          ? const Value.absent()
+          : Value(boardY),
     );
   }
 
@@ -1085,6 +1346,8 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
       lastReview: serializer.fromJson<DateTime?>(json['lastReview']),
       reps: serializer.fromJson<int>(json['reps']),
       lapses: serializer.fromJson<int>(json['lapses']),
+      boardX: serializer.fromJson<double?>(json['boardX']),
+      boardY: serializer.fromJson<double?>(json['boardY']),
     );
   }
   @override
@@ -1116,6 +1379,8 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
       'lastReview': serializer.toJson<DateTime?>(lastReview),
       'reps': serializer.toJson<int>(reps),
       'lapses': serializer.toJson<int>(lapses),
+      'boardX': serializer.toJson<double?>(boardX),
+      'boardY': serializer.toJson<double?>(boardY),
     };
   }
 
@@ -1139,6 +1404,8 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     Value<DateTime?> lastReview = const Value.absent(),
     int? reps,
     int? lapses,
+    Value<double?> boardX = const Value.absent(),
+    Value<double?> boardY = const Value.absent(),
   }) => ItemRow(
     id: id ?? this.id,
     nodeId: nodeId ?? this.nodeId,
@@ -1159,6 +1426,8 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     lastReview: lastReview.present ? lastReview.value : this.lastReview,
     reps: reps ?? this.reps,
     lapses: lapses ?? this.lapses,
+    boardX: boardX.present ? boardX.value : this.boardX,
+    boardY: boardY.present ? boardY.value : this.boardY,
   );
   ItemRow copyWithCompanion(ItemsCompanion data) {
     return ItemRow(
@@ -1187,6 +1456,8 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
           : this.lastReview,
       reps: data.reps.present ? data.reps.value : this.reps,
       lapses: data.lapses.present ? data.lapses.value : this.lapses,
+      boardX: data.boardX.present ? data.boardX.value : this.boardX,
+      boardY: data.boardY.present ? data.boardY.value : this.boardY,
     );
   }
 
@@ -1211,13 +1482,15 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
           ..write('due: $due, ')
           ..write('lastReview: $lastReview, ')
           ..write('reps: $reps, ')
-          ..write('lapses: $lapses')
+          ..write('lapses: $lapses, ')
+          ..write('boardX: $boardX, ')
+          ..write('boardY: $boardY')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     nodeId,
     kind,
@@ -1237,7 +1510,9 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
     lastReview,
     reps,
     lapses,
-  );
+    boardX,
+    boardY,
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1260,7 +1535,9 @@ class ItemRow extends DataClass implements Insertable<ItemRow> {
           other.due == this.due &&
           other.lastReview == this.lastReview &&
           other.reps == this.reps &&
-          other.lapses == this.lapses);
+          other.lapses == this.lapses &&
+          other.boardX == this.boardX &&
+          other.boardY == this.boardY);
 }
 
 class ItemsCompanion extends UpdateCompanion<ItemRow> {
@@ -1283,6 +1560,8 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
   final Value<DateTime?> lastReview;
   final Value<int> reps;
   final Value<int> lapses;
+  final Value<double?> boardX;
+  final Value<double?> boardY;
   final Value<int> rowid;
   const ItemsCompanion({
     this.id = const Value.absent(),
@@ -1304,6 +1583,8 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     this.lastReview = const Value.absent(),
     this.reps = const Value.absent(),
     this.lapses = const Value.absent(),
+    this.boardX = const Value.absent(),
+    this.boardY = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ItemsCompanion.insert({
@@ -1326,6 +1607,8 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     this.lastReview = const Value.absent(),
     this.reps = const Value.absent(),
     this.lapses = const Value.absent(),
+    this.boardX = const Value.absent(),
+    this.boardY = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        nodeId = Value(nodeId),
@@ -1354,6 +1637,8 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     Expression<DateTime>? lastReview,
     Expression<int>? reps,
     Expression<int>? lapses,
+    Expression<double>? boardX,
+    Expression<double>? boardY,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1376,6 +1661,8 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
       if (lastReview != null) 'last_review': lastReview,
       if (reps != null) 'reps': reps,
       if (lapses != null) 'lapses': lapses,
+      if (boardX != null) 'board_x': boardX,
+      if (boardY != null) 'board_y': boardY,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1400,6 +1687,8 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     Value<DateTime?>? lastReview,
     Value<int>? reps,
     Value<int>? lapses,
+    Value<double?>? boardX,
+    Value<double?>? boardY,
     Value<int>? rowid,
   }) {
     return ItemsCompanion(
@@ -1422,6 +1711,8 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
       lastReview: lastReview ?? this.lastReview,
       reps: reps ?? this.reps,
       lapses: lapses ?? this.lapses,
+      boardX: boardX ?? this.boardX,
+      boardY: boardY ?? this.boardY,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1492,6 +1783,12 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
     if (lapses.present) {
       map['lapses'] = Variable<int>(lapses.value);
     }
+    if (boardX.present) {
+      map['board_x'] = Variable<double>(boardX.value);
+    }
+    if (boardY.present) {
+      map['board_y'] = Variable<double>(boardY.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1520,6 +1817,8 @@ class ItemsCompanion extends UpdateCompanion<ItemRow> {
           ..write('lastReview: $lastReview, ')
           ..write('reps: $reps, ')
           ..write('lapses: $lapses, ')
+          ..write('boardX: $boardX, ')
+          ..write('boardY: $boardY, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -5598,6 +5897,10 @@ typedef $$NodesTableCreateCompanionBuilder =
       Value<String?> curriculumKey,
       required NodeOrigin origin,
       required DateTime createdAt,
+      Value<double?> boardX,
+      Value<double?> boardY,
+      Value<double?> boardWidth,
+      Value<double?> boardHeight,
       Value<int> rowid,
     });
 typedef $$NodesTableUpdateCompanionBuilder =
@@ -5609,6 +5912,10 @@ typedef $$NodesTableUpdateCompanionBuilder =
       Value<String?> curriculumKey,
       Value<NodeOrigin> origin,
       Value<DateTime> createdAt,
+      Value<double?> boardX,
+      Value<double?> boardY,
+      Value<double?> boardWidth,
+      Value<double?> boardHeight,
       Value<int> rowid,
     });
 
@@ -5708,6 +6015,26 @@ class $$NodesTableFilterComposer
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get boardX => $composableBuilder(
+    column: $table.boardX,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get boardY => $composableBuilder(
+    column: $table.boardY,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get boardWidth => $composableBuilder(
+    column: $table.boardWidth,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get boardHeight => $composableBuilder(
+    column: $table.boardHeight,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5824,6 +6151,26 @@ class $$NodesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<double> get boardX => $composableBuilder(
+    column: $table.boardX,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get boardY => $composableBuilder(
+    column: $table.boardY,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get boardWidth => $composableBuilder(
+    column: $table.boardWidth,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get boardHeight => $composableBuilder(
+    column: $table.boardHeight,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$NodesTableOrderingComposer get parentId {
     final $$NodesTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -5876,6 +6223,22 @@ class $$NodesTableAnnotationComposer
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<double> get boardX =>
+      $composableBuilder(column: $table.boardX, builder: (column) => column);
+
+  GeneratedColumn<double> get boardY =>
+      $composableBuilder(column: $table.boardY, builder: (column) => column);
+
+  GeneratedColumn<double> get boardWidth => $composableBuilder(
+    column: $table.boardWidth,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get boardHeight => $composableBuilder(
+    column: $table.boardHeight,
+    builder: (column) => column,
+  );
 
   $$NodesTableAnnotationComposer get parentId {
     final $$NodesTableAnnotationComposer composer = $composerBuilder(
@@ -5990,6 +6353,10 @@ class $$NodesTableTableManager
                 Value<String?> curriculumKey = const Value.absent(),
                 Value<NodeOrigin> origin = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
+                Value<double?> boardX = const Value.absent(),
+                Value<double?> boardY = const Value.absent(),
+                Value<double?> boardWidth = const Value.absent(),
+                Value<double?> boardHeight = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => NodesCompanion(
                 id: id,
@@ -5999,6 +6366,10 @@ class $$NodesTableTableManager
                 curriculumKey: curriculumKey,
                 origin: origin,
                 createdAt: createdAt,
+                boardX: boardX,
+                boardY: boardY,
+                boardWidth: boardWidth,
+                boardHeight: boardHeight,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -6010,6 +6381,10 @@ class $$NodesTableTableManager
                 Value<String?> curriculumKey = const Value.absent(),
                 required NodeOrigin origin,
                 required DateTime createdAt,
+                Value<double?> boardX = const Value.absent(),
+                Value<double?> boardY = const Value.absent(),
+                Value<double?> boardWidth = const Value.absent(),
+                Value<double?> boardHeight = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => NodesCompanion.insert(
                 id: id,
@@ -6019,6 +6394,10 @@ class $$NodesTableTableManager
                 curriculumKey: curriculumKey,
                 origin: origin,
                 createdAt: createdAt,
+                boardX: boardX,
+                boardY: boardY,
+                boardWidth: boardWidth,
+                boardHeight: boardHeight,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -6158,6 +6537,8 @@ typedef $$ItemsTableCreateCompanionBuilder =
       Value<DateTime?> lastReview,
       Value<int> reps,
       Value<int> lapses,
+      Value<double?> boardX,
+      Value<double?> boardY,
       Value<int> rowid,
     });
 typedef $$ItemsTableUpdateCompanionBuilder =
@@ -6181,6 +6562,8 @@ typedef $$ItemsTableUpdateCompanionBuilder =
       Value<DateTime?> lastReview,
       Value<int> reps,
       Value<int> lapses,
+      Value<double?> boardX,
+      Value<double?> boardY,
       Value<int> rowid,
     });
 
@@ -6361,6 +6744,16 @@ class $$ItemsTableFilterComposer
 
   ColumnFilters<int> get lapses => $composableBuilder(
     column: $table.lapses,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get boardX => $composableBuilder(
+    column: $table.boardX,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get boardY => $composableBuilder(
+    column: $table.boardY,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6562,6 +6955,16 @@ class $$ItemsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<double> get boardX => $composableBuilder(
+    column: $table.boardX,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get boardY => $composableBuilder(
+    column: $table.boardY,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$NodesTableOrderingComposer get nodeId {
     final $$NodesTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -6654,6 +7057,12 @@ class $$ItemsTableAnnotationComposer
 
   GeneratedColumn<int> get lapses =>
       $composableBuilder(column: $table.lapses, builder: (column) => column);
+
+  GeneratedColumn<double> get boardX =>
+      $composableBuilder(column: $table.boardX, builder: (column) => column);
+
+  GeneratedColumn<double> get boardY =>
+      $composableBuilder(column: $table.boardY, builder: (column) => column);
 
   $$NodesTableAnnotationComposer get nodeId {
     final $$NodesTableAnnotationComposer composer = $composerBuilder(
@@ -6806,6 +7215,8 @@ class $$ItemsTableTableManager
                 Value<DateTime?> lastReview = const Value.absent(),
                 Value<int> reps = const Value.absent(),
                 Value<int> lapses = const Value.absent(),
+                Value<double?> boardX = const Value.absent(),
+                Value<double?> boardY = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ItemsCompanion(
                 id: id,
@@ -6827,6 +7238,8 @@ class $$ItemsTableTableManager
                 lastReview: lastReview,
                 reps: reps,
                 lapses: lapses,
+                boardX: boardX,
+                boardY: boardY,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -6850,6 +7263,8 @@ class $$ItemsTableTableManager
                 Value<DateTime?> lastReview = const Value.absent(),
                 Value<int> reps = const Value.absent(),
                 Value<int> lapses = const Value.absent(),
+                Value<double?> boardX = const Value.absent(),
+                Value<double?> boardY = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ItemsCompanion.insert(
                 id: id,
@@ -6871,6 +7286,8 @@ class $$ItemsTableTableManager
                 lastReview: lastReview,
                 reps: reps,
                 lapses: lapses,
+                boardX: boardX,
+                boardY: boardY,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

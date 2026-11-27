@@ -1,3 +1,4 @@
+import '../board/board_geometry.dart';
 import 'item_kind.dart';
 import 'scheduling_state.dart';
 
@@ -16,6 +17,7 @@ final class KnowledgeItem {
     this.sortIndex = 0,
     this.suspended = false,
     this.scheduling = SchedulingState.initial,
+    this.boardPosition,
   });
 
   final String id;
@@ -42,4 +44,8 @@ final class KnowledgeItem {
   final SchedulingState scheduling;
   final DateTime createdAt;
   final DateTime updatedAt;
+
+  /// Coin supérieur gauche de la carte sur le tableau ; `null` tant qu'elle
+  /// n'est pas placée. Sa taille découle du contenu (fixe pour l'instant).
+  final BoardPoint? boardPosition;
 }

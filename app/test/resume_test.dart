@@ -91,7 +91,8 @@ void main() {
     await settle(tester);
     expect(find.byType(ItemDetailPage), findsNothing);
     final rail = tester.widget<NavigationRail>(find.byType(NavigationRail));
-    expect(rail.selectedIndex, 2);
+    // « Arbres », après « Verger » et « Tableau ».
+    expect(rail.selectedIndex, 3);
 
     // Les pages remplacées ne se déclarent pas : seule la fiche l'était, et
     // elle est quittée.
