@@ -220,4 +220,139 @@ void main() {
     expect(layout.changedCards, {harmonic.id});
     await store.close();
   });
+
+  group('modifications du tableau', () {
+    test('carte changée de région : historique intact, annulation', () async {
+      final (store, layout) = await laidOut();
+      final [tree, branch, leaf] = await store.allNodes();
+      final [harmonic, _] = await store.allItems();
+      final scheduler = const SchedulerSettings().build();
+      final record = scheduler.record(
+        harmonic.scheduling,
+        Rating.good,
+        DateTime.utc(2026, 11, 3),
+        fuzzKey: harmonic.id,
+      );
+      await store.applyReview(harmonic.id, record);
+
+      final editor = BoardEditor(
+        await store.allNodes(),
+        await store.allItems(),
+      );
+      final target = layout.regions[leaf.id]!;
+      final drop = BoardPoint(target.x + 30, target.y + 80);
+      final edit = editor.moveCard(harmonic.id, topLeft: drop, at: drop);
+      expect(edit.itemMove, (itemId: harmonic.id, nodeId: leaf.id));
+      final undo = await store.applyBoardEdit(edit);
+
+      final moved = (await store.item(harmonic.id))!;
+      expect(moved.nodeId, leaf.id);
+      expect(moved.boardPosition, edit.cards[harmonic.id]);
+      expect(moved.scheduling, record.after);
+      expect(await store.history(harmonic.id), hasLength(1));
+      for (final MapEntry(:key, :value) in edit.regions.entries) {
+        expect((await store.node(key))!.board, value);
+      }
+
+      await store.undoBoardEdit(undo);
+      final back = (await store.item(harmonic.id))!;
+      expect(back.nodeId, branch.id);
+      expect(back.sortIndex, harmonic.sortIndex);
+      expect(back.boardPosition, layout.cards[harmonic.id]);
+      for (final n in await store.allNodes()) {
+        expect(n.board, layout.regions[n.id]);
+      }
+      expect(tree.id, isNotNull);
+      await store.close();
+    });
+
+    test('hors de toute région : « Non classées » créée, puis retirée '
+        'quand on la vide ; l\'annulation la rétablit', () async {
+      final (store, layout) = await laidOut();
+      final branch = (await store.allNodes())[1];
+      final harmonic = (await store.allItems()).first;
+      var editor = BoardEditor(await store.allNodes(), await store.allItems());
+      final out = editor.moveCard(
+        harmonic.id,
+        topLeft: const BoardPoint(-2000, -2000),
+        at: const BoardPoint(-1990, -1990),
+      );
+      final undoOut = await store.applyBoardEdit(out);
+      final unsorted = (await store.node(KnowledgeNode.unsortedId))!;
+      expect(unsorted.title, 'Non classées');
+      expect(unsorted.isTree, isTrue);
+      final filed = (await store.item(harmonic.id))!;
+      expect(filed.nodeId, KnowledgeNode.unsortedId);
+      expect(filed.boardPosition, equals(null));
+
+      // La mise en page la place, puis on la ramène dans une région.
+      final placed = layoutBoard(
+        await store.allNodes(),
+        await store.allItems(),
+      );
+      await store.saveBoardGeometry(
+        regions: placed.regions,
+        cards: placed.cards,
+      );
+      editor = BoardEditor(await store.allNodes(), await store.allItems());
+      final target = layout.regions[branch.id]!;
+      final drop = BoardPoint(target.x + 30, target.y + 20);
+      final back = editor.moveCard(harmonic.id, topLeft: drop, at: drop);
+      final undoBack = await store.applyBoardEdit(back);
+      expect((await store.item(harmonic.id))!.nodeId, branch.id);
+      expect(await store.node(KnowledgeNode.unsortedId), equals(null));
+
+      await store.undoBoardEdit(undoBack);
+      expect((await store.item(harmonic.id))!.nodeId, KnowledgeNode.unsortedId);
+      expect(await store.node(KnowledgeNode.unsortedId), isNotNull);
+      await store.undoBoardEdit(undoOut);
+      expect((await store.item(harmonic.id))!.nodeId, branch.id);
+      expect(await store.node(KnowledgeNode.unsortedId), equals(null));
+      await store.close();
+    });
+
+    test('région changée de parent et redimensionnée : annulation', () async {
+      final (store, layout) = await laidOut();
+      final [tree, branch, leaf] = await store.allNodes();
+      final editor = BoardEditor(
+        await store.allNodes(),
+        await store.allItems(),
+      );
+      // « Forcés » remonte dans l'arbre, sous « Oscillateurs ».
+      final t = layout.regions[tree.id]!;
+      final drop = BoardPoint(t.x + 30, t.bottom + 400);
+      final edit = editor.moveRegion(leaf.id, topLeft: drop, at: drop);
+      expect(edit.nodeMove, (nodeId: leaf.id, parentId: null));
+      final undo = await store.applyBoardEdit(edit);
+      expect((await store.node(leaf.id))!.parentId, equals(null));
+
+      // Interdit : dans sa propre descendance.
+      await expectLater(
+        store.applyBoardEdit(
+          BoardEdit(nodeMove: (nodeId: tree.id, parentId: branch.id)),
+        ),
+        throwsArgumentError,
+      );
+
+      await store.undoBoardEdit(undo);
+      final back = (await store.node(leaf.id))!;
+      expect(back.parentId, branch.id);
+      expect(back.board, layout.regions[leaf.id]);
+
+      final resize = BoardEditor(
+        await store.allNodes(),
+        await store.allItems(),
+      ).resizeRegion(leaf.id, layout.regions[leaf.id]!.inflate(40));
+      final undoResize = await store.applyBoardEdit(resize);
+      expect(
+        (await store.node(leaf.id))!.board,
+        isNot(layout.regions[leaf.id]),
+      );
+      await store.undoBoardEdit(undoResize);
+      for (final n in await store.allNodes()) {
+        expect(n.board, layout.regions[n.id]);
+      }
+      await store.close();
+    });
+  });
 }
