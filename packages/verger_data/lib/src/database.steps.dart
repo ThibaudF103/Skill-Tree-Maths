@@ -3152,6 +3152,378 @@ i1.GeneratedColumn<String> _column_62(String aliasedName) =>
       type: i1.DriftSqlType.string,
       $customConstraints: 'NULL',
     );
+
+final class Schema11 extends i0.VersionedSchema {
+  Schema11({required super.database}) : super(version: 11);
+  @override
+  late final List<i1.DatabaseSchemaEntity> entities = [
+    nodes,
+    items,
+    reviewLogs,
+    settings,
+    documents,
+    documentFiles,
+    anchors,
+    notes,
+    resourceLinks,
+    prerequisites,
+    nodesParent,
+    itemsNode,
+    itemsDue,
+    reviewLogsItem,
+    anchorsItem,
+    anchorsDocument,
+    notesDocument,
+    notesItem,
+    resourceLinksNode,
+    prerequisitesRequires,
+  ];
+  late final Shape19 nodes = Shape19(
+    source: i0.VersionedTable(
+      entityName: 'nodes',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(id)'],
+      columns: [
+        _column_0,
+        _column_1,
+        _column_2,
+        _column_3,
+        _column_4,
+        _column_5,
+        _column_6,
+        _column_63,
+        _column_64,
+        _column_65,
+        _column_66,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape20 items = Shape20(
+    source: i0.VersionedTable(
+      entityName: 'items',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(id)'],
+      columns: [
+        _column_0,
+        _column_7,
+        _column_8,
+        _column_2,
+        _column_9,
+        _column_51,
+        _column_61,
+        _column_52,
+        _column_10,
+        _column_6,
+        _column_11,
+        _column_12,
+        _column_13,
+        _column_14,
+        _column_15,
+        _column_16,
+        _column_17,
+        _column_18,
+        _column_19,
+        _column_63,
+        _column_64,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape15 reviewLogs = Shape15(
+    source: i0.VersionedTable(
+      entityName: 'review_logs',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(id)'],
+      columns: [
+        _column_0,
+        _column_20,
+        _column_21,
+        _column_22,
+        _column_23,
+        _column_24,
+        _column_25,
+        _column_26,
+        _column_59,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape3 settings = Shape3(
+    source: i0.VersionedTable(
+      entityName: 'settings',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY("key")'],
+      columns: [_column_27, _column_28],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape10 documents = Shape10(
+    source: i0.VersionedTable(
+      entityName: 'documents',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(id)'],
+      columns: [
+        _column_0,
+        _column_2,
+        _column_53,
+        _column_54,
+        _column_30,
+        _column_31,
+        _column_32,
+        _column_33,
+        _column_34,
+        _column_35,
+        _column_46,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape5 documentFiles = Shape5(
+    source: i0.VersionedTable(
+      entityName: 'document_files',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(document_id)'],
+      columns: [_column_36, _column_37],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape11 anchors = Shape11(
+    source: i0.VersionedTable(
+      entityName: 'anchors',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(id)'],
+      columns: [
+        _column_0,
+        _column_20,
+        _column_36,
+        _column_29,
+        _column_49,
+        _column_55,
+        _column_56,
+        _column_39,
+        _column_40,
+        _column_41,
+        _column_42,
+        _column_43,
+        _column_44,
+        _column_45,
+        _column_6,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape18 notes = Shape18(
+    source: i0.VersionedTable(
+      entityName: 'notes',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(id)'],
+      columns: [
+        _column_0,
+        _column_47,
+        _column_48,
+        _column_49,
+        _column_55,
+        _column_56,
+        _column_39,
+        _column_40,
+        _column_41,
+        _column_42,
+        _column_44,
+        _column_50,
+        _column_60,
+        _column_62,
+        _column_6,
+        _column_11,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape13 resourceLinks = Shape13(
+    source: i0.VersionedTable(
+      entityName: 'resource_links',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(document_id, node_id)'],
+      columns: [_column_36, _column_57],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape14 prerequisites = Shape14(
+    source: i0.VersionedTable(
+      entityName: 'prerequisites',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(item_id, requires_id)'],
+      columns: [_column_20, _column_58],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  final i1.Index nodesParent = i1.Index(
+    'nodes_parent',
+    'CREATE INDEX nodes_parent ON nodes (parent_id)',
+  );
+  final i1.Index itemsNode = i1.Index(
+    'items_node',
+    'CREATE INDEX items_node ON items (node_id)',
+  );
+  final i1.Index itemsDue = i1.Index(
+    'items_due',
+    'CREATE INDEX items_due ON items (due)',
+  );
+  final i1.Index reviewLogsItem = i1.Index(
+    'review_logs_item',
+    'CREATE INDEX review_logs_item ON review_logs (item_id)',
+  );
+  final i1.Index anchorsItem = i1.Index(
+    'anchors_item',
+    'CREATE INDEX anchors_item ON anchors (item_id)',
+  );
+  final i1.Index anchorsDocument = i1.Index(
+    'anchors_document',
+    'CREATE INDEX anchors_document ON anchors (document_id)',
+  );
+  final i1.Index notesDocument = i1.Index(
+    'notes_document',
+    'CREATE INDEX notes_document ON notes (document_id)',
+  );
+  final i1.Index notesItem = i1.Index(
+    'notes_item',
+    'CREATE INDEX notes_item ON notes (item_id)',
+  );
+  final i1.Index resourceLinksNode = i1.Index(
+    'resource_links_node',
+    'CREATE INDEX resource_links_node ON resource_links (node_id)',
+  );
+  final i1.Index prerequisitesRequires = i1.Index(
+    'prerequisites_requires',
+    'CREATE INDEX prerequisites_requires ON prerequisites (requires_id)',
+  );
+}
+
+class Shape19 extends i0.VersionedTable {
+  Shape19({required super.source, required super.alias}) : super.aliased();
+  i1.GeneratedColumn<String> get id =>
+      columnsByName['id']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get parentId =>
+      columnsByName['parent_id']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get title =>
+      columnsByName['title']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get sortIndex =>
+      columnsByName['sort_index']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get curriculumKey =>
+      columnsByName['curriculum_key']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get origin =>
+      columnsByName['origin']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get createdAt =>
+      columnsByName['created_at']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<double> get boardX =>
+      columnsByName['board_x']! as i1.GeneratedColumn<double>;
+  i1.GeneratedColumn<double> get boardY =>
+      columnsByName['board_y']! as i1.GeneratedColumn<double>;
+  i1.GeneratedColumn<double> get boardWidth =>
+      columnsByName['board_width']! as i1.GeneratedColumn<double>;
+  i1.GeneratedColumn<double> get boardHeight =>
+      columnsByName['board_height']! as i1.GeneratedColumn<double>;
+}
+
+i1.GeneratedColumn<double> _column_63(String aliasedName) =>
+    i1.GeneratedColumn<double>(
+      'board_x',
+      aliasedName,
+      true,
+      type: i1.DriftSqlType.double,
+      $customConstraints: 'NULL',
+    );
+i1.GeneratedColumn<double> _column_64(String aliasedName) =>
+    i1.GeneratedColumn<double>(
+      'board_y',
+      aliasedName,
+      true,
+      type: i1.DriftSqlType.double,
+      $customConstraints: 'NULL',
+    );
+i1.GeneratedColumn<double> _column_65(String aliasedName) =>
+    i1.GeneratedColumn<double>(
+      'board_width',
+      aliasedName,
+      true,
+      type: i1.DriftSqlType.double,
+      $customConstraints: 'NULL',
+    );
+i1.GeneratedColumn<double> _column_66(String aliasedName) =>
+    i1.GeneratedColumn<double>(
+      'board_height',
+      aliasedName,
+      true,
+      type: i1.DriftSqlType.double,
+      $customConstraints: 'NULL',
+    );
+
+class Shape20 extends i0.VersionedTable {
+  Shape20({required super.source, required super.alias}) : super.aliased();
+  i1.GeneratedColumn<String> get id =>
+      columnsByName['id']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get nodeId =>
+      columnsByName['node_id']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get kind =>
+      columnsByName['kind']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get title =>
+      columnsByName['title']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get body =>
+      columnsByName['body']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get level =>
+      columnsByName['level']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get autoExercise =>
+      columnsByName['auto_exercise']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get sortIndex =>
+      columnsByName['sort_index']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get suspended =>
+      columnsByName['suspended']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get createdAt =>
+      columnsByName['created_at']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get updatedAt =>
+      columnsByName['updated_at']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get phase =>
+      columnsByName['phase']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get step =>
+      columnsByName['step']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<double> get stability =>
+      columnsByName['stability']! as i1.GeneratedColumn<double>;
+  i1.GeneratedColumn<double> get difficulty =>
+      columnsByName['difficulty']! as i1.GeneratedColumn<double>;
+  i1.GeneratedColumn<String> get due =>
+      columnsByName['due']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get lastReview =>
+      columnsByName['last_review']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get reps =>
+      columnsByName['reps']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get lapses =>
+      columnsByName['lapses']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<double> get boardX =>
+      columnsByName['board_x']! as i1.GeneratedColumn<double>;
+  i1.GeneratedColumn<double> get boardY =>
+      columnsByName['board_y']! as i1.GeneratedColumn<double>;
+}
+
 i0.MigrationStepWithVersion migrationSteps({
   required Future<void> Function(i1.Migrator m, Schema2 schema) from1To2,
   required Future<void> Function(i1.Migrator m, Schema3 schema) from2To3,
@@ -3162,6 +3534,7 @@ i0.MigrationStepWithVersion migrationSteps({
   required Future<void> Function(i1.Migrator m, Schema8 schema) from7To8,
   required Future<void> Function(i1.Migrator m, Schema9 schema) from8To9,
   required Future<void> Function(i1.Migrator m, Schema10 schema) from9To10,
+  required Future<void> Function(i1.Migrator m, Schema11 schema) from10To11,
 }) {
   return (currentVersion, database) async {
     switch (currentVersion) {
@@ -3210,6 +3583,11 @@ i0.MigrationStepWithVersion migrationSteps({
         final migrator = i1.Migrator(database, schema);
         await from9To10(migrator, schema);
         return 10;
+      case 10:
+        final schema = Schema11(database: database);
+        final migrator = i1.Migrator(database, schema);
+        await from10To11(migrator, schema);
+        return 11;
       default:
         throw ArgumentError.value('Unknown migration from $currentVersion');
     }
@@ -3226,6 +3604,7 @@ i1.OnUpgrade stepByStep({
   required Future<void> Function(i1.Migrator m, Schema8 schema) from7To8,
   required Future<void> Function(i1.Migrator m, Schema9 schema) from8To9,
   required Future<void> Function(i1.Migrator m, Schema10 schema) from9To10,
+  required Future<void> Function(i1.Migrator m, Schema11 schema) from10To11,
 }) => i0.VersionedSchema.stepByStepHelper(
   step: migrationSteps(
     from1To2: from1To2,
@@ -3237,5 +3616,6 @@ i1.OnUpgrade stepByStep({
     from7To8: from7To8,
     from8To9: from8To9,
     from9To10: from9To10,
+    from10To11: from10To11,
   ),
 );

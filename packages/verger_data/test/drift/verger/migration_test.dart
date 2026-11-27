@@ -320,4 +320,34 @@ void main() {
       await store.close();
     },
   );
+
+  test('v10 → v11 : nœuds et connaissances conservés, sans géométrie', () async {
+    final schema = await verifier.schemaAt(10);
+    final db = schema.rawDatabase;
+    db.execute(
+      "INSERT INTO nodes (id, parent_id, title, sort_index, curriculum_key, "
+      "origin, created_at) VALUES ('t', NULL, 'Mécanique', 0, NULL, 'user', "
+      "'2026-03-02T09:00:00.000Z')",
+    );
+    db.execute(
+      "INSERT INTO items (id, node_id, kind, title, body, level, sort_index, "
+      "suspended, created_at, updated_at, phase, step, stability, difficulty, "
+      "due, last_review, reps, lapses, auto_exercise) VALUES ('i', 't', "
+      "'definition', 'Oscillateur', NULL, NULL, 0, 0, "
+      "'2026-03-02T09:00:00.000Z', '2026-03-02T09:00:00.000Z', 'newItem', "
+      "NULL, NULL, NULL, NULL, NULL, 0, 0, NULL)",
+    );
+
+    final store = VergerStore(VergerDatabase(schema.newConnection()));
+    final node = (await store.node('t'))!;
+    final item = (await store.item('i'))!;
+    expect((node.title, node.board), ('Mécanique', null));
+    expect((item.title, item.boardPosition), ('Oscillateur', null));
+    // Première ouverture du tableau : la géométrie est calculée.
+    final layout = layoutBoard([node], [item]);
+    await store.saveBoardGeometry(regions: layout.regions, cards: layout.cards);
+    expect((await store.node('t'))!.board, layout.regions['t']);
+    expect((await store.item('i'))!.boardPosition, layout.cards['i']);
+    await store.close();
+  });
 }
