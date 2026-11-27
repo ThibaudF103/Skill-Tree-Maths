@@ -400,7 +400,15 @@ class _Layout {
   /// qui est déjà placé bouge ainsi le moins possible : une région qui
   /// grandit pousse ses voisines, elle ne saute pas. Les boîtes qui ne
   /// touchent à rien ne bougent pas.
-  void _resolve(List<_Box> boxes, Set<String> dirty, double gap) {
+  ///
+  /// [placed] : boîte qu'on vient de déposer. Ce qui est au-dessus d'elle y
+  /// reste : c'est elle qui glisse juste en dessous.
+  void _resolve(
+    List<_Box> boxes,
+    Set<String> dirty,
+    double gap, {
+    String? placed,
+  }) {
     int order(_Box a, _Box b) {
       final dy = a.rect.y.compareTo(b.rect.y);
       if (dy != 0) return dy;
@@ -423,7 +431,10 @@ class _Layout {
           // [a] est concernée : [b] s'écarte, sauf si elle l'est aussi et
           // vient avant.
           final bothDirty = dirty.contains(b.id);
-          (mover, obstacle) = bothDirty && j < i ? (a, b) : (b, a);
+          final keepAbove = a.id == placed && !bothDirty && b.rect.y < a.rect.y;
+          (mover, obstacle) = keepAbove || (bothDirty && j < i)
+              ? (a, b)
+              : (b, a);
           break search;
         }
       }

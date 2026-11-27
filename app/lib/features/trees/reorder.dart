@@ -37,6 +37,11 @@ Set<DropPlace> nodeDropPlaces(
     case NodeDrag(:final node):
       // Ni sur lui-même, ni dans sa propre descendance.
       if (data.pathTo(target.id).any((n) => n.id == node.id)) return const {};
+      // « Non classées » reste un arbre et n'accueille aucune branche.
+      if (node.isUnsorted) {
+        return target.isTree ? const {DropPlace.before, DropPlace.after} : {};
+      }
+      if (target.isUnsorted) return const {DropPlace.before, DropPlace.after};
       return DropPlace.values.toSet();
     case ItemDrag(:final item):
       return item.nodeId == target.id ? const {} : const {DropPlace.inside};

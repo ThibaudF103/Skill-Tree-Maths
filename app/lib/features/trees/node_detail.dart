@@ -250,6 +250,14 @@ class _NodeItemsState extends State<_NodeItems> {
 /// Demande un nom puis crée un sous-nœud de [parent].
 Future<void> addChildNode(BuildContext context, KnowledgeNode parent) async {
   final store = AppScope.of(context).store;
+  if (parent.isUnsorted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('« Non classées » n\'accueille que des cartes.'),
+      ),
+    );
+    return;
+  }
   final name = await askName(
     context,
     title: 'Nouvelle branche dans « ${parent.title} »',
@@ -291,6 +299,18 @@ class _NodeMenu extends StatelessWidget {
               initialId: node.parentId,
             );
             if (target == null || target.id == node.parentId) return;
+            if (target.isUnsorted) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      '« Non classées » n\'accueille que des cartes.',
+                    ),
+                  ),
+                );
+              }
+              return;
+            }
             if (data.pathTo(target.id).any((n) => n.id == node.id)) {
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -374,12 +394,15 @@ class _NodeMenu extends StatelessWidget {
           child: Text('Importer un contenu (PDF, vidéo)…'),
         ),
         const PopupMenuDivider(),
-        const PopupMenuItem(
-          value: 'share',
-          child: Text('Partager (paquet avec contenus)…'),
-        ),
+        // « Non classées » ne se partage pas (identifiant réservé).
+        if (!node.isUnsorted)
+          const PopupMenuItem(
+            value: 'share',
+            child: Text('Partager (paquet avec contenus)…'),
+          ),
         const PopupMenuItem(value: 'rename', child: Text('Renommer')),
-        const PopupMenuItem(value: 'move', child: Text('Déplacer vers…')),
+        if (!node.isUnsorted)
+          const PopupMenuItem(value: 'move', child: Text('Déplacer vers…')),
         if (!node.isTree)
           const PopupMenuItem(value: 'tree', child: Text('En faire un arbre')),
         const PopupMenuItem(value: 'delete', child: Text('Supprimer')),

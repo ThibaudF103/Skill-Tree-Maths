@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:verger_core/verger_core.dart';
+import 'package:verger/features/items/item_detail_page.dart';
 import 'package:verger_data/verger_data.dart';
 
 import 'test_app.dart';
@@ -250,6 +251,68 @@ void main() {
       before.boardPosition,
     );
     expect(find.text('Annuler'), findsNothing);
+    await unmountTestApp(tester);
+  });
+
+  testWidgets('un glissé au-delà du seuil déplace sans ouvrir la fiche', (
+    tester,
+  ) async {
+    final store = await openBoard(tester);
+    final before = await itemNamed(tester, store, 'Résonance');
+    final card = tester.getCenter(find.text('Résonance'));
+    await dragFromTo(tester, card, card + const Offset(0, 30));
+    expect(find.byType(ItemDetailPage), findsNothing);
+    final after = await itemNamed(tester, store, 'Résonance');
+    expect(after.boardPosition, isNot(before.boardPosition));
+    expect(find.text('Carte déplacée'), findsOneWidget);
+    await unmountTestApp(tester);
+  });
+
+  testWidgets('pas de nouveau geste tant que le précédent s\'enregistre', (
+    tester,
+  ) async {
+    final store = await openBoard(tester);
+    final optique = await nodeNamed(tester, store, 'Optique');
+    final target = regionOnScreen(tester, optique.id).center;
+    final card = tester.getCenter(find.text('Résonance'));
+    final first = await tester.startGesture(card);
+    await tester.pump();
+    for (var i = 1; i <= 6; i++) {
+      await first.moveTo(Offset.lerp(card, target, i / 6)!);
+      await tester.pump();
+    }
+    await first.up();
+    // La base n'a pas encore répondu : un second geste est ignoré.
+    final second = await tester.startGesture(target);
+    await tester.pump();
+    for (var i = 1; i <= 6; i++) {
+      await second.moveTo(target + Offset(0, 25.0 * i));
+      await tester.pump();
+    }
+    await second.up();
+    await settle(tester);
+    expect((await itemNamed(tester, store, 'Résonance')).nodeId, optique.id);
+    expect(find.text('Carte rangée dans « Optique »'), findsOneWidget);
+    expect(find.text('Carte déplacée'), findsNothing);
+    await unmountTestApp(tester);
+  });
+
+  testWidgets('« Annuler » refusé avec un message si le tableau a changé', (
+    tester,
+  ) async {
+    final store = await openBoard(tester);
+    final title = tester.getCenter(find.text('Oscillateurs'));
+    await dragFromTo(tester, title, title + const Offset(0, 120));
+    final osc = await nodeNamed(tester, store, 'Oscillateurs');
+    final elsewhere = osc.board!.translate(0, 300);
+    await tester.runAsync(
+      () => store.saveBoardGeometry(regions: {osc.id: elsewhere}),
+    );
+    await settle(tester);
+    await tester.tap(find.text('Annuler'));
+    await settle(tester);
+    expect(find.textContaining('impossible de l\'annuler'), findsOneWidget);
+    expect((await nodeNamed(tester, store, 'Oscillateurs')).board, elsewhere);
     await unmountTestApp(tester);
   });
 }

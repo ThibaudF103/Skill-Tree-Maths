@@ -105,6 +105,22 @@ void main() {
       const inside = BoardPoint(5100, 100);
       expect(e.regionAt(inside), KnowledgeNode.unsortedId);
       expect(e.regionAt(inside, forRegion: true), equals(null));
+      // Une branche glissée là malgré tout n'est pas une cible.
+      final nested = BoardEditor([
+        ...unsorted,
+        KnowledgeNode(
+          id: 'intrus',
+          parentId: KnowledgeNode.unsortedId,
+          title: 'intrus',
+          sortIndex: 0,
+          createdAt: t,
+          board: const BoardRect(5024, 88, 300, 180),
+        ),
+      ], items);
+      expect(
+        nested.regionAt(const BoardPoint(5100, 150)),
+        KnowledgeNode.unsortedId,
+      );
     });
   });
 
@@ -235,21 +251,43 @@ void main() {
       check(edit);
     });
 
-    test('les voisines recouvertes sont poussées, la région reste où on '
-        'l\'a posée', () {
+    test('les voisines recouvertes en dessous sont poussées, la région '
+        'reste où on l\'a posée', () {
+      final osc = first.regions['oscill']!;
       final energie = first.regions['energie']!;
+      // « energie » posée en chevauchant le haut de « oscill » (plus bas).
+      // À droite de « newton », rien au-dessus.
+      final newton = first.regions['newton']!;
+      // (sur la grille d'aimantation de 8).
+      final x = ((newton.right + config.gap) / 8).ceil() * 8.0;
+      final drop = BoardPoint(x, osc.y - 40);
+      final edit = editor.moveRegion(
+        'energie',
+        topLeft: drop,
+        at: BoardPoint(drop.x + 10, drop.y + 10),
+      );
+      expect(edit.regions['energie']!.topLeft, drop);
+      expect(edit.regions['energie']!.topLeft, isNot(energie.topLeft));
+      expect(
+        edit.regions['oscill']!.y,
+        edit.regions['energie']!.bottom + config.gap,
+      );
+      check(edit);
+    });
+
+    test('ce qui est au-dessus y reste : la région déposée glisse juste en '
+        'dessous', () {
       final newton = first.regions['newton']!;
       final edit = editor.moveRegion(
         'energie',
         topLeft: BoardPoint(newton.x + 100, newton.y + 100),
         at: BoardPoint(newton.x + 110, newton.y - 30),
       );
-      expect(edit.regions['energie']!.topLeft, isNot(energie.topLeft));
+      expect(edit.regions.containsKey('newton'), isFalse);
       expect(
         edit.regions['energie']!.topLeft,
-        BoardPoint(newton.x + 104, newton.y + 104),
+        BoardPoint(newton.x + 104, newton.bottom + config.gap),
       );
-      expect(edit.regions['newton']!.y, greaterThan(newton.y));
       check(edit);
     });
   });
@@ -290,14 +328,29 @@ void main() {
     });
 
     test('reste dans la zone utile de son parent', () {
+      final newton = first.regions['newton']!;
+      final clamped = editor.clampResize(
+        'newton',
+        BoardRect(newton.x - 500, newton.y - 500, newton.width + 500, 900),
+      );
+      final meca = first.regions['meca']!;
+      expect(clamped.x, meca.x + config.padding);
+      expect(clamped.y, meca.y + config.titleBand(0));
+    });
+
+    test('bord haut tiré vers une voisine : il s\'arrête juste en dessous', () {
+      // Au-dessus de « vide » : les cartes de « optique ».
       final vide = first.regions['vide']!;
+      final edit = editor.resizeRegion(
+        'vide',
+        BoardRect(vide.x, vide.y - 300, vide.width, vide.height + 300),
+      );
+      expect(edit.isEmpty, isTrue);
       final clamped = editor.clampResize(
         'vide',
-        BoardRect(vide.x - 500, vide.y - 500, vide.width + 500, 900),
+        BoardRect(vide.x, vide.y - 300, vide.width, vide.height + 300),
       );
-      final optique = first.regions['optique']!;
-      expect(clamped.x, optique.x + config.padding);
-      expect(clamped.y, optique.y + config.titleBand(0));
+      expect(clamped.y, first.cards['p2']!.y + config.cardHeight + config.gap);
     });
 
     test('agrandie : pousse ses voisines, son parent grandit', () {

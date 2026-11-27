@@ -9,6 +9,14 @@ import 'package:verger_data/verger_data.dart';
 VergerStore memoryStore() =>
     VergerStore(VergerDatabase(NativeDatabase.memory()));
 
+/// Nœud ou connaissance par son titre (l'ordre de création ne départage
+/// pas des éléments créés dans la même milliseconde).
+Future<KnowledgeNode> nodeNamed(VergerStore store, String title) async =>
+    (await store.allNodes()).firstWhere((n) => n.title == title);
+
+Future<KnowledgeItem> itemNamed(VergerStore store, String title) async =>
+    (await store.allItems()).firstWhere((i) => i.title == title);
+
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
 
@@ -72,7 +80,7 @@ void main() {
 
   test('nouvelle connaissance et nouveau nœud : sans géométrie', () async {
     final (store, _) = await laidOut();
-    final tree = (await store.allNodes()).first;
+    final tree = await nodeNamed(store, 'Mécanique');
     final node = await store.createNode(title: 'Ondes', parentId: tree.id);
     final item = await store.createItem(
       nodeId: node.id,
@@ -87,8 +95,11 @@ void main() {
   test('changer de nœud efface la géométrie (branche entière pour un '
       'nœud)', () async {
     final (store, _) = await laidOut();
-    final [tree, branch, leaf] = await store.allNodes();
-    final [harmonic, resonance] = await store.allItems();
+    final tree = await nodeNamed(store, 'Mécanique');
+    final branch = await nodeNamed(store, 'Oscillateurs');
+    final leaf = await nodeNamed(store, 'Forcés');
+    final harmonic = await itemNamed(store, 'Oscillateur harmonique');
+    final resonance = await itemNamed(store, 'Résonance');
 
     // Réordonner parmi les mêmes frères ne change rien.
     await store.moveNode(leaf.id, newParentId: branch.id, index: 0);
@@ -135,7 +146,7 @@ void main() {
 
   test('paquet et modèle : sans géométrie, mis en page à l\'import', () async {
     final (store, _) = await laidOut();
-    final tree = (await store.allNodes()).first;
+    final tree = await nodeNamed(store, 'Mécanique');
     final pack = await store.exportTree(tree.id);
     expect(pack.nodes.every((n) => n.board == null), isTrue);
     expect(pack.items.every((i) => i.boardPosition == null), isTrue);
@@ -175,8 +186,7 @@ void main() {
       kind: ItemKind.definition,
       title: 'Oscillateur harmonique',
     );
-    final snapshots =
-        <({List<KnowledgeNode> nodes, List<KnowledgeItem> items})>[];
+    final snapshots = <BoardSnapshot>[];
     final sub = store.watchBoard().listen(snapshots.add);
     await Future<void>.delayed(const Duration(milliseconds: 50));
     final first = snapshots.single;
@@ -200,8 +210,8 @@ void main() {
   test('annuler une suppression : la carte revient sans place, puis est '
       'replacée sans recouvrir celle qui a pris la sienne', () async {
     final (store, _) = await laidOut();
-    final branch = (await store.allNodes())[1];
-    final harmonic = (await store.allItems()).first;
+    final branch = await nodeNamed(store, 'Oscillateurs');
+    final harmonic = await itemNamed(store, 'Oscillateur harmonique');
     final deletion = await store.deleteItem(harmonic.id);
     final other = await store.createItem(
       nodeId: branch.id,
@@ -224,8 +234,10 @@ void main() {
   group('modifications du tableau', () {
     test('carte changée de région : historique intact, annulation', () async {
       final (store, layout) = await laidOut();
-      final [tree, branch, leaf] = await store.allNodes();
-      final [harmonic, _] = await store.allItems();
+      final tree = await nodeNamed(store, 'Mécanique');
+      final branch = await nodeNamed(store, 'Oscillateurs');
+      final leaf = await nodeNamed(store, 'Forcés');
+      final harmonic = await itemNamed(store, 'Oscillateur harmonique');
       final scheduler = const SchedulerSettings().build();
       final record = scheduler.record(
         harmonic.scheduling,
@@ -269,8 +281,8 @@ void main() {
     test('hors de toute région : « Non classées » créée, puis retirée '
         'quand on la vide ; l\'annulation la rétablit', () async {
       final (store, layout) = await laidOut();
-      final branch = (await store.allNodes())[1];
-      final harmonic = (await store.allItems()).first;
+      final branch = await nodeNamed(store, 'Oscillateurs');
+      final harmonic = await itemNamed(store, 'Oscillateur harmonique');
       var editor = BoardEditor(await store.allNodes(), await store.allItems());
       final out = editor.moveCard(
         harmonic.id,
@@ -302,18 +314,19 @@ void main() {
       expect((await store.item(harmonic.id))!.nodeId, branch.id);
       expect(await store.node(KnowledgeNode.unsortedId), equals(null));
 
+      // Une annulation plus ancienne n'est plus valable.
+      await expectLater(store.undoBoardEdit(undoOut), throwsStateError);
       await store.undoBoardEdit(undoBack);
       expect((await store.item(harmonic.id))!.nodeId, KnowledgeNode.unsortedId);
       expect(await store.node(KnowledgeNode.unsortedId), isNotNull);
-      await store.undoBoardEdit(undoOut);
-      expect((await store.item(harmonic.id))!.nodeId, branch.id);
-      expect(await store.node(KnowledgeNode.unsortedId), equals(null));
       await store.close();
     });
 
     test('région changée de parent et redimensionnée : annulation', () async {
       final (store, layout) = await laidOut();
-      final [tree, branch, leaf] = await store.allNodes();
+      final tree = await nodeNamed(store, 'Mécanique');
+      final branch = await nodeNamed(store, 'Oscillateurs');
+      final leaf = await nodeNamed(store, 'Forcés');
       final editor = BoardEditor(
         await store.allNodes(),
         await store.allItems(),
@@ -354,5 +367,267 @@ void main() {
       }
       await store.close();
     });
+  });
+
+  group('annulation sûre', () {
+    test('une annulation ancienne ne crée pas de cycle (refusée, arbre '
+        'intact)', () async {
+      final (store, _) = await laidOut();
+      final branch = await nodeNamed(store, 'Oscillateurs');
+      final leaf = await nodeNamed(store, 'Forcés');
+      final optique = await store.createNode(title: 'Optique');
+      // A (« Forcés ») quitte P (« Oscillateurs ») pour B, puis P va dans A.
+      final first = await store.applyBoardEdit(
+        BoardEdit(nodeMove: (nodeId: leaf.id, parentId: optique.id)),
+      );
+      await store.applyBoardEdit(
+        BoardEdit(nodeMove: (nodeId: branch.id, parentId: leaf.id)),
+      );
+      await expectLater(store.undoBoardEdit(first), throwsStateError);
+      expect((await store.node(leaf.id))!.parentId, optique.id);
+      expect((await store.node(branch.id))!.parentId, leaf.id);
+      await store.close();
+    });
+
+    test('refusée si ce qu\'elle a touché a changé depuis', () async {
+      final (store, layout) = await laidOut();
+      final leaf = await nodeNamed(store, 'Forcés');
+      final editor = BoardEditor(
+        await store.allNodes(),
+        await store.allItems(),
+      );
+      final undo = await store.applyBoardEdit(
+        editor.resizeRegion(leaf.id, layout.regions[leaf.id]!.inflate(40)),
+      );
+      final moved = (await store.node(leaf.id))!.board!.translate(30, 0);
+      await store.saveBoardGeometry(regions: {leaf.id: moved});
+      await expectLater(store.undoBoardEdit(undo), throwsStateError);
+      expect((await store.node(leaf.id))!.board, moved);
+      await store.close();
+    });
+
+    test('les frères quittés sont renumérotés, et rétablis par '
+        'l\'annulation', () async {
+      final (store, _) = await laidOut();
+      final tree = await nodeNamed(store, 'Mécanique');
+      final branch = await nodeNamed(store, 'Oscillateurs');
+      await store.createNode(title: 'Ondes', parentId: tree.id);
+      await store.createNode(title: 'Fluides', parentId: tree.id);
+      Future<List<(String, int)>> order() async => [
+        for (final n in await store.allNodes())
+          if (n.parentId == tree.id) (n.title, n.sortIndex),
+      ];
+      expect(await order(), [
+        ('Oscillateurs', 0),
+        ('Ondes', 1),
+        ('Fluides', 2),
+      ]);
+      final undo = await store.applyBoardEdit(
+        BoardEdit(nodeMove: (nodeId: branch.id, parentId: null)),
+      );
+      expect(await order(), [('Ondes', 0), ('Fluides', 1)]);
+      await store.undoBoardEdit(undo);
+      expect(await order(), [
+        ('Oscillateurs', 0),
+        ('Ondes', 1),
+        ('Fluides', 2),
+      ]);
+      await store.close();
+    });
+
+    test('carte rangée dans « Non classées » puis annulée tout de suite : '
+        'le nœud créé disparaît', () async {
+      final (store, _) = await laidOut();
+      final harmonic = await itemNamed(store, 'Oscillateur harmonique');
+      final undo = await store.applyBoardEdit(
+        BoardEdit(
+          clearedCards: {harmonic.id},
+          itemMove: (itemId: harmonic.id, nodeId: KnowledgeNode.unsortedId),
+        ),
+      );
+      // La mise en page automatique place la carte et la région entre-temps.
+      final placed = layoutBoard(
+        await store.allNodes(),
+        await store.allItems(),
+      );
+      await store.saveBoardGeometry(
+        regions: {
+          for (final id in placed.changedRegions) id: placed.regions[id]!,
+        },
+        cards: {for (final id in placed.changedCards) id: placed.cards[id]!},
+      );
+      await store.undoBoardEdit(undo);
+      expect((await store.item(harmonic.id))!.nodeId, harmonic.nodeId);
+      expect(
+        (await store.item(harmonic.id))!.boardPosition,
+        harmonic.boardPosition,
+      );
+      expect(await store.node(KnowledgeNode.unsortedId), equals(null));
+      await store.close();
+    });
+  });
+
+  group('paquets et « Non classées »', () {
+    test('ne se partage pas, et un paquet qui l\'emporte est refusé', () async {
+      final (store, _) = await laidOut();
+      final harmonic = await itemNamed(store, 'Oscillateur harmonique');
+      await store.applyBoardEdit(
+        BoardEdit(
+          clearedCards: {harmonic.id},
+          itemMove: (itemId: harmonic.id, nodeId: KnowledgeNode.unsortedId),
+        ),
+      );
+      await expectLater(
+        store.exportTree(KnowledgeNode.unsortedId),
+        throwsArgumentError,
+      );
+      final forged = VergerArchive(
+        nodes: [
+          KnowledgeNode(
+            id: KnowledgeNode.unsortedId,
+            title: 'Non classées',
+            sortIndex: 0,
+            createdAt: DateTime.utc(2026),
+          ),
+        ],
+        items: const [],
+      );
+      await expectLater(
+        store.previewPack(forged),
+        throwsA(isA<ArchiveFormatException>()),
+      );
+      await expectLater(
+        store.importPack(forged),
+        throwsA(isA<ArchiveFormatException>()),
+      );
+      // Les cartes non classées de l'utilisateur sont intactes.
+      expect((await store.item(harmonic.id))!.nodeId, KnowledgeNode.unsortedId);
+      await store.close();
+    });
+  });
+
+  group('règles de « Non classées » et écritures concurrentes', () {
+    Future<(VergerStore, KnowledgeItem)> withUnsorted() async {
+      final (store, _) = await laidOut();
+      final harmonic = await itemNamed(store, 'Oscillateur harmonique');
+      await store.applyBoardEdit(
+        BoardEdit(
+          clearedCards: {harmonic.id},
+          itemMove: (itemId: harmonic.id, nodeId: KnowledgeNode.unsortedId),
+        ),
+      );
+      return (store, harmonic);
+    }
+
+    test('aucun nœud dessous, et il reste un arbre', () async {
+      final (store, _) = await withUnsorted();
+      const unsorted = KnowledgeNode.unsortedId;
+      final branch = await nodeNamed(store, 'Oscillateurs');
+      await expectLater(
+        store.createNode(title: 'Sous', parentId: unsorted),
+        throwsArgumentError,
+      );
+      await expectLater(
+        store.moveNode(branch.id, newParentId: unsorted),
+        throwsArgumentError,
+      );
+      await expectLater(
+        store.moveNode(unsorted, newParentId: branch.id),
+        throwsArgumentError,
+      );
+      await expectLater(
+        store.applyBoardEdit(
+          BoardEdit(nodeMove: (nodeId: branch.id, parentId: unsorted)),
+        ),
+        throwsArgumentError,
+      );
+      await expectLater(
+        store.applyBoardEdit(
+          BoardEdit(nodeMove: (nodeId: unsorted, parentId: branch.id)),
+        ),
+        throwsArgumentError,
+      );
+      // Réordonner parmi les arbres reste permis.
+      await store.moveNode(unsorted, index: 0);
+      expect((await store.node(unsorted))!.isTree, isTrue);
+      expect(await store.allNodes(), hasLength(4));
+      await store.close();
+    });
+
+    test(
+      'retiré quand sa dernière carte sort, par n\'importe quel chemin',
+      () async {
+        for (final way in ['move', 'update', 'delete']) {
+          final (store, harmonic) = await withUnsorted();
+          final branch = await nodeNamed(store, 'Oscillateurs');
+          switch (way) {
+            case 'move':
+              await store.moveItem(harmonic.id, nodeId: branch.id);
+            case 'update':
+              await store.updateItem(harmonic.id, nodeId: branch.id);
+            case 'delete':
+              final deletion = await store.deleteItem(harmonic.id);
+              expect(await store.node(KnowledgeNode.unsortedId), equals(null));
+              // L'annulation remet la carte, et « Non classées » avec elle.
+              await store.undoDeletion(deletion);
+              expect(
+                (await store.item(harmonic.id))!.nodeId,
+                KnowledgeNode.unsortedId,
+              );
+              expect(await store.node(KnowledgeNode.unsortedId), isNotNull);
+              await store.close();
+              continue;
+          }
+          expect(
+            await store.node(KnowledgeNode.unsortedId),
+            equals(null),
+            reason: way,
+          );
+          await store.close();
+        }
+      },
+    );
+
+    test('un geste sur une ligne supprimée entre-temps est refusé', () async {
+      final (store, layout) = await laidOut();
+      final leaf = await nodeNamed(store, 'Forcés');
+      final editor = BoardEditor(
+        await store.allNodes(),
+        await store.allItems(),
+      );
+      final edit = editor.resizeRegion(
+        leaf.id,
+        layout.regions[leaf.id]!.inflate(40),
+      );
+      await store.deleteNode(leaf.id, recursive: true);
+      await expectLater(store.applyBoardEdit(edit), throwsStateError);
+      await store.close();
+    });
+
+    test(
+      'une mise en page calculée avant un geste n\'écrase pas le geste',
+      () async {
+        final (store, layout) = await laidOut();
+        final leaf = await nodeNamed(store, 'Forcés');
+        final before = await store.watchBoard().first;
+        final editor = BoardEditor(before.nodes, before.items);
+        final edit = editor.resizeRegion(
+          leaf.id,
+          layout.regions[leaf.id]!.inflate(40),
+        );
+        final undo = await store.applyBoardEdit(edit);
+        expect(undo.generation, greaterThan(before.generation));
+        // Sauvegarde automatique tardive, calculée sur l'instantané d'avant.
+        final saved = await store.saveBoardGeometry(
+          regions: layout.regions,
+          ifGeneration: before.generation,
+        );
+        expect(saved, isFalse);
+        expect((await store.node(leaf.id))!.board, edit.regions[leaf.id]);
+        final now = await store.watchBoard().first;
+        expect(now.generation, undo.generation);
+        await store.close();
+      },
+    );
   });
 }

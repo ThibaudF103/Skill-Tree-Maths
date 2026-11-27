@@ -5,6 +5,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:verger_core/verger_core.dart';
 
+import 'package:verger_data/verger_data.dart';
+
 import '../../app/app_scope.dart';
 import '../../ui/graph_viewer.dart';
 import '../items/item_detail_page.dart';
@@ -35,10 +37,16 @@ class BoardPage extends StatefulWidget {
 
 class _BoardPageState extends State<BoardPage> {
   final _controller = TransformationController();
-  StreamSubscription<({List<KnowledgeNode> nodes, List<KnowledgeItem> items})>?
-  _sub;
+  StreamSubscription<BoardSnapshot>? _sub;
   List<KnowledgeNode>? _nodes;
   List<KnowledgeItem>? _items;
+
+  /// Génération du dernier instantané (voir `VergerStore.watchBoard`).
+  var _generation = 0;
+
+  /// Un instantané est arrivé pendant une sauvegarde automatique : à
+  /// remettre en page ensuite.
+  var _rebuildAfterSave = false;
   BoardScene? _scene;
   Size _viewport = Size.zero;
   var _saving = false;
@@ -61,9 +69,17 @@ class _BoardPageState extends State<BoardPage> {
   final _pointers = <int>{};
   final _canvasKey = GlobalKey();
 
-  /// Une modification vient d'être enregistrée : l'aperçu reste affiché
-  /// jusqu'à l'instantané suivant.
-  var _awaitingSnapshot = false;
+  /// Une modification est en cours d'enregistrement : pas de nouveau geste
+  /// (il partirait d'un instantané périmé), l'aperçu reste affiché.
+  var _committing = false;
+
+  /// Génération qu'un instantané doit atteindre pour refléter la
+  /// modification enregistrée ; d'ici là, l'aperçu reste affiché et aucun
+  /// nouveau geste ne commence.
+  int? _awaitingGeneration;
+
+  /// Un glissé vient d'avoir lieu : le toucher qui le termine n'ouvre rien.
+  var _suppressTap = false;
 
   @override
   void didChangeDependencies() {
@@ -76,6 +92,7 @@ class _BoardPageState extends State<BoardPage> {
     _sub = store.watchBoard().listen((board) {
       _nodes = board.nodes;
       _items = board.items;
+      _generation = board.generation;
       _rebuild();
     });
     store.boardViewport().then((view) {
@@ -116,8 +133,11 @@ class _BoardPageState extends State<BoardPage> {
     final previous = _scene;
     setState(() {
       _scene = scene;
-      if (_awaitingSnapshot) {
-        _awaitingSnapshot = false;
+      // L'aperçu disparaît quand l'instantané reflète la modification
+      // (pas avant : il ramènerait l'élément à son ancienne place).
+      final awaited = _awaitingGeneration;
+      if (awaited != null && _generation >= awaited) {
+        _awaitingGeneration = null;
         _drag = null;
       }
     });
@@ -137,12 +157,20 @@ class _BoardPageState extends State<BoardPage> {
       );
     }
     _applyInitialView();
-    if (layout.hasChanges && !_saving) _persist(layout);
+    if (layout.hasChanges) {
+      if (_saving) {
+        _rebuildAfterSave = true;
+      } else {
+        _persist(layout, _generation);
+      }
+    }
   }
 
   /// Enregistre la géométrie calculée ; la base renvoie alors les nœuds et
-  /// connaissances placés (et ce qui serait arrivé entre-temps).
-  Future<void> _persist(BoardLayout layout) async {
+  /// connaissances placés (et ce qui serait arrivé entre-temps). Calculée
+  /// sur l'instantané de [generation] : si un geste est passé depuis, rien
+  /// n'est écrit (le geste n'est jamais écrasé).
+  Future<void> _persist(BoardLayout layout, int generation) async {
     _saving = true;
     try {
       await AppScope.of(context).store.saveBoardGeometry(
@@ -150,9 +178,14 @@ class _BoardPageState extends State<BoardPage> {
           for (final id in layout.changedRegions) id: layout.regions[id]!,
         },
         cards: {for (final id in layout.changedCards) id: layout.cards[id]!},
+        ifGeneration: generation,
       );
     } finally {
       _saving = false;
+    }
+    if (_rebuildAfterSave && mounted) {
+      _rebuildAfterSave = false;
+      _rebuild();
     }
   }
 
@@ -260,6 +293,8 @@ class _BoardPageState extends State<BoardPage> {
     final nodes = _nodes, items = _items;
     if (!_editing ||
         _gesture != null ||
+        _committing ||
+        _awaitingGeneration != null ||
         _pointers.isNotEmpty ||
         nodes == null ||
         items == null ||
@@ -274,12 +309,18 @@ class _BoardPageState extends State<BoardPage> {
         target: target,
         editor: BoardEditor(nodes, items),
         matrix: _controller.value.clone(),
+        // Même seuil que le toucher : au-delà, celui-ci a renoncé.
+        slop: computeHitSlop(
+          event.kind,
+          MediaQuery.maybeGestureSettingsOf(context),
+        ),
       );
     });
   }
 
   void _onPointerDown(PointerDownEvent event) {
     _pointers.add(event.pointer);
+    if (_pointers.length == 1) _suppressTap = false;
     // Deuxième doigt : pincer et déplacer la vue l'emportent.
     if (_pointers.length > 1) _cancelGesture();
   }
@@ -290,9 +331,10 @@ class _BoardPageState extends State<BoardPage> {
     // La vue reste immobile pendant le geste.
     if (_controller.value != g.matrix) _setView(g.matrix.clone());
     final delta = event.position - g.start;
-    if (!g.active && delta.distance < kTouchSlop / 2) return;
+    if (!g.active && delta.distance <= g.slop) return;
     final at = _boardPoint(event.position);
     if (at == null) return;
+    _suppressTap = true;
     g
       ..active = true
       ..delta = delta / g.matrix.getMaxScaleOnAxis()
@@ -395,31 +437,62 @@ class _BoardPageState extends State<BoardPage> {
       setState(() => _drag = null);
       return;
     }
-    // L'aperçu reste jusqu'au prochain instantané (pas de saut en arrière).
-    _awaitingSnapshot = true;
+    // L'aperçu reste jusqu'à l'instantané qui reflète la modification.
+    setState(() => _committing = true);
     final store = AppScope.of(context).store;
     final messenger = ScaffoldMessenger.of(context);
     final message = _describe(g.target, edit);
+    // Une seule annulation vivante : la précédente disparaît.
+    messenger.hideCurrentSnackBar();
     try {
       final undo = await store.applyBoardEdit(edit);
+      if (!mounted) return;
+      setState(() {
+        _committing = false;
+        if (_generation >= undo.generation) {
+          _drag = null;
+        } else {
+          _awaitingGeneration = undo.generation;
+        }
+      });
       messenger.showSnackBar(
         SnackBar(
           content: Text(message),
           action: SnackBarAction(
             label: 'Annuler',
-            onPressed: () => store.undoBoardEdit(undo),
+            onPressed: () => _undo(store, messenger, undo),
           ),
         ),
       );
-    } on ArgumentError catch (e) {
+    } catch (e) {
       if (!mounted) return;
       setState(() {
-        _awaitingSnapshot = false;
+        _committing = false;
+        _awaitingGeneration = null;
         _drag = null;
       });
-      messenger.showSnackBar(SnackBar(content: Text('${e.message}')));
+      messenger.showSnackBar(SnackBar(content: Text(_errorMessage(e))));
     }
   }
+
+  /// « Annuler » : refusé (avec un message) si le tableau a changé depuis.
+  static Future<void> _undo(
+    VergerStore store,
+    ScaffoldMessengerState messenger,
+    BoardUndo undo,
+  ) async {
+    try {
+      await store.undoBoardEdit(undo);
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(_errorMessage(e))));
+    }
+  }
+
+  static String _errorMessage(Object e) => switch (e) {
+    ArgumentError(:final message) => '$message',
+    StateError(:final message) => message,
+    _ => 'La modification n\'a pas pu être enregistrée.',
+  };
 
   String _describe(BoardTarget target, BoardEdit edit) {
     String title(String? id) =>
@@ -440,13 +513,19 @@ class _BoardPageState extends State<BoardPage> {
     };
   }
 
-  void _openItem(KnowledgeItem item) => Navigator.of(context).push(
-    MaterialPageRoute<void>(builder: (_) => ItemDetailPage(itemId: item.id)),
-  );
+  void _openItem(KnowledgeItem item) {
+    if (_suppressTap) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => ItemDetailPage(itemId: item.id)),
+    );
+  }
 
-  void _openNode(KnowledgeNode node) => Navigator.of(
-    context,
-  ).push(MaterialPageRoute<void>(builder: (_) => NodePage(nodeId: node.id)));
+  void _openNode(KnowledgeNode node) {
+    if (_suppressTap) return;
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => NodePage(nodeId: node.id)));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -553,7 +632,11 @@ class _EditGesture {
     required this.target,
     required this.editor,
     required this.matrix,
+    required this.slop,
   });
+
+  /// Seuil au-delà duquel le geste devient un glissé (celui du toucher).
+  final double slop;
 
   final int pointer;
 

@@ -122,7 +122,12 @@ extension on _Layout {
     for (final MapEntry(key: id, value: r) in _regions.entries) {
       if (!r.containsPoint(p)) continue;
       if (excluding != null && _isWithin(id, excluding)) continue;
-      if (forRegion && _isWithin(id, KnowledgeNode.unsortedId)) continue;
+      // « Non classées » n'accueille que des cartes, directement (une
+      // branche qui s'y trouverait quand même n'est pas une cible).
+      if (_isWithin(id, KnowledgeNode.unsortedId) &&
+          (forRegion || id != KnowledgeNode.unsortedId)) {
+        continue;
+      }
       if (best == null) {
         best = id;
         continue;
@@ -275,9 +280,12 @@ extension on _Layout {
     if (x != moved.x || y != moved.y) {
       _translate(id, x - moved.x, y - moved.y);
     }
-    _resolve(target == null ? _rootBoxes() : _boxesIn(target), {
-      id,
-    }, target == null ? c.rootGap : c.gap);
+    _resolve(
+      target == null ? _rootBoxes() : _boxesIn(target),
+      {id},
+      target == null ? c.rootGap : c.gap,
+      placed: id,
+    );
     if (target != null) _growUp(target);
     return _result(
       nodeMove: target == from ? null : (nodeId: id, parentId: target),
@@ -321,6 +329,28 @@ extension on _Layout {
       final area = _content(parent);
       left = math.max(left, area.x);
       top = math.max(top, area.y);
+    }
+    // Les bords tirés vers le haut ou la gauche s'arrêtent aux voisines :
+    // ce qui est au-dessus (à gauche) y reste.
+    final gap = parent == null ? c.rootGap : c.gap;
+    final neighbours = [
+      for (final b in parent == null ? _rootBoxes() : _boxesIn(parent))
+        if (b.id != id) b.rect,
+    ];
+    const eps = _Layout._eps;
+    if (top < current.y) {
+      for (final o in neighbours) {
+        if (o.x < right && o.right > left && o.bottom <= current.y + eps) {
+          top = math.max(top, o.bottom + gap);
+        }
+      }
+    }
+    if (left < current.x) {
+      for (final o in neighbours) {
+        if (o.y < bottom && o.bottom > top && o.right <= current.x + eps) {
+          left = math.max(left, o.right + gap);
+        }
+      }
     }
     // Au moins la place d'une carte ; le bord tiré cède.
     final minW = c.cardWidth + 2 * pad;
