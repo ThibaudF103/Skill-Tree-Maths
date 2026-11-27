@@ -10,6 +10,7 @@ import 'package:verger_core/verger_core.dart';
 import 'package:verger_data/verger_data.dart';
 
 import '../../app/app_scope.dart';
+import '../../app/resume.dart';
 import '../../pdf/pdf_tools.dart';
 import '../../ui/coverage.dart';
 import '../../ui/labels.dart';
@@ -92,6 +93,11 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
   Future<List<PdfOutlineNode>>? _outline;
   Timer? _saveLastPage;
 
+  /// Reprise au lancement : cette page reste à rouvrir tant qu'on ne la
+  /// quitte pas.
+  ResumeTracker? _resume;
+  Object? _resumeToken;
+
   late bool _selecting = widget.selecting;
   int? _startPage;
   int? _page;
@@ -108,7 +114,14 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _store = AppScope.of(context).store;
+    final scope = AppScope.of(context);
+    _store = scope.store;
+    if (_resume == null && scope.resume != null) {
+      _resume = scope.resume;
+      _resumeToken = _resume!.open(
+        OpenPage.document(widget.documentId, page: widget.initialPage),
+      );
+    }
     _bytes ??= _store.documentBytes(widget.documentId);
     _documents ??= _store.watchDocuments();
     _anchors ??= _store.watchAnchors(documentId: widget.documentId);
@@ -124,6 +137,7 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
     _saveLastPage?.cancel();
     final page = _page;
     if (page != null) _store.setLastPage(widget.documentId, page);
+    if (_resumeToken != null) _resume!.close(_resumeToken!);
     _searcher
       ?..removeListener(_onSearchChanged)
       ..dispose();
@@ -138,6 +152,12 @@ class _DocumentViewerPageState extends State<DocumentViewerPage> {
   void _onPageChanged(int? page) {
     if (page == null) return;
     setState(() => _page = page);
+    if (_resumeToken != null) {
+      _resume!.update(
+        _resumeToken!,
+        OpenPage.document(widget.documentId, page: page),
+      );
+    }
     _saveLastPage?.cancel();
     _saveLastPage = Timer(
       const Duration(seconds: 1),

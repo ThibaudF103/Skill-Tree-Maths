@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
@@ -356,6 +357,50 @@ void main() {
       expect((await store.lastNode())?.title, 'Groupes');
       await store.deleteNode(branch.id);
       expect(await store.lastNode(), isNull);
+    });
+
+    test('reprise : onglet, nœud affiché et pages ouvertes (#68)', () async {
+      expect(await store.homeTab(), 0);
+      expect(await store.treeSelection(), isNull);
+      expect(await store.openPages(), isEmpty);
+
+      await store.setHomeTab(3);
+      await store.setTreeSelection('n1');
+      const pages = [
+        OpenPage.document('d1', page: 12),
+        OpenPage.item('i1'),
+        OpenPage.video('v1', positionMs: 83500),
+      ];
+      await store.setOpenPages(pages);
+      expect(await store.homeTab(), 3);
+      expect(await store.treeSelection(), 'n1');
+      expect(await store.openPages(), pages);
+
+      await store.setOpenPages(const [OpenPage.document('d2')]);
+      expect(await store.openPages(), const [OpenPage.document('d2')]);
+      await store.setOpenPages(const []);
+      expect(await store.openPages(), isEmpty);
+    });
+
+    test('reprise : valeurs illisibles ignorées', () {
+      expect(OpenPage.fromJson('x'), isNull);
+      expect(OpenPage.fromJson({'kind': 'film', 'id': 'a'}), isNull);
+      expect(OpenPage.fromJson({'kind': 'document'}), isNull);
+      expect(
+        OpenPage.fromJson({'kind': 'document', 'id': 'a', 'page': 0}),
+        const OpenPage.document('a'),
+      );
+    });
+
+    test('présence du fichier d\'un PDF', () async {
+      final doc = await store.importDocument(
+        title: 'Cours',
+        bytes: Uint8List.fromList([1]),
+        contentHash: 'h',
+        fingerprints: [Uint8List(4)],
+      );
+      expect(await store.hasDocumentFile(doc.id), isTrue);
+      expect(await store.hasDocumentFile('absent'), isFalse);
     });
   });
 

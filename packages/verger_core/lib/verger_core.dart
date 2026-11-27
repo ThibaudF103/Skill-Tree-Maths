@@ -15,6 +15,7 @@ export 'src/domain/item_kind.dart';
 export 'src/domain/knowledge_item.dart';
 export 'src/domain/knowledge_node.dart';
 export 'src/domain/note.dart';
+export 'src/domain/open_page.dart';
 export 'src/domain/prerequisites.dart';
 export 'src/domain/learning_phase.dart';
 export 'src/domain/rating.dart';

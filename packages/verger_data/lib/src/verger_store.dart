@@ -602,6 +602,72 @@ class VergerStore {
         SettingRow(key: _strictKey, value: jsonEncode(strict)),
       );
 
+  // --- Reprise au lancement -------------------------------------------------
+
+  static const _homeTabKey = 'homeTab';
+  static const _treeSelectionKey = 'treeSelection';
+  static const _openPagesKey = 'openPages';
+
+  Future<Object?> _setting(String key) async {
+    final row = await (_db.select(
+      _db.settings,
+    )..where((s) => s.key.equals(key))).getSingleOrNull();
+    if (row == null) return null;
+    try {
+      return jsonDecode(row.value);
+    } on FormatException {
+      return null;
+    }
+  }
+
+  Future<void> _putSetting(String key, Object? value) => _db
+      .into(_db.settings)
+      .insertOnConflictUpdate(SettingRow(key: key, value: jsonEncode(value)));
+
+  /// Onglet de la navigation principale choisi en dernier (0 : Verger).
+  Future<int> homeTab() async {
+    final tab = await _setting(_homeTabKey);
+    return tab is int && tab >= 0 ? tab : 0;
+  }
+
+  Future<void> setHomeTab(int tab) => _putSetting(_homeTabKey, tab);
+
+  /// Nœud affiché en dernier dans l'onglet « Arbres » (grand écran).
+  Future<String?> treeSelection() async {
+    final id = await _setting(_treeSelectionKey);
+    return id is String ? id : null;
+  }
+
+  Future<void> setTreeSelection(String nodeId) =>
+      _putSetting(_treeSelectionKey, nodeId);
+
+  /// Pages de contenu ouvertes, de la plus ancienne (au-dessus de l'accueil)
+  /// à celle du dessus, à rouvrir au lancement.
+  Future<List<OpenPage>> openPages() async {
+    final pages = await _setting(_openPagesKey);
+    if (pages is! List) return const [];
+    return [for (final p in pages) ?OpenPage.fromJson(p)];
+  }
+
+  Future<void> setOpenPages(List<OpenPage> pages) async {
+    if (pages.isEmpty) {
+      await (_db.delete(
+        _db.settings,
+      )..where((s) => s.key.equals(_openPagesKey))).go();
+    } else {
+      await _putSetting(_openPagesKey, [for (final p in pages) p.toJson()]);
+    }
+  }
+
+  /// Vrai si le fichier du PDF [documentId] est sur cet appareil (sans le
+  /// lire).
+  Future<bool> hasDocumentFile(String documentId) async {
+    final query = _db.selectOnly(_db.documentFiles)
+      ..addColumns([_db.documentFiles.documentId])
+      ..where(_db.documentFiles.documentId.equals(documentId));
+    return await query.getSingleOrNull() != null;
+  }
+
   // --- Documents PDF -------------------------------------------------------
 
   Future<List<SourceDocument>> allDocuments() async =>

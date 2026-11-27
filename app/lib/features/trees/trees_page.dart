@@ -21,12 +21,32 @@ class TreesPage extends StatefulWidget {
 class _TreesPageState extends State<TreesPage> {
   String? _selected;
   final _expanded = <String>{};
+  var _restored = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_restored) return;
+    _restored = true;
+    // Reprise : le nœud affiché en dernier (grand écran).
+    AppScope.of(context).store.treeSelection().then((id) {
+      if (mounted && id != null && _selected == null) {
+        setState(() => _selected = id);
+      }
+    });
+  }
+
+  void _show(String id) {
+    setState(() => _selected = id);
+    AppScope.of(context).store.setTreeSelection(id);
+  }
 
   void _select(TreeData data, String? id) {
     setState(() {
       _selected = id;
       if (id != null) _expanded.addAll(data.pathTo(id).map((n) => n.id));
     });
+    if (id != null) AppScope.of(context).store.setTreeSelection(id);
   }
 
   Future<void> _createTree(TreeData data) async {
@@ -40,7 +60,7 @@ class _TreesPageState extends State<TreesPage> {
     if (name == null) return;
     final tree = await store.createNode(title: name);
     if (mounted && MediaQuery.sizeOf(context).width >= 900) {
-      setState(() => _selected = tree.id);
+      _show(tree.id);
     }
   }
 
