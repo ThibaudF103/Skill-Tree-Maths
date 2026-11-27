@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -57,6 +58,188 @@ class ScrollPassThrough extends StatelessWidget {
           ? null
           : (event) => onPan!(event.panDelta),
       child: child,
+    );
+  }
+}
+
+/// Élément d'un calque de page (zone encadrée, marqueur de note) qui laisse
+/// aussi le pointeur à la visionneuse placée dessous (#15).
+///
+/// pdfrx empile les calques des pages au-dessus de la visionneuse, dans un
+/// même [Stack] : dès qu'un élément du calque est touché, le test de contact
+/// s'arrête là et la visionneuse ne reçoit jamais le pointeur. Un doigt posé
+/// sur une zone encadrée ne faisait donc pas défiler la page (la molette,
+/// elle, passait par [ScrollPassThrough]).
+///
+/// Ici, l'élément reçoit le pointeur, mais le test de contact continue vers
+/// la visionneuse : les deux entrent dans l'arène des gestes. Un glissé
+/// revient à la visionneuse (défilement, zoom), un toucher à l'élément,
+/// inscrit le premier.
+class PointerPassThrough extends SingleChildRenderObjectWidget {
+  const PointerPassThrough({super.key, super.child});
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderPointerPassThrough();
+}
+
+class _RenderPointerPassThrough extends RenderProxyBox {
+  @override
+  bool hitTest(BoxHitTestResult result, {required Offset position}) {
+    super.hitTest(result, position: position);
+    // « Rien touché » pour le Stack : il essaie aussi les éléments de
+    // dessous, jusqu'à la visionneuse.
+    return false;
+  }
+}
+
+/// Zone de tracé d'une page en mode « Encadrer » : la souris, le stylet et
+/// le doigt y tracent un nouveau cadre (positions dans le repère de la
+/// page).
+///
+/// Un doigt posé dans un cadre existant fait défiler la page à la place
+/// (#15) : sinon, impossible de faire défiler la page en touchant un cadre.
+/// Le stylet et la souris y tracent toujours (cadre dans un cadre). Les
+/// poignées des cadres, posées au-dessus, gardent la main sur les bords.
+class FrameDrawLayer extends StatefulWidget {
+  const FrameDrawLayer({
+    super.key,
+    required this.frames,
+    required this.onDrawStart,
+    required this.onDrawUpdate,
+    required this.onDrawEnd,
+    required this.onScroll,
+  });
+
+  /// Cadres existants de la page, en pixels de la page.
+  final List<Rect> frames;
+
+  final ValueChanged<Offset> onDrawStart;
+  final ValueChanged<Offset> onDrawUpdate;
+  final VoidCallback onDrawEnd;
+
+  /// Déplacement du doigt (pixels de la vue) : faire glisser le contenu
+  /// d'autant.
+  final ValueChanged<Offset> onScroll;
+
+  @override
+  State<FrameDrawLayer> createState() => _FrameDrawLayerState();
+}
+
+class _FrameDrawLayerState extends State<FrameDrawLayer> {
+  /// Point d'appui du geste en cours (le départ du glissé n'est signalé
+  /// qu'après quelques pixels).
+  var _down = Offset.zero;
+  var _scrolling = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      // Le pavé tactile fait défiler (voir la visionneuse) au lieu de
+      // tracer.
+      supportedDevices: frameDevices,
+      onPanDown: (d) => _down = d.localPosition,
+      onPanStart: (d) {
+        _scrolling =
+            d.kind == PointerDeviceKind.touch &&
+            widget.frames.any((r) => r.contains(_down));
+        if (!_scrolling) widget.onDrawStart(d.localPosition);
+      },
+      onPanUpdate: (d) => _scrolling
+          ? widget.onScroll(d.delta)
+          : widget.onDrawUpdate(d.localPosition),
+      onPanEnd: (_) {
+        if (!_scrolling) widget.onDrawEnd();
+        _scrolling = false;
+      },
+    );
+  }
+}
+
+/// Masque [child] en fondu après [delay] sans activité, et le réaffiche en
+/// fondu à la suivante : notification de [activity] (la vue a bougé) ou
+/// changement de [value] (autre page) (#67).
+class IdleFade extends StatefulWidget {
+  const IdleFade({
+    super.key,
+    required this.activity,
+    this.value,
+    this.delay = const Duration(seconds: 5),
+    this.fade = const Duration(milliseconds: 300),
+    required this.child,
+  });
+
+  final Listenable activity;
+  final Object? value;
+  final Duration delay;
+  final Duration fade;
+  final Widget child;
+
+  @override
+  State<IdleFade> createState() => _IdleFadeState();
+}
+
+class _IdleFadeState extends State<IdleFade> {
+  var _visible = true;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.activity.addListener(_wake);
+    _arm();
+  }
+
+  @override
+  void didUpdateWidget(IdleFade oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.activity != oldWidget.activity) {
+      oldWidget.activity.removeListener(_wake);
+      widget.activity.addListener(_wake);
+    }
+    if (widget.value != oldWidget.value) {
+      // Reconstruction en cours : pas besoin de setState.
+      _visible = true;
+      _arm();
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.activity.removeListener(_wake);
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  void _arm() {
+    _timer?.cancel();
+    _timer = Timer(widget.delay, () {
+      if (mounted) setState(() => _visible = false);
+    });
+  }
+
+  void _wake() {
+    _arm();
+    if (_visible) return;
+    // La vue peut bouger pendant une construction (mise en page de la
+    // visionneuse) : on attend alors la fin de l'image.
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _visible = true);
+      });
+    } else {
+      setState(() => _visible = true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedOpacity(
+      opacity: _visible ? 1 : 0,
+      duration: widget.fade,
+      child: IgnorePointer(ignoring: !_visible, child: widget.child),
     );
   }
 }
