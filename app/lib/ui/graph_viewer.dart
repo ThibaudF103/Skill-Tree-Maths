@@ -18,6 +18,7 @@ class GraphViewer extends StatefulWidget {
     this.minScale = 0.8,
     this.maxScale = 2.5,
     this.boundaryMargin = EdgeInsets.zero,
+    this.panEnabled = true,
   });
 
   final Widget child;
@@ -26,6 +27,10 @@ class GraphViewer extends StatefulWidget {
   final double minScale;
   final double maxScale;
   final EdgeInsets boundaryMargin;
+
+  /// Faux : le glissé à un doigt ne déplace plus la vue (pincer zoome
+  /// toujours).
+  final bool panEnabled;
 
   @override
   State<GraphViewer> createState() => _GraphViewerState();
@@ -110,6 +115,7 @@ class _GraphViewerState extends State<GraphViewer> {
             minScale: widget.minScale,
             maxScale: widget.maxScale,
             boundaryMargin: widget.boundaryMargin,
+            panEnabled: widget.panEnabled,
             child: KeyedSubtree(key: _childKey, child: widget.child),
           ),
         ),

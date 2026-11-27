@@ -32,8 +32,26 @@ final class Deletion {
   final Future<void> Function() _undo;
 }
 
+/// Annulation d'une modification du tableau, rendue par
+/// [VergerStore.applyBoardEdit] (à passer à [VergerStore.undoBoardEdit]).
+class BoardUndo {
+  BoardUndo._(this.generation, this._undo);
+
+  /// Génération du tableau après la modification : un instantané de
+  /// [VergerStore.watchBoard] d'au moins cette génération la reflète.
+  final int generation;
+  final Future<void> Function() _undo;
+}
+
 /// Bilan d'une mise à jour de PDF.
 /// PDF joint à un paquet (ou téléchargé à l'import), déjà analysé.
+/// Instantané du tableau (voir [VergerStore.watchBoard]).
+typedef BoardSnapshot = ({
+  List<KnowledgeNode> nodes,
+  List<KnowledgeItem> items,
+  int generation,
+});
+
 typedef PackPdf = ({
   Uint8List bytes,
   String contentHash,
@@ -201,6 +219,7 @@ class VergerStore {
     String? curriculumKey,
     NodeOrigin origin = NodeOrigin.user,
   }) => _db.transaction(() async {
+    _checkParent(parentId);
     final row = NodeRow(
       id: newId(),
       parentId: parentId,
@@ -221,8 +240,13 @@ class VergerStore {
 
   /// Déplace un nœud sous [newParentId] (`null` : en fait un arbre), à la
   /// position [index] parmi ses nouveaux frères (à la fin par défaut).
+  /// « Non classées » reste un arbre et n'accueille aucun nœud.
   Future<void> moveNode(String id, {String? newParentId, int? index}) =>
       _db.transaction(() async {
+        _checkParent(newParentId);
+        if (id == KnowledgeNode.unsortedId && newParentId != null) {
+          throw ArgumentError(_unsortedStaysTree);
+        }
         // Interdit de déplacer un nœud dans sa propre descendance.
         for (String? cursor = newParentId; cursor != null;) {
           if (cursor == id) {
@@ -391,6 +415,7 @@ class VergerStore {
         updatedAt: Value(_now()),
       ),
     );
+    if (moved) await _dropEmptyUnsorted();
   });
 
   /// Place une connaissance dans [nodeId] à la position [index] parmi les
@@ -426,6 +451,7 @@ class VergerStore {
           );
         }
         await _renumberItems(siblings);
+        await _dropEmptyUnsorted();
       });
 
   Future<void> _renumberItems(List<String> orderedIds) async {
@@ -457,8 +483,12 @@ class VergerStore {
         n.id,
     ];
     await (_db.delete(_db.items)..where((i) => i.id.equals(id))).go();
+    final removedUnsorted = await _dropEmptyUnsorted();
     return Deletion._(() async {
       if (item == null) return;
+      if (removedUnsorted != null && await node(removedUnsorted.id) == null) {
+        await _db.into(_db.nodes).insert(removedUnsorted);
+      }
       if (await node(item.nodeId) == null) {
         throw StateError('La branche de la connaissance a été supprimée.');
       }
@@ -515,22 +545,34 @@ class VergerStore {
   /// Nœuds et connaissances lus ensemble, à chaque changement de l'une ou
   /// l'autre table : un instantané cohérent (jamais les régions d'une
   /// écriture sans ses cartes), base de la mise en page du tableau.
-  Stream<({List<KnowledgeNode> nodes, List<KnowledgeItem> items})>
-  watchBoard() => _db
+  /// [generation] : nombre de modifications du tableau (gestes,
+  /// annulations) déjà reflétées par l'instantané.
+  Stream<BoardSnapshot> watchBoard() => _db
       .customSelect('SELECT 1', readsFrom: {_db.nodes, _db.items})
       .watch()
       .asyncMap(
         (_) => _db.transaction(
-          () async => (nodes: await allNodes(), items: await allItems()),
+          () async => (
+            nodes: await allNodes(),
+            items: await allItems(),
+            generation: _boardEdits,
+          ),
         ),
       );
 
   /// Enregistre, en une transaction, des régions de nœuds et des positions
   /// de cartes (unités du tableau). Les identifiants inconnus sont ignorés.
-  Future<void> saveBoardGeometry({
+  ///
+  /// [ifGeneration] : géométrie calculée sur l'instantané de cette
+  /// génération (mise en page automatique) ; si une modification du tableau
+  /// est passée depuis, rien n'est écrit (renvoie faux) : l'instantané
+  /// suivant sera remis en page.
+  Future<bool> saveBoardGeometry({
     Map<String, BoardRect> regions = const {},
     Map<String, BoardPoint> cards = const {},
+    int? ifGeneration,
   }) => _db.transaction(() async {
+    if (ifGeneration != null && ifGeneration != _boardEdits) return false;
     for (final MapEntry(key: id, value: r) in regions.entries) {
       await (_db.update(_db.nodes)..where((n) => n.id.equals(id))).write(
         NodesCompanion(
@@ -546,7 +588,269 @@ class VergerStore {
         ItemsCompanion(boardX: Value(p.x), boardY: Value(p.y)),
       );
     }
+    return true;
   });
+
+  /// Applique une modification du tableau (geste d'édition) en une
+  /// transaction : géométrie, et changement de nœud d'une carte ou de
+  /// parent d'une région (historique et état de révision intacts ; les
+  /// frères quittés sont renumérotés). « Non classées » est créé au besoin,
+  /// et supprimé quand une carte le vide. Renvoie de quoi tout remettre
+  /// comme avant ; seule la dernière modification peut être annulée.
+  Future<BoardUndo> applyBoardEdit(BoardEdit edit) => _db.transaction(() async {
+    const unsorted = KnowledgeNode.unsortedId;
+    final move = edit.itemMove;
+    final reparent = edit.nodeMove;
+    final movedItem = move == null ? null : await item(move.itemId);
+    if (move != null && movedItem == null) {
+      throw StateError(_vanished);
+    }
+    final movedNode = reparent == null ? null : await node(reparent.nodeId);
+    if (reparent != null && movedNode == null) {
+      throw StateError(_vanished);
+    }
+    if (reparent != null) {
+      _checkParent(reparent.parentId);
+      if (reparent.nodeId == unsorted && reparent.parentId != null) {
+        throw ArgumentError(_unsortedStaysTree);
+      }
+    }
+    // Tout ce que le geste déplace existe encore (rien n'a été supprimé
+    // depuis le début du geste).
+    final knownNodes = {
+      for (final r in await (_db.select(
+        _db.nodes,
+      )..where((n) => n.id.isIn(edit.regions.keys))).get())
+        r.id,
+    };
+    final cardIds = {...edit.cards.keys, ...edit.clearedCards};
+    final knownItems = {
+      for (final r in await (_db.select(
+        _db.items,
+      )..where((i) => i.id.isIn(cardIds))).get())
+        r.id,
+    };
+    if (knownNodes.length != edit.regions.length ||
+        knownItems.length != cardIds.length ||
+        (reparent?.parentId != null &&
+            await node(reparent!.parentId!) == null)) {
+      throw StateError(_vanished);
+    }
+    // Lignes touchées, frères quittés compris (renumérotés).
+    final nodeIds = {
+      ...edit.regions.keys,
+      ?reparent?.nodeId,
+      if (movedNode != null)
+        for (final n in await _siblings(movedNode.parentId)) n.id,
+    };
+    final itemIds = {
+      ...edit.cards.keys,
+      ...edit.clearedCards,
+      ?move?.itemId,
+      if (movedItem != null)
+        for (final i in await _itemsQuery(nodeId: movedItem.nodeId).get()) i.id,
+    };
+    Future<List<NodeRow>> nodeRows() =>
+        (_db.select(_db.nodes)..where((n) => n.id.isIn(nodeIds))).get();
+    Future<List<ItemRow>> itemRows() =>
+        (_db.select(_db.items)..where((i) => i.id.isIn(itemIds))).get();
+    final nodesBefore = await nodeRows();
+    final itemsBefore = await itemRows();
+    var createdUnsorted = false;
+    NodeRow? removedUnsorted;
+
+    if (move != null) {
+      if (move.nodeId == unsorted && await node(unsorted) == null) {
+        await _db
+            .into(_db.nodes)
+            .insert(
+              NodeRow(
+                id: unsorted,
+                title: KnowledgeNode.unsortedTitle,
+                sortIndex: (await _siblings(null)).length,
+                origin: NodeOrigin.user,
+                createdAt: _now(),
+              ),
+            );
+        createdUnsorted = true;
+      }
+      if (await node(move.nodeId) == null) {
+        throw StateError(_vanished);
+      }
+      if (move.nodeId != movedItem!.nodeId) {
+        await (_db.update(
+          _db.items,
+        )..where((i) => i.id.equals(move.itemId))).write(
+          ItemsCompanion(
+            nodeId: Value(move.nodeId),
+            sortIndex: Value(await _nextItemIndex(move.nodeId)),
+            updatedAt: Value(_now()),
+          ),
+        );
+        await _renumberItems([
+          for (final i in await _itemsQuery(nodeId: movedItem.nodeId).get())
+            i.id,
+        ]);
+      }
+    }
+    if (reparent != null && reparent.parentId != movedNode!.parentId) {
+      for (String? cursor = reparent.parentId; cursor != null;) {
+        if (cursor == reparent.nodeId) {
+          throw ArgumentError(
+            'Un nœud ne peut pas devenir son propre descendant.',
+          );
+        }
+        cursor = (await node(cursor))?.parentId;
+      }
+      final siblings = (await _siblings(
+        reparent.parentId,
+      )).where((n) => n.id != reparent.nodeId);
+      await (_db.update(
+        _db.nodes,
+      )..where((n) => n.id.equals(reparent.nodeId))).write(
+        NodesCompanion(
+          parentId: Value(reparent.parentId),
+          sortIndex: Value(siblings.length),
+        ),
+      );
+      await _renumber([
+        for (final n in await _siblings(movedNode.parentId)) n.id,
+      ]);
+    }
+    await saveBoardGeometry(regions: edit.regions, cards: edit.cards);
+    if (edit.clearedCards.isNotEmpty) {
+      await (_db.update(
+        _db.items,
+      )..where((i) => i.id.isIn(edit.clearedCards))).write(
+        const ItemsCompanion(boardX: Value(null), boardY: Value(null)),
+      );
+    }
+    // « Non classées » vidée par ce geste : retirée.
+    removedUnsorted = await _dropEmptyUnsorted();
+    final nodesAfter = {for (final r in await nodeRows()) r.id: r};
+    final itemsAfter = {for (final r in await itemRows()) r.id: r};
+    final generation = ++_boardEdits;
+
+    return BoardUndo._(generation, () async {
+      if (generation != _boardEdits) {
+        throw StateError(
+          'Seul le dernier déplacement du tableau peut être annulé.',
+        );
+      }
+      // Rien de ce qu'on remet ne doit avoir changé depuis (la mise en page
+      // automatique a seulement pu placer ce qui était sans place).
+      bool same(double? after, double? now) => after == null || after == now;
+      for (final row in await nodeRows()) {
+        final after = nodesAfter[row.id];
+        if (after == null) continue;
+        if (row.parentId != after.parentId ||
+            !same(after.boardX, row.boardX) ||
+            !same(after.boardY, row.boardY) ||
+            !same(after.boardWidth, row.boardWidth) ||
+            !same(after.boardHeight, row.boardHeight)) {
+          throw StateError(_changedSince);
+        }
+      }
+      for (final row in await itemRows()) {
+        final after = itemsAfter[row.id];
+        if (after == null) continue;
+        if (row.nodeId != after.nodeId ||
+            !same(after.boardX, row.boardX) ||
+            !same(after.boardY, row.boardY)) {
+          throw StateError(_changedSince);
+        }
+      }
+      // Hiérarchie rétablie sans cycle.
+      final parents = {for (final n in await allNodes()) n.id: n.parentId};
+      final removed = removedUnsorted;
+      if (removed != null) parents[removed.id] = removed.parentId;
+      for (final row in nodesBefore) {
+        if (parents.containsKey(row.id) &&
+            (row.parentId == null || parents.containsKey(row.parentId))) {
+          parents[row.id] = row.parentId;
+        }
+      }
+      for (final id in parents.keys) {
+        final seen = <String>{};
+        for (String? c = id; c != null; c = parents[c]) {
+          if (!seen.add(c)) throw StateError(_changedSince);
+        }
+      }
+
+      if (removed != null && await node(unsorted) == null) {
+        await _db.into(_db.nodes).insert(removed);
+      }
+      for (final row in nodesBefore) {
+        final parentGone =
+            row.parentId != null && await node(row.parentId!) == null;
+        await (_db.update(_db.nodes)..where((n) => n.id.equals(row.id))).write(
+          NodesCompanion(
+            parentId: parentGone ? const Value.absent() : Value(row.parentId),
+            sortIndex: Value(row.sortIndex),
+            boardX: Value(row.boardX),
+            boardY: Value(row.boardY),
+            boardWidth: Value(row.boardWidth),
+            boardHeight: Value(row.boardHeight),
+          ),
+        );
+      }
+      for (final row in itemsBefore) {
+        final nodeGone = await node(row.nodeId) == null;
+        await (_db.update(_db.items)..where((i) => i.id.equals(row.id))).write(
+          ItemsCompanion(
+            nodeId: nodeGone ? const Value.absent() : Value(row.nodeId),
+            sortIndex: Value(row.sortIndex),
+            boardX: Value(row.boardX),
+            boardY: Value(row.boardY),
+          ),
+        );
+      }
+      if (createdUnsorted) await _dropEmptyUnsorted();
+      _boardEdits++;
+    });
+  });
+
+  static const _vanished = 'Ce que vous déplaciez a été supprimé entre-temps.';
+  static const _unsortedStaysTree =
+      '« Non classées » reste un arbre et n\'accueille que des cartes.';
+
+  /// Refuse « Non classées » comme parent d'un nœud.
+  static void _checkParent(String? parentId) {
+    if (parentId == KnowledgeNode.unsortedId) {
+      throw ArgumentError(_unsortedStaysTree);
+    }
+  }
+
+  /// Retire « Non classées » s'il est vide ; renvoie la ligne retirée
+  /// (pour une annulation), `null` sinon. Appelé par tout ce qui peut
+  /// en faire sortir la dernière carte.
+  Future<NodeRow?> _dropEmptyUnsorted() async {
+    const unsorted = KnowledgeNode.unsortedId;
+    final row = await (_db.select(
+      _db.nodes,
+    )..where((n) => n.id.equals(unsorted))).getSingleOrNull();
+    if (row == null) return null;
+    final empty =
+        (await _itemsQuery(nodeId: unsorted).get()).isEmpty &&
+        (await _siblings(unsorted)).isEmpty;
+    if (!empty) return null;
+    await (_db.delete(_db.nodes)..where((n) => n.id.equals(unsorted))).go();
+    await _renumber([for (final n in await _siblings(null)) n.id]);
+    return row;
+  }
+
+  static const _changedSince =
+      'Le tableau a changé depuis ce déplacement : impossible de l\'annuler.';
+
+  /// Nombre de modifications du tableau appliquées ou annulées : seule la
+  /// dernière garde une annulation valable.
+  var _boardEdits = 0;
+
+  /// Défait une modification du tableau ([applyBoardEdit]). Lève une
+  /// [StateError] (message en français) si ce n'est plus la dernière, si
+  /// ce qu'elle a touché a changé depuis, ou si la hiérarchie rétablie
+  /// aurait un cycle : rien n'est alors modifié.
+  Future<void> undoBoardEdit(BoardUndo undo) => _db.transaction(undo._undo);
 
   /// Efface la géométrie d'un nœud, de sa descendance et de leurs cartes.
   Future<void> _clearBranchGeometry(String nodeId) async {
@@ -1400,6 +1704,9 @@ class VergerStore {
   /// descendance, connaissances (sans état de révision), contenus rattachés
   /// (y compris hérités des ancêtres) ou utilisés, ancres et notes.
   Future<VergerArchive> exportTree(String nodeId) async {
+    if (nodeId == KnowledgeNode.unsortedId) {
+      throw ArgumentError('« Non classées » ne se partage pas.');
+    }
     final all = await allNodes();
     final root = all.firstWhere((n) => n.id == nodeId);
     final subtree = <String>{nodeId};
@@ -1496,10 +1803,21 @@ class VergerStore {
     );
   }
 
+  /// Un paquet garde ses identifiants : celui, réservé, de « Non
+  /// classées » remplacerait les cartes non classées de l'appareil.
+  static void _refuseReservedNodes(VergerArchive archive) {
+    if (archive.nodes.any((n) => n.id == KnowledgeNode.unsortedId)) {
+      throw const ArchiveFormatException(
+        'Ce paquet contient « Non classées », qui ne se partage pas.',
+      );
+    }
+  }
+
   /// Ce que l'import de [archive] changerait aux arbres déjà présents (même
   /// identifiant) : à montrer avant de choisir entre remplacer et combiner.
   Future<PackImportPreview> previewPack(VergerArchive archive) async {
     archive.validate();
+    _refuseReservedNodes(archive);
     final plan = await _planPack(archive);
     final reviews = plan.lostItems.isEmpty
         ? 0
@@ -1536,6 +1854,7 @@ class VergerStore {
     PackImportMode mode = PackImportMode.replace,
   }) => _db.transaction(() async {
     archive.validate();
+    _refuseReservedNodes(archive);
     final plan = await _planPack(archive);
     final replace = mode == PackImportMode.replace;
 

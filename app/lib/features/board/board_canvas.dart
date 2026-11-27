@@ -90,6 +90,9 @@ class BoardScene {
     Color(0xFF7A6248), // écorce
   ];
 
+  /// Couleur de « Non classées ».
+  static const unsortedColor = Color(0xFF8A8A8A);
+
   /// Marge autour du contenu.
   static const margin = 400.0;
 
@@ -121,7 +124,9 @@ class BoardScene {
       final parent = byId[n.parentId];
       final d = parent == null ? 0 : depthOf(parent) + 1;
       colorOf[n.id] = parent == null
-          ? palette[rootIndex[n.id]! % palette.length]
+          ? (n.isUnsorted
+                ? unsortedColor
+                : palette[rootIndex[n.id]! % palette.length])
           : colorOf[parent.id]!;
       return depth[n.id] = d;
     }
@@ -238,6 +243,54 @@ class _View {
   int get hashCode => Object.hash(area, detail, step);
 }
 
+/// Élément saisi en mode édition.
+sealed class BoardTarget {
+  const BoardTarget();
+}
+
+/// Carte d'une connaissance.
+final class CardTarget extends BoardTarget {
+  const CardTarget(this.itemId);
+  final String itemId;
+}
+
+/// Région d'un nœud, par son bandeau de titre.
+final class RegionTarget extends BoardTarget {
+  const RegionTarget(this.nodeId);
+  final String nodeId;
+}
+
+/// Poignée de redimensionnement : côtés tirés ([hx], [hy] : -1 gauche /
+/// haut, 1 droite / bas, 0 aucun).
+final class ResizeTarget extends BoardTarget {
+  const ResizeTarget(this.nodeId, this.hx, this.hy);
+  final String nodeId;
+  final int hx;
+  final int hy;
+}
+
+/// Aperçu d'un geste d'édition, dans le repère du dessin.
+@immutable
+class BoardDrag {
+  const BoardDrag({
+    required this.target,
+    this.delta = Offset.zero,
+    this.resized,
+    this.highlight,
+  });
+
+  final BoardTarget target;
+
+  /// Déplacement d'une carte ou d'une région.
+  final Offset delta;
+
+  /// Nouveau rectangle d'une région redimensionnée.
+  final Rect? resized;
+
+  /// Région d'arrivée, mise en évidence.
+  final String? highlight;
+}
+
 /// Dessin du tableau, à placer dans un `InteractiveViewer` (non contraint)
 /// piloté par [controller]. Seuls les régions et cartes qui touchent la
 /// zone visible sont construites.
@@ -249,7 +302,20 @@ class BoardCanvas extends StatefulWidget {
     required this.viewport,
     this.onOpenItem,
     this.onOpenNode,
+    this.editing = false,
+    this.drag,
+    this.onEditDown,
   });
+
+  /// Mode édition : cartes, bandeaux de titre et poignées saisissables.
+  final bool editing;
+
+  /// Geste d'édition en cours (aperçu).
+  final BoardDrag? drag;
+
+  /// Appui sur un élément saisissable (mode édition) ; la page suit
+  /// ensuite le geste.
+  final void Function(PointerDownEvent event, BoardTarget target)? onEditDown;
 
   final BoardScene scene;
   final TransformationController controller;
@@ -311,14 +377,53 @@ class _BoardCanvasState extends State<BoardCanvas> {
     final scene = widget.scene;
     final view = _view;
     final far = view.detail == BoardDetail.far;
+    final drag = widget.drag;
+    final editing = widget.editing;
+
+    // Aperçu du geste en cours : éléments déplacés ou redimensionnés.
+    final moving = <String>{};
+    var offset = Offset.zero;
+    String? movingCard;
+    String? resized;
+    switch (drag?.target) {
+      case CardTarget(:final itemId):
+        movingCard = itemId;
+        offset = drag!.delta;
+      case RegionTarget(:final nodeId):
+        moving.add(nodeId);
+        for (final r in scene.regions) {
+          if (moving.contains(r.node.parentId)) moving.add(r.node.id);
+        }
+        offset = drag!.delta;
+      case ResizeTarget(:final nodeId):
+        resized = nodeId;
+      case null:
+    }
+    Rect regionRect(SceneRegion r) => r.node.id == resized
+        ? drag!.resized ?? r.rect
+        : moving.contains(r.node.id)
+        ? r.rect.shift(offset)
+        : r.rect;
+    Rect cardRect(SceneCard c) =>
+        c.item.id == movingCard || moving.contains(c.item.nodeId)
+        ? c.rect.shift(offset)
+        : c.rect;
+    bool isMoving(SceneRegion r) => moving.contains(r.node.id);
+
     final regions = [
       for (final r in scene.regions)
-        if (r.rect.overlaps(view.area)) r,
-    ];
+        if (regionRect(r).overlaps(view.area)) r,
+    ]..sort((a, b) => (isMoving(a) ? 1 : 0).compareTo(isMoving(b) ? 1 : 0));
     final cards = [
       for (final c in scene.cards)
-        if (c.rect.overlaps(view.area)) c,
+        if (c.item.id != movingCard && cardRect(c).overlaps(view.area)) c,
+      ...scene.cards.where((c) => c.item.id == movingCard),
     ];
+    // Zone de prise des poignées : 36 px à l'écran.
+    final grip = 36 / view.scale;
+
+    void onTapNode(SceneRegion r) => widget.onOpenNode?.call(r.node);
+
     return SizedBox.fromSize(
       size: scene.size,
       child: Stack(
@@ -327,22 +432,47 @@ class _BoardCanvasState extends State<BoardCanvas> {
           for (final r in regions)
             Positioned.fromRect(
               key: ValueKey('region ${r.node.id}'),
-              rect: r.rect,
+              rect: regionRect(r),
               child: _RegionBox(
                 region: r,
                 band: scene.config.titleBand(r.depth),
                 showTitle: !far,
-                onTap: widget.onOpenNode == null
-                    ? null
-                    : () => widget.onOpenNode!(r.node),
+                highlight: drag?.highlight == r.node.id,
+                onTap: widget.onOpenNode == null ? null : () => onTapNode(r),
               ),
             ),
+          // Édition : bandeau de titre à saisir pour déplacer la région.
+          if (editing && !far)
+            for (final r in regions)
+              Positioned(
+                key: ValueKey('grip ${r.node.id}'),
+                left: regionRect(r).left,
+                top: regionRect(r).top,
+                width: regionRect(r).width,
+                height: scene.config.titleBand(r.depth),
+                child: _EditHandle(
+                  target: RegionTarget(r.node.id),
+                  cursor: SystemMouseCursors.grab,
+                  onDown: widget.onEditDown,
+                  onTap: () => onTapNode(r),
+                ),
+              ),
           if (far)
             Positioned.fill(
               key: const ValueKey('blocks'),
               child: IgnorePointer(
                 child: CustomPaint(
-                  painter: _BlocksPainter(cards, Theme.of(context).colorScheme),
+                  painter: _BlocksPainter([
+                    for (final c in cards)
+                      c.rect == cardRect(c)
+                          ? c
+                          : SceneCard(
+                              item: c.item,
+                              rect: cardRect(c),
+                              mastery: c.mastery,
+                              color: c.color,
+                            ),
+                  ], Theme.of(context).colorScheme),
                 ),
               ),
             )
@@ -350,13 +480,18 @@ class _BoardCanvasState extends State<BoardCanvas> {
             for (final c in cards)
               Positioned.fromRect(
                 key: ValueKey('card ${c.item.id}'),
-                rect: c.rect,
-                child: BoardCard(
-                  card: c,
-                  latex: view.detail == BoardDetail.near,
-                  onTap: widget.onOpenItem == null
-                      ? null
-                      : () => widget.onOpenItem!(c.item),
+                rect: cardRect(c),
+                child: _maybeEditable(
+                  editing,
+                  CardTarget(c.item.id),
+                  BoardCard(
+                    card: c,
+                    latex: view.detail == BoardDetail.near,
+                    lifted: c.item.id == movingCard,
+                    onTap: widget.onOpenItem == null
+                        ? null
+                        : () => widget.onOpenItem!(c.item),
+                  ),
                 ),
               ),
           if (far)
@@ -364,18 +499,127 @@ class _BoardCanvasState extends State<BoardCanvas> {
               if (_FarLabel.fits(r, view.scale))
                 Positioned(
                   key: ValueKey('label ${r.node.id}'),
-                  left: r.rect.left + scene.config.padding / 2,
-                  top: r.rect.top + scene.config.padding / 2,
+                  left: regionRect(r).left + scene.config.padding / 2,
+                  top: regionRect(r).top + scene.config.padding / 2,
                   width: r.rect.width - scene.config.padding,
-                  child: _FarLabel(
-                    region: r,
-                    scale: view.scale,
-                    onTap: widget.onOpenNode == null
-                        ? null
-                        : () => widget.onOpenNode!(r.node),
+                  child: _maybeEditable(
+                    editing,
+                    RegionTarget(r.node.id),
+                    _FarLabel(
+                      region: r,
+                      scale: view.scale,
+                      onTap: widget.onOpenNode == null
+                          ? null
+                          : () => onTapNode(r),
+                    ),
+                  ),
+                ),
+          // Édition : poignées de redimensionnement (bords et coins).
+          if (editing)
+            for (final r in regions)
+              for (final h in _handles)
+                Positioned.fromRect(
+                  key: ValueKey('resize ${r.node.id} ${h.$1} ${h.$2}'),
+                  rect: _handleRect(regionRect(r), h.$1, h.$2, grip),
+                  child: _EditHandle(
+                    target: ResizeTarget(r.node.id, h.$1, h.$2),
+                    cursor: _cursor(h.$1, h.$2),
+                    onDown: widget.onEditDown,
+                    mark: h.$1 != 0 && h.$2 != 0
+                        ? r.color.withValues(alpha: 0.9)
+                        : null,
+                    markSize: 12 / view.scale,
                   ),
                 ),
         ],
+      ),
+    );
+  }
+
+  Widget _maybeEditable(bool editing, BoardTarget target, Widget child) {
+    if (!editing) return child;
+    return MouseRegion(
+      cursor: SystemMouseCursors.grab,
+      child: Listener(
+        onPointerDown: (e) => widget.onEditDown?.call(e, target),
+        child: child,
+      ),
+    );
+  }
+
+  /// Côtés tirés par chaque poignée : -1 gauche / haut, 1 droite / bas.
+  static const _handles = [
+    (-1, -1), (0, -1), (1, -1), //
+    (-1, 0), (1, 0), //
+    (-1, 1), (0, 1), (1, 1),
+  ];
+
+  static Rect _handleRect(Rect r, int hx, int hy, double grip) {
+    double along(int h, double start, double end) => switch (h) {
+      -1 => start - grip / 2,
+      1 => end - grip / 2,
+      _ => start + grip / 2,
+    };
+    final left = along(hx, r.left, r.right);
+    final top = along(hy, r.top, r.bottom);
+    final width = hx == 0 ? math.max(0.0, r.width - grip) : grip;
+    final height = hy == 0 ? math.max(0.0, r.height - grip) : grip;
+    return Rect.fromLTWH(left, top, width, height);
+  }
+
+  static MouseCursor _cursor(int hx, int hy) => switch ((hx, hy)) {
+    (0, _) => SystemMouseCursors.resizeUpDown,
+    (_, 0) => SystemMouseCursors.resizeLeftRight,
+    (-1, -1) || (1, 1) => SystemMouseCursors.resizeUpLeftDownRight,
+    _ => SystemMouseCursors.resizeUpRightDownLeft,
+  };
+}
+
+/// Élément saisissable en mode édition : signale l'appui (le geste est
+/// suivi par la page), et garde le toucher simple.
+class _EditHandle extends StatelessWidget {
+  const _EditHandle({
+    required this.target,
+    required this.cursor,
+    this.onDown,
+    this.onTap,
+    this.mark,
+    this.markSize = 12,
+  });
+
+  final BoardTarget target;
+  final MouseCursor cursor;
+  final void Function(PointerDownEvent event, BoardTarget target)? onDown;
+  final VoidCallback? onTap;
+
+  /// Repère visible (coins), sinon zone invisible.
+  final Color? mark;
+  final double markSize;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: cursor,
+      child: Listener(
+        behavior: HitTestBehavior.opaque,
+        onPointerDown: (e) => onDown?.call(e, target),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          child: mark == null
+              ? const SizedBox.expand()
+              : Center(
+                  child: Container(
+                    width: markSize,
+                    height: markSize,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border.all(color: mark!, width: markSize / 5),
+                      borderRadius: BorderRadius.circular(markSize / 4),
+                    ),
+                  ),
+                ),
+        ),
       ),
     );
   }
@@ -387,12 +631,16 @@ class _RegionBox extends StatelessWidget {
     required this.region,
     required this.band,
     required this.showTitle,
+    this.highlight = false,
     this.onTap,
   });
 
   final SceneRegion region;
   final double band;
   final bool showTitle;
+
+  /// Région d'arrivée du geste en cours.
+  final bool highlight;
   final VoidCallback? onTap;
 
   static double radius(int depth) => switch (depth) {
@@ -414,15 +662,21 @@ class _RegionBox extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         // Fonds translucides : une région imbriquée paraît plus foncée.
-        color: color.withValues(alpha: depth == 0 ? 0.05 : 0.07),
+        color: highlight
+            ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.12)
+            : color.withValues(alpha: depth == 0 ? 0.05 : 0.07),
         borderRadius: BorderRadius.circular(radius(depth)),
         border: Border.all(
-          color: color.withValues(alpha: depth == 0 ? 0.8 : 0.55),
-          width: switch (depth) {
-            0 => 4,
-            1 => 2.5,
-            _ => 1.5,
-          },
+          color: highlight
+              ? Theme.of(context).colorScheme.primary
+              : color.withValues(alpha: depth == 0 ? 0.8 : 0.55),
+          width:
+              switch (depth) {
+                0 => 4,
+                1 => 2.5,
+                _ => 1.5,
+              } *
+              (highlight ? 2.5 : 1),
         ),
       ),
       child: Align(
@@ -537,10 +791,14 @@ class BoardCard extends StatelessWidget {
     super.key,
     required this.card,
     required this.latex,
+    this.lifted = false,
     this.onTap,
   });
 
   final SceneCard card;
+
+  /// En train d'être déplacée : soulevée (ombre).
+  final bool lifted;
 
   /// Titre avec ses formules (sinon texte simple, plus léger).
   final bool latex;
@@ -561,6 +819,9 @@ class BoardCard extends StatelessWidget {
           color: cardColor(card, scheme),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: card.color.withValues(alpha: 0.6)),
+          boxShadow: lifted
+              ? const [BoxShadow(blurRadius: 16, color: Color(0x40000000))]
+              : null,
         ),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(8, 8, 10, 6),

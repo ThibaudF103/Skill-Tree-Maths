@@ -4,6 +4,8 @@ import '../domain/knowledge_item.dart';
 import '../domain/knowledge_node.dart';
 import 'board_geometry.dart';
 
+part 'board_edit.dart';
+
 /// Dimensions de la mise en page automatique du tableau (unités du
 /// tableau).
 final class BoardLayoutConfig {
@@ -129,6 +131,7 @@ class _Layout {
       // Parent inconnu : traité comme un arbre.
       final parent = ids.contains(n.parentId) ? n.parentId : null;
       (_children[parent] ??= []).add(n);
+      _parentOf[n.id] = parent;
     }
     for (final list in _children.values) {
       list.sort(
@@ -139,7 +142,9 @@ class _Layout {
       );
     }
     for (final i in items) {
-      if (ids.contains(i.nodeId)) (_items[i.nodeId] ??= []).add(i);
+      if (!ids.contains(i.nodeId)) continue;
+      (_items[i.nodeId] ??= []).add(i);
+      _itemNode[i.id] = i.nodeId;
     }
     for (final list in _items.values) {
       list.sort(
@@ -171,6 +176,8 @@ class _Layout {
 
   final BoardLayoutConfig c;
   final _children = <String?, List<KnowledgeNode>>{};
+  final _parentOf = <String, String?>{};
+  final _itemNode = <String, String>{};
   final _items = <String, List<KnowledgeItem>>{};
   final _depth = <String, int>{};
   final _regions = <String, BoardRect>{};
@@ -393,7 +400,15 @@ class _Layout {
   /// qui est déjà placé bouge ainsi le moins possible : une région qui
   /// grandit pousse ses voisines, elle ne saute pas. Les boîtes qui ne
   /// touchent à rien ne bougent pas.
-  void _resolve(List<_Box> boxes, Set<String> dirty, double gap) {
+  ///
+  /// [placed] : boîte qu'on vient de déposer. Ce qui est au-dessus d'elle y
+  /// reste : c'est elle qui glisse juste en dessous.
+  void _resolve(
+    List<_Box> boxes,
+    Set<String> dirty,
+    double gap, {
+    String? placed,
+  }) {
     int order(_Box a, _Box b) {
       final dy = a.rect.y.compareTo(b.rect.y);
       if (dy != 0) return dy;
@@ -416,7 +431,10 @@ class _Layout {
           // [a] est concernée : [b] s'écarte, sauf si elle l'est aussi et
           // vient avant.
           final bothDirty = dirty.contains(b.id);
-          (mover, obstacle) = bothDirty && j < i ? (a, b) : (b, a);
+          final keepAbove = a.id == placed && !bothDirty && b.rect.y < a.rect.y;
+          (mover, obstacle) = keepAbove || (bothDirty && j < i)
+              ? (a, b)
+              : (b, a);
           break search;
         }
       }
@@ -434,21 +452,22 @@ class _Layout {
       _changedCards.add(box.id);
       return;
     }
-    void move(String id) {
-      _regions[id] = _regions[id]!.translate(0, dy);
-      _changedRegions.add(id);
-      for (final i in _cardsOf(id)) {
-        final p = _cards[i.id];
-        if (p == null) continue;
-        _cards[i.id] = p.translate(0, dy);
-        _changedCards.add(i.id);
-      }
-      for (final k in _kids(id)) {
-        if (_regions.containsKey(k.id)) move(k.id);
-      }
-    }
+    _translate(box.id, 0, dy);
+  }
 
-    move(box.id);
+  /// Décale une région avec ses sous-régions et leurs cartes.
+  void _translate(String id, double dx, double dy) {
+    _regions[id] = _regions[id]!.translate(dx, dy);
+    _changedRegions.add(id);
+    for (final i in _cardsOf(id)) {
+      final p = _cards[i.id];
+      if (p == null) continue;
+      _cards[i.id] = p.translate(dx, dy);
+      _changedCards.add(i.id);
+    }
+    for (final k in _kids(id)) {
+      if (_regions.containsKey(k.id)) _translate(k.id, dx, dy);
+    }
   }
 
   /// Mise en page neuve du sous-arbre [id] (ignore toute géométrie
