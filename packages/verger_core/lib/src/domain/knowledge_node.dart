@@ -1,3 +1,5 @@
+import '../board/board_geometry.dart';
+
 /// Provenance d'un nœud : programme importé ou créé par l'utilisateur.
 enum NodeOrigin { official, user }
 
@@ -12,6 +14,7 @@ final class KnowledgeNode {
     this.parentId,
     this.curriculumKey,
     this.origin = NodeOrigin.user,
+    this.board,
   });
 
   final String id;
@@ -26,6 +29,10 @@ final class KnowledgeNode {
   final String? curriculumKey;
   final NodeOrigin origin;
   final DateTime createdAt;
+
+  /// Région du nœud sur le tableau ; `null` tant qu'elle n'est pas placée
+  /// (la mise en page automatique s'en charge).
+  final BoardRect? board;
 
   bool get isTree => parentId == null;
 }

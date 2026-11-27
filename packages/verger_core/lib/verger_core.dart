@@ -1,6 +1,8 @@
 /// Logique métier du Verger, indépendante de Flutter et de la persistance.
 library;
 
+export 'src/board/board_geometry.dart';
+export 'src/board/board_layout.dart';
 export 'src/documents/page_remap.dart';
 export 'src/domain/anchor.dart';
 export 'src/exercises/exercise_draft.dart';
