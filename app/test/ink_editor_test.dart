@@ -181,6 +181,105 @@ void main() {
     await unmountTestApp(tester);
   });
 
+  testWidgets('palette flottante : bouton rond, outils, repli', (tester) async {
+    await pumpTestApp(tester, seed: seed);
+    await tester.tap(find.text('Arbres'));
+    await settle(tester);
+    await tester.tap(find.text('Théorème de Rolle'));
+    await settle(tester);
+    await openHandwriting(tester);
+
+    final button = find.byKey(InkEditor.paletteButtonKey);
+    final palette = find.byKey(InkEditor.paletteKey);
+    InkEditorController controller() =>
+        tester.widget<InkEditor>(find.byType(InkEditor)).controller;
+
+    // Pas de barre d'outils : seulement les boutons ronds.
+    expect(button, findsOneWidget);
+    expect(palette, findsNothing);
+    expect(find.byTooltip('Surligneur'), findsNothing);
+    expect(find.byTooltip('Annuler'), findsOneWidget);
+    expect(find.byTooltip('Rétablir'), findsOneWidget);
+    expect(tester.getSize(button), const Size.square(48));
+
+    // Le bouton déplie la palette ; elle reste ouverte pendant les choix.
+    await tester.tap(button);
+    await tester.pump();
+    expect(palette, findsOneWidget);
+    await tester.tap(find.byTooltip('Surligneur'));
+    await tester.pump();
+    expect(controller().mode, InkMode.highlighter);
+    await tester.tap(find.byTooltip(inkColors[2].name));
+    await tester.pump();
+    expect(controller().mode, InkMode.pen);
+    expect(controller().color, inkColors[2].color);
+    await tester.tap(find.text(inkWidths.last.name));
+    await tester.pump();
+    expect(controller().width, inkWidths.last.width);
+    await tester.tap(find.byTooltip('Écrire au doigt'));
+    await tester.pump();
+    expect(controller().fingerDraws, isTrue);
+    expect(palette, findsOneWidget);
+
+    // Le bouton la replie.
+    await tester.tap(button);
+    await tester.pump();
+    expect(palette, findsNothing);
+
+    // Un trait dans la page la replie aussi, et s'écrit.
+    await tester.tap(button);
+    await tester.pump();
+    final canvas = find.byWidgetPredicate(
+      (w) => w is CustomPaint && w.painter is InkPainter,
+    );
+    final origin = tester.getTopLeft(canvas.first);
+    final pen = await tester.startGesture(
+      origin + const Offset(40, 80),
+      kind: PointerDeviceKind.stylus,
+    );
+    for (var i = 1; i <= 10; i++) {
+      await pen.moveBy(const Offset(10, 3));
+    }
+    await pen.up();
+    await tester.pump();
+    expect(palette, findsNothing);
+    expect(controller().ink.strokes, hasLength(1));
+
+    // Un trait qui passe sous un bouton rond n'est pas interrompu…
+    final undo = tester.getCenter(find.byTooltip('Annuler'));
+    final pass = await tester.startGesture(
+      Offset(undo.dx - 200, undo.dy + 4),
+      kind: PointerDeviceKind.stylus,
+    );
+    for (var i = 1; i <= 20; i++) {
+      await pass.moveBy(const Offset(10, 0));
+    }
+    await pass.up();
+    await tester.pump();
+    expect(controller().ink.strokes, hasLength(2));
+    expect(controller().ink.strokes.last.points.length, greaterThan(15));
+
+    // … mais un toucher qui commence sur un bouton ne trace rien.
+    await tester.tap(find.byTooltip('Annuler'), kind: PointerDeviceKind.stylus);
+    await tester.pump();
+    expect(controller().ink.strokes, hasLength(1));
+    // À côté du bouton de la palette, le stylet écrit.
+    final beside = tester.getTopLeft(button) - const Offset(100, 0);
+    final near = await tester.startGesture(
+      beside,
+      kind: PointerDeviceKind.stylus,
+    );
+    await near.moveBy(const Offset(-40, -10));
+    await near.up();
+    await tester.pump();
+    expect(controller().ink.strokes, hasLength(2));
+    expect(palette, findsNothing);
+
+    await tester.pageBack();
+    await settle(tester);
+    await unmountTestApp(tester);
+  });
+
   testWidgets('gestes de l\'Apple Pencil : gomme et palette', (tester) async {
     await pumpTestApp(tester, seed: seed);
     await tester.tap(find.text('Arbres'));
@@ -189,50 +288,54 @@ void main() {
     await settle(tester);
     await openHandwriting(tester);
 
-    bool selected(String tool) => tester
-        .widgetList<IconButton>(
-          find.ancestor(
-            of: find.byTooltip(tool),
-            matching: find.byType(IconButton),
-          ),
-        )
-        .first
-        .isSelected!;
+    final palette = find.byKey(InkEditor.paletteKey);
+    InkMode mode() =>
+        tester.widget<InkEditor>(find.byType(InkEditor)).controller.mode;
 
     PencilGestures.dispatch((action: PencilAction.eraser, at: null));
     await tester.pump();
-    expect(selected('Gomme'), isTrue);
+    expect(mode(), InkMode.eraser);
     PencilGestures.dispatch((action: PencilAction.eraser, at: null));
     await tester.pump();
-    expect(selected('Stylo'), isTrue);
+    expect(mode(), InkMode.pen);
 
-    // Palette près du stylet ; un choix la referme.
+    // Le geste « palette » déplie la palette flottante ; un choix la
+    // laisse ouverte.
     PencilGestures.dispatch((
       action: PencilAction.palette,
       at: const Offset(300, 400),
     ));
     await tester.pump();
-    expect(find.byTooltip('Surligneur'), findsNWidgets(2));
-    await tester.tap(find.byTooltip('Surligneur').last);
+    expect(palette, findsOneWidget);
+    await tester.tap(find.byTooltip('Surligneur'));
     await tester.pump();
-    expect(find.byTooltip('Surligneur'), findsOneWidget);
-    expect(selected('Surligneur'), isTrue);
+    expect(mode(), InkMode.highlighter);
+    expect(
+      tester
+          .widget<IconButton>(
+            find.ancestor(
+              of: find.byTooltip('Surligneur'),
+              matching: find.byType(IconButton),
+            ),
+          )
+          .isSelected,
+      isTrue,
+    );
+    expect(palette, findsOneWidget);
 
-    // Second geste : la palette se referme.
+    // Second geste : la palette se replie.
     PencilGestures.dispatch((action: PencilAction.palette, at: null));
     await tester.pump();
-    expect(find.byTooltip('Surligneur'), findsNWidgets(2));
-    PencilGestures.dispatch((action: PencilAction.palette, at: null));
-    await tester.pump();
-    expect(find.byTooltip('Surligneur'), findsOneWidget);
+    expect(palette, findsNothing);
 
-    // Geste « gomme » palette ouverte : la palette se referme.
+    // Geste « gomme » palette ouverte : la palette se replie.
     PencilGestures.dispatch((action: PencilAction.palette, at: null));
     await tester.pump();
+    expect(palette, findsOneWidget);
     PencilGestures.dispatch((action: PencilAction.eraser, at: null));
     await tester.pump();
-    expect(find.byTooltip('Surligneur'), findsOneWidget);
-    expect(selected('Gomme'), isTrue);
+    expect(palette, findsNothing);
+    expect(mode(), InkMode.eraser);
 
     await tester.pageBack();
     await settle(tester);

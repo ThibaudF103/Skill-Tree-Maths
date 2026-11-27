@@ -60,9 +60,19 @@ void main() {
     await tester.pump();
     expect(_height(tester, _note), closeTo(before + 100, 1));
 
-    // Tout en haut : le contenu garde sa hauteur minimale.
-    await tester.drag(find.byKey(NoteSplit.handleKey), const Offset(0, -2000));
+    // Jusqu'en haut, sans dépasser le seuil d'aimantation : le contenu
+    // garde sa hauteur minimale.
+    final toMax =
+        800 -
+        NoteSplit.handleHeight -
+        NoteSplit.minContentHeight -
+        _height(tester, _note);
+    await tester.drag(
+      find.byKey(NoteSplit.handleKey),
+      Offset(0, -(toMax + NoteSplit.snapDistance / 2)),
+    );
     await tester.pump();
+    expect(find.byKey(_content), findsOneWidget);
     expect(_height(tester, _content), closeTo(NoteSplit.minContentHeight, 1));
 
     // Tout en bas : la note garde sa hauteur minimale.
@@ -100,6 +110,72 @@ void main() {
     expect(find.byKey(_content), findsOneWidget);
 
     await tester.tap(find.byTooltip('Fermer la note'));
+    expect(closed, isTrue);
+  });
+
+  testWidgets('poignée tirée tout en haut : plein écran (aimantation)', (
+    tester,
+  ) async {
+    await pumpSplit(tester, _split());
+    final handle = find.byKey(NoteSplit.handleKey);
+    double hintOpacity() => tester
+        .widget<AnimatedOpacity>(
+          find.descendant(
+            of: find.byKey(NoteSplit.maximizeHintKey),
+            matching: find.byType(AnimatedOpacity),
+          ),
+        )
+        .opacity;
+
+    // Pendant le glissement, au-delà du seuil : le contenu se voile, la
+    // poignée suit le doigt jusqu'en haut.
+    final gesture = await tester.startGesture(tester.getCenter(handle));
+    await gesture.moveBy(const Offset(0, -100));
+    await tester.pump();
+    expect(hintOpacity(), 0);
+    await gesture.moveBy(const Offset(0, -400));
+    await tester.pump();
+    expect(hintOpacity(), 1);
+    expect(tester.getTopLeft(handle).dy, lessThan(100));
+    await gesture.up();
+    await tester.pump();
+    // Relâchée : plein écran, le contenu est conservé.
+    expect(find.byKey(_content), findsNothing);
+    expect(find.byKey(_content, skipOffstage: false), findsOneWidget);
+    expect(find.byKey(NoteSplit.maximizeHintKey), findsNothing);
+    expect(_height(tester, _note), 800 - NoteSplit.handleHeight);
+    expect(find.byTooltip('Réduire la note'), findsOneWidget);
+
+    // Tirée vers le bas depuis le plein écran : retour à l'écran partagé.
+    await tester.drag(handle, const Offset(0, 300));
+    await tester.pump();
+    expect(find.byKey(_content), findsOneWidget);
+    expect(
+      _height(tester, _note),
+      closeTo(800 - NoteSplit.handleHeight - 300, 2),
+    );
+
+    // Un petit glissement vers le haut depuis le plein écran le garde.
+    await tester.tap(find.byTooltip('Agrandir la note'));
+    await tester.pump();
+    await tester.drag(handle, const Offset(0, 20));
+    await tester.pump();
+    expect(find.byKey(_content), findsNothing);
+  });
+
+  testWidgets('poignée tirée tout en bas : la note se ferme', (tester) async {
+    var closed = false;
+    await pumpSplit(tester, _split(onClose: () => closed = true));
+    final handle = find.byKey(NoteSplit.handleKey);
+    // Sous la hauteur minimale, sans dépasser le seuil : rien.
+    final toMin = _height(tester, _note) - NoteSplit.minNoteHeight;
+    await tester.drag(handle, Offset(0, toMin + NoteSplit.snapDistance / 2));
+    await tester.pump();
+    expect(closed, isFalse);
+    expect(_height(tester, _note), closeTo(NoteSplit.minNoteHeight, 1));
+    // Au-delà : fermée au relâcher.
+    await tester.drag(handle, const Offset(0, 200));
+    await tester.pump();
     expect(closed, isTrue);
   });
 

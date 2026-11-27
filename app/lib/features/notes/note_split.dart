@@ -1,12 +1,16 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 /// Écran partagé pour prendre des notes en gardant le contenu sous les
 /// yeux : le contenu (PDF, vidéo, fiche, carte de révision) en haut, la
 /// note en bas, séparés par une poignée qu'on fait glisser pour régler la
-/// hauteur de la note.
+/// hauteur de la note. Tirée au-delà de la plus grande hauteur, la poignée
+/// aimante la note en plein écran ; au-delà de la plus petite, elle la
+/// ferme (un voile l'annonce, une vibration marque le seuil).
 ///
 /// Seule la poignée réagit au glissement : un trait du stylet dans la note
 /// ne la déplace jamais. La hauteur choisie est mémorisée pendant la
@@ -37,8 +41,17 @@ class NoteSplit extends StatefulWidget {
   static const minContentHeight = 120.0;
   static const handleHeight = 36.0;
 
+  /// Distance au-delà des bornes de la poignée à partir de laquelle la
+  /// note s'aimante au relâcher : plein écran vers le haut, fermeture vers
+  /// le bas (si [onClose] est donné).
+  static const snapDistance = 60.0;
+
   /// Poignée (tests).
   static const handleKey = Key('note-split-handle');
+
+  /// Voiles « Relâcher pour… » pendant le glissement (tests).
+  static const maximizeHintKey = Key('note-split-maximize-hint');
+  static const closeHintKey = Key('note-split-close-hint');
 
   /// Part de la hauteur donnée à la note, mémorisée pendant la session.
   static double _fraction = 0.45;
@@ -58,6 +71,15 @@ class _NoteSplitState extends State<NoteSplit> {
   /// Hauteur disponible au dernier affichage.
   var _total = 0.0;
 
+  /// Pendant un glissement de la poignée : hauteur demandée par le doigt,
+  /// sans bornes (au-delà, aimantation vers le plein écran ou la
+  /// fermeture) ; `null` hors glissement.
+  double? _dragHeight;
+
+  /// Aimantation annoncée pendant le glissement (vibration au
+  /// franchissement du seuil).
+  _Snap _snap = _Snap.none;
+
   double get _maxNote => math.max(
     NoteSplit.minNoteHeight,
     _total - NoteSplit.handleHeight - NoteSplit.minContentHeight,
@@ -66,33 +88,82 @@ class _NoteSplitState extends State<NoteSplit> {
   double get _noteHeight =>
       (_total * NoteSplit._fraction).clamp(NoteSplit.minNoteHeight, _maxNote);
 
+  /// Hauteur de la note à l'écran : celle du doigt pendant un glissement,
+  /// jusqu'au haut de l'écran (et jusqu'en bas si la note peut se fermer).
+  double get _shownHeight => switch (_dragHeight) {
+    final h? => h.clamp(
+      widget.onClose == null ? NoteSplit.minNoteHeight : 0.0,
+      _total - NoteSplit.handleHeight,
+    ),
+    null => _noteHeight,
+  };
+
+  _Snap _snapFor(double height) {
+    if (height >= _maxNote + NoteSplit.snapDistance) return _Snap.maximize;
+    if (widget.onClose != null &&
+        height <= NoteSplit.minNoteHeight - NoteSplit.snapDistance) {
+      return _Snap.close;
+    }
+    return _Snap.none;
+  }
+
   void _dragStart(DragStartDetails _) {
-    if (!_maximized) return;
-    // Glisser depuis le plein écran : on repart de la plus grande hauteur.
     setState(() {
+      // Depuis le plein écran, la poignée part du haut de l'écran.
+      final height = _maximized ? _total - NoteSplit.handleHeight : _noteHeight;
+      _dragHeight = height;
+      _snap = _snapFor(height);
       _maximized = false;
-      NoteSplit._fraction = _maxNote / _total;
     });
   }
 
   void _drag(DragUpdateDetails d) {
-    if (_total <= 0) return;
-    final height = (_noteHeight - d.delta.dy).clamp(
-      NoteSplit.minNoteHeight,
-      _maxNote,
-    );
-    setState(() => NoteSplit._fraction = height / _total);
+    final from = _dragHeight;
+    if (_total <= 0 || from == null) return;
+    final height = from - d.delta.dy;
+    final snap = _snapFor(height);
+    if (snap != _snap && snap != _Snap.none) {
+      unawaited(HapticFeedback.selectionClick());
+    }
+    setState(() {
+      _dragHeight = height;
+      _snap = snap;
+      NoteSplit._fraction =
+          height.clamp(NoteSplit.minNoteHeight, _maxNote) / _total;
+    });
+  }
+
+  void _dragEnd([DragEndDetails? _]) {
+    if (_dragHeight == null) return;
+    final snap = _snap;
+    setState(() {
+      _dragHeight = null;
+      _snap = _Snap.none;
+      if (snap == _Snap.maximize) {
+        _maximized = true;
+        // « Réduire » revient à la plus grande hauteur.
+        NoteSplit._fraction = _maxNote / _total;
+      }
+    });
+    if (snap == _Snap.close) widget.onClose?.call();
   }
 
   @override
   void didUpdateWidget(NoteSplit old) {
     super.didUpdateWidget(old);
     // Une note refermée se rouvre à sa hauteur, pas en plein écran.
-    if (widget.note == null) _maximized = false;
+    if (widget.note == null) {
+      _maximized = false;
+      _dragHeight = null;
+      _snap = _Snap.none;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final hint = Theme.of(
+      context,
+    ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.85);
     return LayoutBuilder(
       builder: (context, constraints) {
         _total = constraints.maxHeight;
@@ -103,14 +174,19 @@ class _NoteSplitState extends State<NoteSplit> {
                 NoteSplit.handleHeight +
                 NoteSplit.minContentHeight;
         final full = note != null && (compact || _maximized);
-        final noteHeight = note == null ? 0.0 : _noteHeight;
+        final dragging = note != null && !full && _dragHeight != null;
+        final noteHeight = note == null ? 0.0 : _shownHeight;
+        // Le contenu garde au moins sa hauteur minimale : au-delà, la
+        // poignée et la note passent par-dessus.
         final contentHeight = note == null
             ? _total
             : math.max(
                 NoteSplit.minContentHeight,
                 _total - noteHeight - NoteSplit.handleHeight,
               );
-        final handleTop = full ? 0.0 : contentHeight;
+        final handleTop = full
+            ? 0.0
+            : _total - noteHeight - NoteSplit.handleHeight;
         return Stack(
           children: [
             // Toujours en premier : le contenu garde son état.
@@ -121,8 +197,27 @@ class _NoteSplitState extends State<NoteSplit> {
               height: contentHeight,
               child: Offstage(offstage: full, child: widget.content),
             ),
+            if (dragging)
+              // Retour visuel : le contenu s'efface quand la note va
+              // passer en plein écran. Clés : la poignée et la note gardent
+              // leur état (glissement, éditeur) quand le voile apparaît.
+              Positioned(
+                key: const ValueKey('note-split-hint'),
+                left: 0,
+                right: 0,
+                top: 0,
+                height: contentHeight,
+                child: _SnapHint(
+                  key: NoteSplit.maximizeHintKey,
+                  visible: _snap == _Snap.maximize,
+                  icon: Icons.open_in_full,
+                  label: 'Relâcher pour le plein écran',
+                  color: hint,
+                ),
+              ),
             if (note != null) ...[
               Positioned(
+                key: const ValueKey('note-split-handle-area'),
                 left: 0,
                 right: 0,
                 top: handleTop,
@@ -130,11 +225,30 @@ class _NoteSplitState extends State<NoteSplit> {
                 child: _handle(context, compact: compact),
               ),
               Positioned(
+                key: const ValueKey('note-split-note'),
                 left: 0,
                 right: 0,
                 top: handleTop + NoteSplit.handleHeight,
-                bottom: 0,
-                child: note,
+                // Sous sa hauteur minimale, la note glisse vers le bas
+                // au lieu de rétrécir.
+                height: full
+                    ? _total - NoteSplit.handleHeight
+                    : math.max(noteHeight, NoteSplit.minNoteHeight),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    note,
+                    if (dragging)
+                      _SnapHint(
+                        key: NoteSplit.closeHintKey,
+                        visible: _snap == _Snap.close,
+                        icon: Icons.close,
+                        label: 'Relâcher pour fermer la note',
+                        color: hint,
+                        alignment: Alignment.topCenter,
+                      ),
+                  ],
+                ),
               ),
             ],
           ],
@@ -162,6 +276,8 @@ class _NoteSplitState extends State<NoteSplit> {
             dragStartBehavior: DragStartBehavior.down,
             onVerticalDragStart: compact ? null : _dragStart,
             onVerticalDragUpdate: compact ? null : _drag,
+            onVerticalDragEnd: compact ? null : _dragEnd,
+            onVerticalDragCancel: compact ? null : _dragEnd,
             child: Stack(
               children: [
                 if (!compact)
@@ -222,6 +338,63 @@ class _NoteSplitState extends State<NoteSplit> {
                   ],
                 ),
               ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+enum _Snap { none, maximize, close }
+
+/// Voile et consigne affichés quand relâcher la poignée aimante la note ;
+/// laisse passer les touchers.
+class _SnapHint extends StatelessWidget {
+  const _SnapHint({
+    super.key,
+    required this.visible,
+    required this.icon,
+    required this.label,
+    required this.color,
+    this.alignment = Alignment.center,
+  });
+
+  final bool visible;
+  final IconData icon;
+  final String label;
+  final Color color;
+  final Alignment alignment;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final ink = theme.colorScheme.onSurfaceVariant;
+    return IgnorePointer(
+      child: AnimatedOpacity(
+        opacity: visible ? 1 : 0,
+        duration: const Duration(milliseconds: 150),
+        child: ColoredBox(
+          color: color,
+          child: Align(
+            alignment: alignment,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, color: ink),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleSmall?.copyWith(color: ink),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

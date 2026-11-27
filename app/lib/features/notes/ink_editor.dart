@@ -256,10 +256,13 @@ class InkEditorController extends ChangeNotifier {
   }
 }
 
-/// Écriture manuscrite : barre d'outils et page. Stylet (Apple Pencil),
-/// souris ou, sur demande, doigt ; avec un stylet, le doigt fait défiler
-/// la page et la paume posée n'écrit pas. Les gestes de l'Apple Pencil
-/// (toucher deux fois, presser) prennent la gomme ou ouvrent la palette.
+/// Écriture manuscrite, comme l'app Notes de l'iPad : la page occupe toute
+/// la place ; un petit bouton rond flottant (en bas à droite) déplie la
+/// palette d'outils, deux autres (en haut à droite) annulent et rétablissent.
+/// Stylet (Apple Pencil), souris ou, sur demande, doigt ; avec un stylet, le
+/// doigt fait défiler la page et la paume posée n'écrit pas. Les gestes de
+/// l'Apple Pencil (toucher deux fois, presser) prennent la gomme ou ouvrent
+/// la palette.
 ///
 /// L'écriture vit dans [controller] ; chaque modification est signalée par
 /// [onChanged], l'enregistrement revient à l'appelant.
@@ -273,6 +276,12 @@ class InkEditor extends StatefulWidget {
   final InkEditorController controller;
   final VoidCallback onChanged;
 
+  /// Bouton rond qui déplie et replie la palette (tests).
+  static const paletteButtonKey = Key('ink-palette-button');
+
+  /// Palette dépliée (tests).
+  static const paletteKey = Key('ink-palette');
+
   @override
   State<InkEditor> createState() => _InkEditorState();
 }
@@ -281,10 +290,14 @@ class _InkEditorState extends State<InkEditor> {
   /// Appareil du trait en cours.
   int? _pointer;
 
-  /// Palette ouverte par un geste du stylet, à cette position (dans
-  /// [_body]) ; `null` : fermée.
-  Offset? _palette;
-  final _body = GlobalKey();
+  /// Palette d'outils dépliée. Elle reste ouverte pendant les choix et se
+  /// replie d'un toucher sur son bouton ou ailleurs (un trait commencé dans
+  /// la page s'écrit quand même).
+  var _palette = false;
+
+  /// Bouton et palette : un toucher dans l'un ou l'autre n'est pas
+  /// « ailleurs ».
+  final _paletteGroup = Object();
 
   InkEditorController get _controller => widget.controller;
 
@@ -303,20 +316,14 @@ class _InkEditorState extends State<InkEditor> {
         _closePalette();
         _controller.switchPrevious();
       case PencilAction.palette:
-        final box = _body.currentContext?.findRenderObject() as RenderBox?;
-        final at = gesture.at;
-        setState(() {
-          _palette = _palette != null || box == null
-              ? null
-              : at == null
-              ? Offset(box.size.width, 0)
-              : box.globalToLocal(at);
-        });
+        _togglePalette();
     }
   }
 
+  void _togglePalette() => setState(() => _palette = !_palette);
+
   void _closePalette() {
-    if (_palette != null) setState(() => _palette = null);
+    if (_palette) setState(() => _palette = false);
   }
 
   @override
@@ -346,185 +353,201 @@ class _InkEditorState extends State<InkEditor> {
     );
   }
 
+  /// Marge des boutons flottants au bord de la page.
+  static const _margin = 12.0;
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final c = _controller;
+    // Les boutons flottants ne captent que les touchers qui commencent
+    // sur eux : un trait commencé dans la page passe dessous sans être
+    // interrompu (le stylet garde la cible de son premier contact).
     return ListenableBuilder(
-      listenable: _controller,
-      builder: (context, _) => LayoutBuilder(
-        key: _body,
-        builder: (context, body) => Stack(
-          children: [
-            Positioned.fill(child: _page(_controller, scheme)),
-            if (_palette case final at?)
-              _Palette(
-                at: at,
-                area: body.biggest,
-                controller: _controller,
-                onPicked: _closePalette,
+      listenable: c,
+      builder: (context, _) => Stack(
+        children: [
+          Positioned.fill(child: _page(c, scheme)),
+          Positioned(
+            top: _margin,
+            right: _margin,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _RoundButton(
+                  tooltip: 'Annuler',
+                  icon: Icons.undo,
+                  onPressed: c.canUndo
+                      ? () {
+                          c.undo();
+                          _changed();
+                        }
+                      : null,
+                ),
+                const SizedBox(width: 8),
+                _RoundButton(
+                  tooltip: 'Rétablir',
+                  icon: Icons.redo,
+                  onPressed: c.canRedo
+                      ? () {
+                          c.redo();
+                          _changed();
+                        }
+                      : null,
+                ),
+              ],
+            ),
+          ),
+          if (_palette)
+            Positioned(
+              top: _margin,
+              left: _margin,
+              right: _margin,
+              bottom: _margin + _PaletteButton.size + 8,
+              child: Align(
+                alignment: Alignment.bottomRight,
+                child: TapRegion(
+                  groupId: _paletteGroup,
+                  onTapOutside: (_) => _closePalette(),
+                  child: _Palette(
+                    key: InkEditor.paletteKey,
+                    controller: c,
+                    actions: _actions(c),
+                  ),
+                ),
               ),
-          ],
-        ),
+            ),
+          Positioned(
+            right: _margin,
+            bottom: _margin,
+            child: TapRegion(
+              groupId: _paletteGroup,
+              child: _PaletteButton(
+                key: InkEditor.paletteButtonKey,
+                controller: c,
+                open: _palette,
+                onPressed: _togglePalette,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  /// Annuler, rétablir, écrire au doigt, tout effacer.
+  /// Écrire au doigt, tout effacer (fin de la palette).
   List<Widget> _actions(InkEditorController c) => [
     IconButton(
-      tooltip: 'Annuler',
-      onPressed: c.canUndo
-          ? () {
-              c.undo();
-              _changed();
-            }
-          : null,
-      icon: const Icon(Icons.undo),
+      tooltip: 'Écrire au doigt',
+      isSelected: c.fingerDraws,
+      onPressed: c.toggleFingerDraws,
+      icon: const Icon(Icons.touch_app_outlined),
+      selectedIcon: const Icon(Icons.touch_app),
     ),
     IconButton(
-      tooltip: 'Rétablir',
-      onPressed: c.canRedo
-          ? () {
-              c.redo();
+      tooltip: 'Tout effacer',
+      onPressed: c.ink.isEmpty
+          ? null
+          : () {
+              c.clear();
               _changed();
-            }
-          : null,
-      icon: const Icon(Icons.redo),
-    ),
-    PopupMenuButton<String>(
-      tooltip: 'Plus',
-      onSelected: (v) {
-        if (v == 'clear') {
-          c.clear();
-          _changed();
-        } else if (v == 'finger') {
-          c.toggleFingerDraws();
-        }
-      },
-      itemBuilder: (context) => [
-        CheckedPopupMenuItem(
-          value: 'finger',
-          checked: c.fingerDraws,
-          child: const Text('Écrire au doigt'),
-        ),
-        const PopupMenuItem(value: 'clear', child: Text('Tout effacer')),
-      ],
+            },
+      icon: const Icon(Icons.delete_sweep_outlined),
     ),
   ];
 
-  Widget _page(InkEditorController c, ColorScheme scheme) => Column(
-    children: [
-      _Toolbar(controller: c, actions: _actions(c)),
-      const Divider(height: 1),
-      Expanded(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final width = math.min(constraints.maxWidth, 1000.0);
-            final scale = width / InkDrawing.pageWidth;
-            // Toujours une page de marge sous l'écriture.
-            final height = math.max(
-              constraints.maxHeight,
-              (c.ink.bottom + 800) * scale,
-            );
-            return ScrollConfiguration(
-              // Le stylet et la souris écrivent, le doigt défile.
-              behavior: ScrollConfiguration.of(context).copyWith(
-                dragDevices: c.fingerDraws
-                    ? const {}
-                    : const {
-                        PointerDeviceKind.touch,
-                        PointerDeviceKind.trackpad,
-                      },
-              ),
-              child: Scrollbar(
-                controller: c.scroll,
-                thumbVisibility: c.fingerDraws,
-                child: SingleChildScrollView(
-                  controller: c.scroll,
-                  child: Center(
-                    child: Listener(
-                      onPointerDown: (e) {
-                        _closePalette();
-                        if (_pointer != null || !_draws(e.kind)) {
-                          return;
-                        }
-                        if (e.kind == PointerDeviceKind.mouse &&
-                            e.buttons != kPrimaryMouseButton) {
-                          return;
-                        }
-                        _pointer = e.pointer;
-                        c.down(
-                          _point(e, scale),
-                          erasing: e.kind == PointerDeviceKind.invertedStylus,
-                        );
-                      },
-                      onPointerMove: (e) {
-                        if (e.pointer == _pointer) c.move(_point(e, scale));
-                      },
-                      onPointerUp: (e) {
-                        if (e.pointer != _pointer) return;
-                        _pointer = null;
-                        if (c.up()) _changed();
-                      },
-                      onPointerCancel: (e) {
-                        if (e.pointer != _pointer) return;
-                        _pointer = null;
-                        c.cancel();
-                      },
-                      child: Container(
-                        width: width,
-                        height: height,
-                        color: scheme.surface,
-                        // Deux calques : l'écriture enregistrée
-                        // ne se redessine pas à chaque point du
-                        // trait en cours.
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            // Même ordre que l'écriture enregistrée :
-                            // surligneur sous le stylo.
-                            RepaintBoundary(
-                              child: CustomPaint(
-                                painter: InkPainter(
-                                  ink: InkDrawing.empty,
-                                  scale: scale,
-                                  lines: scheme.outlineVariant.withValues(
-                                    alpha: 0.5,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            RepaintBoundary(
-                              child: CustomPaint(
-                                painter: _LivePainter(
-                                  c,
-                                  scale,
-                                  InkTool.highlighter,
-                                ),
-                              ),
-                            ),
-                            RepaintBoundary(
-                              child: CustomPaint(
-                                painter: InkPainter(ink: c.ink, scale: scale),
-                              ),
-                            ),
-                            RepaintBoundary(
-                              child: CustomPaint(
-                                painter: _LivePainter(c, scale, InkTool.pen),
-                              ),
-                            ),
-                          ],
+  Widget _page(InkEditorController c, ColorScheme scheme) => LayoutBuilder(
+    builder: (context, constraints) {
+      final width = math.min(constraints.maxWidth, 1000.0);
+      final scale = width / InkDrawing.pageWidth;
+      // Toujours une page de marge sous l'écriture.
+      final height = math.max(
+        constraints.maxHeight,
+        (c.ink.bottom + 800) * scale,
+      );
+      return ScrollConfiguration(
+        // Le stylet et la souris écrivent, le doigt défile.
+        behavior: ScrollConfiguration.of(context).copyWith(
+          dragDevices: c.fingerDraws
+              ? const {}
+              : const {PointerDeviceKind.touch, PointerDeviceKind.trackpad},
+        ),
+        child: Scrollbar(
+          controller: c.scroll,
+          thumbVisibility: c.fingerDraws,
+          child: SingleChildScrollView(
+            controller: c.scroll,
+            child: Center(
+              child: Listener(
+                onPointerDown: (e) {
+                  if (_pointer != null || !_draws(e.kind)) return;
+                  if (e.kind == PointerDeviceKind.mouse &&
+                      e.buttons != kPrimaryMouseButton) {
+                    return;
+                  }
+                  _pointer = e.pointer;
+                  c.down(
+                    _point(e, scale),
+                    erasing: e.kind == PointerDeviceKind.invertedStylus,
+                  );
+                },
+                onPointerMove: (e) {
+                  if (e.pointer == _pointer) c.move(_point(e, scale));
+                },
+                onPointerUp: (e) {
+                  if (e.pointer != _pointer) return;
+                  _pointer = null;
+                  if (c.up()) _changed();
+                },
+                onPointerCancel: (e) {
+                  if (e.pointer != _pointer) return;
+                  _pointer = null;
+                  c.cancel();
+                },
+                child: Container(
+                  width: width,
+                  height: height,
+                  color: scheme.surface,
+                  // Deux calques : l'écriture enregistrée ne se redessine
+                  // pas à chaque point du trait en cours.
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      // Même ordre que l'écriture enregistrée : surligneur
+                      // sous le stylo.
+                      RepaintBoundary(
+                        child: CustomPaint(
+                          painter: InkPainter(
+                            ink: InkDrawing.empty,
+                            scale: scale,
+                            lines: scheme.outlineVariant.withValues(alpha: 0.5),
+                          ),
                         ),
                       ),
-                    ),
+                      RepaintBoundary(
+                        child: CustomPaint(
+                          painter: _LivePainter(c, scale, InkTool.highlighter),
+                        ),
+                      ),
+                      RepaintBoundary(
+                        child: CustomPaint(
+                          painter: InkPainter(ink: c.ink, scale: scale),
+                        ),
+                      ),
+                      RepaintBoundary(
+                        child: CustomPaint(
+                          painter: _LivePainter(c, scale, InkTool.pen),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-            );
-          },
+            ),
+          ),
         ),
-      ),
-    ],
+      );
+    },
   );
 }
 
@@ -554,64 +577,126 @@ class _LivePainter extends CustomPainter {
       old.controller != controller || old.scale != scale || old.tool != tool;
 }
 
-/// Palette d'outils flottante, ouverte par un geste du stylet près de la
-/// pointe ; se referme au choix d'un outil.
-class _Palette extends StatelessWidget {
-  const _Palette({
-    required this.at,
-    required this.area,
-    required this.controller,
-    required this.onPicked,
+/// Petit bouton rond flottant au-dessus de la page.
+class _RoundButton extends StatelessWidget {
+  const _RoundButton({
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
   });
 
-  final Offset at;
-  final Size area;
-  final InkEditorController controller;
-  final VoidCallback onPicked;
-
-  static const _width = 340.0;
-  static const _height = 150.0;
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
-    double clamp(double v, double max) => v.clamp(8.0, math.max(8.0, max));
-    // Fenêtre étroite (écran partagé) : la palette rétrécit, ses outils
-    // passent à la ligne.
-    final width = math.min(_width, area.width - 16);
-    return Positioned(
-      left: clamp(at.dx - width / 2, area.width - width - 8),
-      top: clamp(at.dy + 24, area.height - _height - 8),
-      width: width,
-      child: Material(
-        elevation: 6,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(4),
-          child: ListenableBuilder(
-            listenable: controller,
-            builder: (context, _) =>
-                _Toolbar(controller: controller, onPicked: onPicked),
-          ),
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      shape: const CircleBorder(),
+      elevation: 2,
+      color: scheme.surfaceContainerHigh.withValues(alpha: 0.95),
+      child: IconButton(
+        tooltip: tooltip,
+        onPressed: onPressed,
+        iconSize: 20,
+        icon: Icon(icon),
+        // Zone de toucher limitée au disque : on écrit tout autour.
+        style: IconButton.styleFrom(
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          minimumSize: const Size.square(40),
+          fixedSize: const Size.square(40),
+          padding: EdgeInsets.zero,
         ),
       ),
     );
   }
 }
 
-class _Toolbar extends StatelessWidget {
-  const _Toolbar({
+/// Bouton rond de la palette : montre l'outil en cours (et la couleur du
+/// stylo), déplie ou replie la palette.
+class _PaletteButton extends StatelessWidget {
+  const _PaletteButton({
+    super.key,
     required this.controller,
-    this.onPicked,
-    this.actions = const [],
+    required this.open,
+    required this.onPressed,
   });
 
   final InkEditorController controller;
+  final bool open;
+  final VoidCallback onPressed;
 
-  /// Boutons ajoutés en fin de barre (barre principale, pas la palette).
+  static const size = 48.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final c = controller;
+    final (icon, color) = switch (c.mode) {
+      InkMode.pen => (Icons.edit, Color(c.color)),
+      InkMode.highlighter => (
+        Icons.border_color,
+        const Color(_highlighterColor).withValues(alpha: 1),
+      ),
+      InkMode.eraser => (Icons.auto_fix_normal, scheme.onSurface),
+    };
+    return Material(
+      shape: CircleBorder(
+        side: BorderSide(
+          color: open ? scheme.primary : scheme.outlineVariant,
+          width: open ? 2 : 1,
+        ),
+      ),
+      elevation: 3,
+      color: open ? scheme.primaryContainer : scheme.surfaceContainerHigh,
+      child: IconButton(
+        tooltip: open ? 'Masquer les outils' : 'Outils',
+        onPressed: onPressed,
+        icon: Icon(icon, color: color),
+        style: IconButton.styleFrom(
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          minimumSize: const Size.square(size),
+          fixedSize: const Size.square(size),
+          padding: EdgeInsets.zero,
+        ),
+      ),
+    );
+  }
+}
+
+/// Palette d'outils dépliée au-dessus du bouton rond : outils, couleurs,
+/// épaisseurs, écriture au doigt, tout effacer.
+class _Palette extends StatelessWidget {
+  const _Palette({super.key, required this.controller, required this.actions});
+
+  final InkEditorController controller;
   final List<Widget> actions;
 
-  /// Appelé après chaque choix (palette flottante : elle se referme).
-  final VoidCallback? onPicked;
+  @override
+  Widget build(BuildContext context) => ConstrainedBox(
+    // Fenêtre étroite (écran partagé) : les outils passent à la ligne.
+    constraints: const BoxConstraints(maxWidth: 380),
+    child: Material(
+      elevation: 6,
+      borderRadius: BorderRadius.circular(20),
+      clipBehavior: Clip.antiAlias,
+      // Note peu haute : la palette défile.
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(4),
+        child: _Toolbar(controller: controller, actions: actions),
+      ),
+    ),
+  );
+}
+
+class _Toolbar extends StatelessWidget {
+  const _Toolbar({required this.controller, this.actions = const []});
+
+  final InkEditorController controller;
+
+  /// Boutons ajoutés en fin de barre.
+  final List<Widget> actions;
 
   @override
   Widget build(BuildContext context) {
@@ -620,10 +705,7 @@ class _Toolbar extends StatelessWidget {
     Widget tool(InkMode mode, IconData icon, String label) => IconButton(
       tooltip: label,
       isSelected: c.mode == mode,
-      onPressed: () {
-        c.select(mode);
-        onPicked?.call();
-      },
+      onPressed: () => c.select(mode),
       icon: Icon(icon),
       style: IconButton.styleFrom(
         backgroundColor: c.mode == mode ? scheme.secondaryContainer : null,
@@ -644,10 +726,7 @@ class _Toolbar extends StatelessWidget {
               message: name,
               child: InkWell(
                 customBorder: const CircleBorder(),
-                onTap: () {
-                  c.setColor(color);
-                  onPicked?.call();
-                },
+                onTap: () => c.setColor(color),
                 child: Container(
                   width: 28,
                   height: 28,
@@ -670,10 +749,7 @@ class _Toolbar extends StatelessWidget {
             ChoiceChip(
               label: Text(name),
               selected: c.mode == InkMode.pen && c.width == width,
-              onSelected: (_) {
-                c.setWidth(width);
-                onPicked?.call();
-              },
+              onSelected: (_) => c.setWidth(width),
             ),
           if (actions.isNotEmpty) const SizedBox(width: 12),
           ...actions,
