@@ -179,6 +179,89 @@ void main() {
     expect(closed, isTrue);
   });
 
+  testWidgets('fermée par la poignée : rouverte à sa hauteur d\'avant', (
+    tester,
+  ) async {
+    var closed = false;
+    await pumpSplit(tester, _split(onClose: () => closed = true));
+    final handle = find.byKey(NoteSplit.handleKey);
+    await tester.drag(handle, const Offset(0, -100));
+    await tester.pump();
+    final before = _height(tester, _note);
+    await tester.drag(handle, const Offset(0, 500));
+    await tester.pump();
+    expect(closed, isTrue);
+    await pumpSplit(tester, _split(open: false));
+    await pumpSplit(tester, _split());
+    expect(_height(tester, _note), closeTo(before, 1));
+  });
+
+  testWidgets('glissement annulé par le système : rien ne change', (
+    tester,
+  ) async {
+    var closed = false;
+    await pumpSplit(tester, _split(onClose: () => closed = true));
+    final handle = find.byKey(NoteSplit.handleKey);
+    final before = _height(tester, _note);
+
+    // Au-delà du seuil de fermeture, puis toucher annulé.
+    var gesture = await tester.startGesture(tester.getCenter(handle));
+    await gesture.moveBy(const Offset(0, 400));
+    await tester.pump();
+    await gesture.cancel();
+    await tester.pump();
+    expect(closed, isFalse);
+    expect(_height(tester, _note), closeTo(before, 1));
+    expect(find.byKey(NoteSplit.closeHintKey), findsNothing);
+
+    // Au-delà du seuil du plein écran, puis toucher annulé.
+    gesture = await tester.startGesture(tester.getCenter(handle));
+    await gesture.moveBy(const Offset(0, -600));
+    await tester.pump();
+    await gesture.cancel();
+    await tester.pump();
+    expect(find.byKey(_content), findsOneWidget);
+    expect(_height(tester, _note), closeTo(before, 1));
+
+    // Depuis le plein écran : il le reste.
+    await tester.tap(find.byTooltip('Agrandir la note'));
+    await tester.pump();
+    gesture = await tester.startGesture(tester.getCenter(handle));
+    await gesture.moveBy(const Offset(0, 300));
+    await tester.pump();
+    await gesture.cancel();
+    await tester.pump();
+    expect(find.byKey(_content), findsNothing);
+    expect(find.byTooltip('Réduire la note'), findsOneWidget);
+  });
+
+  testWidgets('hauteur disponible changée pendant le glissement : seuils '
+      'recalculés au relâcher', (tester) async {
+    await pumpSplit(tester, _split());
+    final handle = find.byKey(NoteSplit.handleKey);
+    // 800 px : au-delà du seuil du plein écran (note à 760 px).
+    final gesture = await tester.startGesture(tester.getCenter(handle));
+    await gesture.moveBy(const Offset(0, -400));
+    await tester.pump();
+    expect(
+      tester
+          .widget<AnimatedOpacity>(
+            find.descendant(
+              of: find.byKey(NoteSplit.maximizeHintKey),
+              matching: find.byType(AnimatedOpacity),
+            ),
+          )
+          .opacity,
+      1,
+    );
+    // L'écran grandit (rotation) : 760 px n'y dépasse plus le seuil.
+    await tester.pumpWidget(_split(height: 1000));
+    await gesture.up();
+    await tester.pump();
+    expect(find.byKey(_content), findsOneWidget);
+    expect(find.byTooltip('Agrandir la note'), findsOneWidget);
+  });
+
   testWidgets('écran trop bas : la note prend toute la hauteur', (
     tester,
   ) async {

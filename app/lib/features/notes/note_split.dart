@@ -107,7 +107,14 @@ class _NoteSplitState extends State<NoteSplit> {
     return _Snap.none;
   }
 
+  /// Hauteur et plein écran d'avant le glissement : rendus s'il est
+  /// annulé, et la hauteur gardée pour rouvrir une note fermée ainsi.
+  var _startFraction = NoteSplit._fraction;
+  var _startMaximized = false;
+
   void _dragStart(DragStartDetails _) {
+    _startFraction = NoteSplit._fraction;
+    _startMaximized = _maximized;
     setState(() {
       // Depuis le plein écran, la poignée part du haut de l'écran.
       final height = _maximized ? _total - NoteSplit.handleHeight : _noteHeight;
@@ -125,27 +132,48 @@ class _NoteSplitState extends State<NoteSplit> {
     if (snap != _snap && snap != _Snap.none) {
       unawaited(HapticFeedback.selectionClick());
     }
+    // La hauteur n'est retenue qu'au relâcher (_dragEnd).
     setState(() {
       _dragHeight = height;
       _snap = snap;
-      NoteSplit._fraction =
-          height.clamp(NoteSplit.minNoteHeight, _maxNote) / _total;
     });
   }
 
   void _dragEnd([DragEndDetails? _]) {
-    if (_dragHeight == null) return;
-    final snap = _snap;
+    final height = _dragHeight;
+    if (height == null) return;
+    // Seuils de la mise en page actuelle : la hauteur disponible a pu
+    // changer pendant le glissement (rotation, clavier).
+    final snap = _snapFor(height);
     setState(() {
       _dragHeight = null;
       _snap = _Snap.none;
-      if (snap == _Snap.maximize) {
-        _maximized = true;
-        // « Réduire » revient à la plus grande hauteur.
-        NoteSplit._fraction = _maxNote / _total;
+      switch (snap) {
+        case _Snap.maximize:
+          _maximized = true;
+          // « Réduire » revient à la plus grande hauteur.
+          NoteSplit._fraction = _maxNote / _total;
+        case _Snap.close:
+          // La note se rouvrira à sa hauteur d'avant le glissement.
+          NoteSplit._fraction = _startFraction;
+        case _Snap.none:
+          NoteSplit._fraction =
+              height.clamp(NoteSplit.minNoteHeight, _maxNote) / _total;
       }
     });
     if (snap == _Snap.close) widget.onClose?.call();
+  }
+
+  /// Glissement annulé (par le système) : rien n'est aimanté, la note
+  /// reprend sa hauteur d'avant.
+  void _dragCancel() {
+    if (_dragHeight == null) return;
+    setState(() {
+      _dragHeight = null;
+      _snap = _Snap.none;
+      _maximized = _startMaximized;
+      NoteSplit._fraction = _startFraction;
+    });
   }
 
   @override
@@ -269,75 +297,81 @@ class _NoteSplitState extends State<NoteSplit> {
         ),
         child: MouseRegion(
           cursor: compact ? MouseCursor.defer : SystemMouseCursors.resizeRow,
-          child: GestureDetector(
-            key: NoteSplit.handleKey,
-            behavior: HitTestBehavior.opaque,
-            // La poignée suit le doigt dès le premier pixel.
-            dragStartBehavior: DragStartBehavior.down,
-            onVerticalDragStart: compact ? null : _dragStart,
-            onVerticalDragUpdate: compact ? null : _drag,
-            onVerticalDragEnd: compact ? null : _dragEnd,
-            onVerticalDragCancel: compact ? null : _dragEnd,
-            child: Stack(
-              children: [
-                if (!compact)
-                  Center(
-                    child: Container(
-                      width: 48,
-                      height: 5,
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.outline,
-                        borderRadius: BorderRadius.circular(3),
+          // Toucher annulé par le système : un glissement déjà commencé
+          // se termine pour le détecteur par « fin », pas « annulé » ;
+          // le Listener, prévenu avant lui, abandonne le glissement.
+          child: Listener(
+            onPointerCancel: compact ? null : (_) => _dragCancel(),
+            child: GestureDetector(
+              key: NoteSplit.handleKey,
+              behavior: HitTestBehavior.opaque,
+              // La poignée suit le doigt dès le premier pixel.
+              dragStartBehavior: DragStartBehavior.down,
+              onVerticalDragStart: compact ? null : _dragStart,
+              onVerticalDragUpdate: compact ? null : _drag,
+              onVerticalDragEnd: compact ? null : _dragEnd,
+              onVerticalDragCancel: compact ? null : _dragCancel,
+              child: Stack(
+                children: [
+                  if (!compact)
+                    Center(
+                      child: Container(
+                        width: 48,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.outline,
+                          borderRadius: BorderRadius.circular(3),
+                        ),
                       ),
                     ),
-                  ),
-                Row(
-                  children: [
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: DefaultTextStyle(
-                        style: theme.textTheme.labelLarge!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          // La moitié gauche : le titre ne passe pas sous
-                          // la languette.
-                          child: FractionallySizedBox(
-                            widthFactor: 0.45,
+                  Row(
+                    children: [
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: DefaultTextStyle(
+                          style: theme.textTheme.labelLarge!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          child: Align(
                             alignment: Alignment.centerLeft,
-                            child: widget.title ?? const SizedBox.shrink(),
+                            // La moitié gauche : le titre ne passe pas sous
+                            // la languette.
+                            child: FractionallySizedBox(
+                              widthFactor: 0.45,
+                              alignment: Alignment.centerLeft,
+                              child: widget.title ?? const SizedBox.shrink(),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    if (!compact)
-                      IconButton(
-                        tooltip: _maximized
-                            ? 'Réduire la note'
-                            : 'Agrandir la note',
-                        visualDensity: VisualDensity.compact,
-                        iconSize: 20,
-                        icon: Icon(
-                          _maximized
-                              ? Icons.close_fullscreen
-                              : Icons.open_in_full,
+                      if (!compact)
+                        IconButton(
+                          tooltip: _maximized
+                              ? 'Réduire la note'
+                              : 'Agrandir la note',
+                          visualDensity: VisualDensity.compact,
+                          iconSize: 20,
+                          icon: Icon(
+                            _maximized
+                                ? Icons.close_fullscreen
+                                : Icons.open_in_full,
+                          ),
+                          onPressed: () =>
+                              setState(() => _maximized = !_maximized),
                         ),
-                        onPressed: () =>
-                            setState(() => _maximized = !_maximized),
-                      ),
-                    if (widget.onClose != null)
-                      IconButton(
-                        tooltip: 'Fermer la note',
-                        visualDensity: VisualDensity.compact,
-                        iconSize: 20,
-                        icon: const Icon(Icons.close),
-                        onPressed: widget.onClose,
-                      ),
-                    const SizedBox(width: 4),
-                  ],
-                ),
-              ],
+                      if (widget.onClose != null)
+                        IconButton(
+                          tooltip: 'Fermer la note',
+                          visualDensity: VisualDensity.compact,
+                          iconSize: 20,
+                          icon: const Icon(Icons.close),
+                          onPressed: widget.onClose,
+                        ),
+                      const SizedBox(width: 4),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
