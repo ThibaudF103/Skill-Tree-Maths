@@ -35,4 +35,13 @@ final class KnowledgeNode {
   final BoardRect? board;
 
   bool get isTree => parentId == null;
+
+  /// Identifiant réservé du nœud « Non classées » : un arbre créé à la
+  /// demande pour les cartes déposées hors de toute région du tableau.
+  static const unsortedId = 'verger-non-classees';
+
+  /// Titre du nœud « Non classées » à sa création.
+  static const unsortedTitle = 'Non classées';
+
+  bool get isUnsorted => id == unsortedId;
 }
