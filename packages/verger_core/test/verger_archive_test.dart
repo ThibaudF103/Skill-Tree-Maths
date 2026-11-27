@@ -476,4 +476,33 @@ void main() {
     expect(back.items.first.boardPosition, const BoardPoint(34, 108.25));
     expect(back.items.last.boardPosition, equals(null));
   });
+
+  test('géométrie mal formée : ignorée, l\'archive reste lisible', () {
+    for (final bad in [
+      [1, 2],
+      'x',
+      [1, 2, 'a', 4],
+      [1, 2, -3, 4],
+      [1, 2, 3, double.nan],
+    ]) {
+      final archive = VergerArchive.fromJson({
+        'format': 'verger',
+        'version': 5,
+        'nodes': [
+          {'id': 'n', 'title': 'Optique', 'board': bad},
+        ],
+        'items': [
+          {
+            'id': 'i',
+            'nodeId': 'n',
+            'kind': 'definition',
+            'title': 'Dioptre',
+            'board': bad is List ? [1, 'y'] : bad,
+          },
+        ],
+      });
+      expect(archive.nodes.single.board, equals(null), reason: '$bad');
+      expect(archive.items.single.boardPosition, equals(null), reason: '$bad');
+    }
+  });
 }

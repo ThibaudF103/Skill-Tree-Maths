@@ -274,18 +274,29 @@ final class VergerArchive {
     }
   }
 
-  /// Région du tableau : `[x, y, largeur, hauteur]`.
+  /// Région du tableau : `[x, y, largeur, hauteur]`. Facultative et
+  /// recalculable : un champ mal formé est ignoré (la mise en page
+  /// automatique replacera le nœud).
   static BoardRect? _rect(Object? v) {
-    if (v == null) return null;
-    final r = [for (final x in v as List) (x as num).toDouble()];
+    final r = _numbers(v, 4);
+    if (r == null || r[2] <= 0 || r[3] <= 0) return null;
     return BoardRect(r[0], r[1], r[2], r[3]);
   }
 
-  /// Position d'une carte : `[x, y]`.
+  /// Position d'une carte : `[x, y]` (ignorée si mal formée).
   static BoardPoint? _point(Object? v) {
-    if (v == null) return null;
-    final p = [for (final x in v as List) (x as num).toDouble()];
-    return BoardPoint(p[0], p[1]);
+    final p = _numbers(v, 2);
+    return p == null ? null : BoardPoint(p[0], p[1]);
+  }
+
+  /// [count] nombres finis, sinon `null`.
+  static List<double>? _numbers(Object? v, int count) {
+    if (v is! List || v.length != count) return null;
+    final values = [
+      for (final x in v)
+        if (x is num && x.isFinite) x.toDouble(),
+    ];
+    return values.length == count ? values : null;
   }
 
   /// Archives antérieures aux rattachements : chaque PDF est rattaché à la

@@ -467,7 +467,13 @@ class VergerStore {
           'La connaissance est déjà revenue (sauvegarde restaurée ?).',
         );
       }
-      await _db.into(_db.items).insert(item);
+      // Sans sa place sur le tableau : une autre carte a pu la prendre ; la
+      // mise en page automatique la replace.
+      await _db
+          .into(_db.items)
+          .insert(
+            item.copyWith(boardX: const Value(null), boardY: const Value(null)),
+          );
       for (final log in logs) {
         await _db.into(_db.reviewLogs).insert(log);
       }
@@ -505,6 +511,19 @@ class VergerStore {
       _db.transaction(deletion._undo);
 
   // --- Tableau -------------------------------------------------------------
+
+  /// Nœuds et connaissances lus ensemble, à chaque changement de l'une ou
+  /// l'autre table : un instantané cohérent (jamais les régions d'une
+  /// écriture sans ses cartes), base de la mise en page du tableau.
+  Stream<({List<KnowledgeNode> nodes, List<KnowledgeItem> items})>
+  watchBoard() => _db
+      .customSelect('SELECT 1', readsFrom: {_db.nodes, _db.items})
+      .watch()
+      .asyncMap(
+        (_) => _db.transaction(
+          () async => (nodes: await allNodes(), items: await allItems()),
+        ),
+      );
 
   /// Enregistre, en une transaction, des régions de nœuds et des positions
   /// de cartes (unités du tableau). Les identifiants inconnus sont ignorés.

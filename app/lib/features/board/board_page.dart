@@ -29,8 +29,8 @@ class BoardPage extends StatefulWidget {
 
 class _BoardPageState extends State<BoardPage> {
   final _controller = TransformationController();
-  StreamSubscription<List<KnowledgeNode>>? _nodesSub;
-  StreamSubscription<List<KnowledgeItem>>? _itemsSub;
+  StreamSubscription<({List<KnowledgeNode> nodes, List<KnowledgeItem> items})>?
+  _sub;
   List<KnowledgeNode>? _nodes;
   List<KnowledgeItem>? _items;
   BoardScene? _scene;
@@ -49,14 +49,14 @@ class _BoardPageState extends State<BoardPage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_nodesSub != null) return;
+    if (_sub != null) return;
     final store = AppScope.of(context).store;
-    _nodesSub = store.watchNodes().listen((nodes) {
-      _nodes = nodes;
-      _rebuild();
-    });
-    _itemsSub = store.watchItems().listen((items) {
-      _items = items;
+    // Nœuds et connaissances lus ensemble : la mise en page part toujours
+    // d'un état cohérent (jamais des régions placées sans leurs cartes, ou
+    // l'inverse, entre deux émissions).
+    _sub = store.watchBoard().listen((board) {
+      _nodes = board.nodes;
+      _items = board.items;
       _rebuild();
     });
     store.boardViewport().then((view) {
@@ -70,8 +70,7 @@ class _BoardPageState extends State<BoardPage> {
 
   @override
   void dispose() {
-    _nodesSub?.cancel();
-    _itemsSub?.cancel();
+    _sub?.cancel();
     _saveView?.cancel();
     _controller.dispose();
     super.dispose();

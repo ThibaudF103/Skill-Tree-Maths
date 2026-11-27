@@ -40,7 +40,11 @@ Unités du tableau : pixels logiques au zoom 1, en `double`.
   une transaction ; la géométrie se lit sur les nœuds et connaissances.
 - Changer une connaissance de nœud (ou déplacer un nœud dans « Arbres »)
   efface sa géométrie (celle de toute la branche pour un nœud) : elle est
-  replacée automatiquement dans sa nouvelle région.
+  replacée automatiquement dans sa nouvelle région. Une connaissance
+  rétablie par « Annuler » revient aussi sans place (une autre carte a pu
+  prendre la sienne).
+- `VergerStore.watchBoard` lit nœuds et connaissances ensemble : la mise en
+  page part toujours d'un instantané cohérent.
 - **Sauvegarde JSON** : champ facultatif `board` (`[x, y, l, h]` pour un
   nœud, `[x, y]` pour une carte), sans changer la version d'archive (une
   version plus ancienne l'ignore et refait la mise en page). Les **paquets**
@@ -56,9 +60,11 @@ Ne complète que ce qui n'a pas de géométrie, sans bouger ce qui est placé :
   ligne au-delà d'environ 1,4 × √aire) ; marges et bandeau de titre plus
   haut pour un arbre.
 - **Dans une région placée** : nouvelle carte ou sous-région dans le premier
-  espace libre (haut → bas, gauche → droite), sinon sous le contenu ; la
-  région grandit alors (bas, droite si besoin) et les voisines qu'elle
-  recouvrirait descendent avec leur contenu.
+  espace libre (les cartes sur la grille des cartes, ligne par ligne ; les
+  sous-régions au premier coin libre), sinon sous le contenu ; la région
+  grandit alors (bas, droite si besoin) et pousse vers le bas, avec leur
+  contenu, les voisines qu'elle recouvrirait (c'est la voisine déjà placée
+  qui s'écarte, la région agrandie ne saute pas).
 - **Arbres** : rangés par étagères au premier lancement ; un nouvel arbre se
   place à droite des autres.
 - Déterministe (ordre des frères, date de création, identifiant).
@@ -87,8 +93,10 @@ connaissances), les nouveaux venus sont placés.
   visuel, couleur tirée de l'arbre), cartes arrondies avec titre (`MathText`)
   et couleur de maîtrise (mêmes règles que l'arbre de compétences).
 - **Performances** : seuls les régions et cartes qui touchent la zone
-  visible (plus une marge) sont construites ; la zone est arrondie à une
-  grille pour ne reconstruire qu'en changeant de case ou de niveau de zoom.
+  visible (plus une marge d'un huitième de la vue) sont construites, soit
+  environ deux fois la zone visible ; la zone est arrondie à une grille pour
+  ne reconstruire qu'en changeant de case ou de palier de zoom. Cartes
+  légères (pas de `Material` ni d'ombre).
 - **Zoom sémantique** : de loin, titres des régions en grand et cartes en
   simples blocs colorés (un seul peintre) ; à mi-distance, titres des cartes
   en texte simple ; de près, rendu LaTeX.

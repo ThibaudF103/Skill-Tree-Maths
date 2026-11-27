@@ -108,7 +108,9 @@ class BoardScene {
             .toList()
           ..sort((a, b) {
             final s = a.sortIndex.compareTo(b.sortIndex);
-            return s != 0 ? s : a.createdAt.compareTo(b.createdAt);
+            if (s != 0) return s;
+            final d = a.createdAt.compareTo(b.createdAt);
+            return d != 0 ? d : a.id.compareTo(b.id);
           });
     final rootIndex = {for (final (i, r) in roots.indexed) r.id: i};
     final depth = <String, int>{};
@@ -205,10 +207,12 @@ class _View {
       MatrixUtils.transformPoint(inverse, Offset.zero),
       MatrixUtils.transformPoint(inverse, viewport.bottomRight(Offset.zero)),
     );
-    // Case de la grille : la moitié de la plus grande dimension visible au
-    // palier courant ; au moins une case de marge de chaque côté.
+    // Case de la grille : un huitième de la plus grande dimension visible
+    // au palier courant, et une case de marge de chaque côté : environ
+    // deux fois la zone visible est construite, et un défilement ne
+    // reconstruit qu'en franchissant une case.
     final cell =
-        math.max(viewport.width, viewport.height) / math.pow(_ratio, step) / 2;
+        math.max(viewport.width, viewport.height) / math.pow(_ratio, step) / 8;
     double down(double v) => (v / cell).floorToDouble() * cell;
     double up(double v) => (v / cell).ceilToDouble() * cell;
     return _View(
@@ -548,16 +552,16 @@ class BoardCard extends StatelessWidget {
     final scheme = theme.colorScheme;
     final item = card.item;
     final style = theme.textTheme.bodyMedium!.copyWith(height: 1.25);
-    return Material(
-      color: cardColor(card, scheme),
-      elevation: 1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: card.color.withValues(alpha: 0.6)),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
+    // Volontairement léger (pas de Material ni d'ombre portée) : des
+    // centaines de cartes peuvent être construites à la fois.
+    return GestureDetector(
+      onTap: onTap,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: cardColor(card, scheme),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: card.color.withValues(alpha: 0.6)),
+        ),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(8, 8, 10, 6),
           child: Row(

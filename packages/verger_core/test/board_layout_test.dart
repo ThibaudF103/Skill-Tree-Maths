@@ -207,7 +207,7 @@ void main() {
     // « energie » : 2 cartes sur 2 colonnes, pleine.
     final more = [
       ...placedItems(items, first),
-      for (var k = 2; k < 6; k++) item('e$k', 'energie', index: k),
+      for (var k = 2; k < 10; k++) item('e$k', 'energie', index: k),
     ];
     final layout = layoutBoard(placedNodes(nodes, first), more);
     expectConsistent(nodes, more, layout);
@@ -310,5 +310,59 @@ void main() {
     // Plus large que haut (écran en paysage).
     final bounds = layout.bounds!;
     expect(bounds.width, greaterThan(bounds.height * 0.8));
+  });
+
+  test('une région qui s\'élargit pousse sa voisine plus haute, elle ne '
+      'saute pas sous elle', () {
+    KnowledgeNode placed(String id, BoardRect r, {String? parent, int i = 0}) =>
+        KnowledgeNode(
+          id: id,
+          parentId: parent,
+          title: id,
+          sortIndex: i,
+          createdAt: t,
+          board: r,
+        );
+    // « a » (plus bas) et « q » (plus haut, à sa droite) dans « p ».
+    final base = [
+      placed('p', const BoardRect(0, 0, 1000, 1000)),
+      placed('a', const BoardRect(24, 300, 300, 200), parent: 'p'),
+      placed('q', const BoardRect(340, 88, 200, 400), parent: 'p', i: 1),
+    ];
+    // Nouvelle sous-région de « a », bien plus large qu'elle.
+    final withChild = [...base, node('w', parent: 'a')];
+    final cards = [for (var k = 0; k < 16; k++) item('w$k', 'w', index: k)];
+    final layout = layoutBoard(withChild, cards);
+    expectConsistent(withChild, cards, layout);
+    final a = layout.regions['a']!;
+    final q = layout.regions['q']!;
+    // « a » grandit sur place ; « q » descend juste en dessous.
+    expect(a.topLeft, const BoardPoint(24, 300));
+    expect(a.right, greaterThan(340));
+    expect(q.x, 340);
+    expect(q.y, a.bottom + config.gap);
+  });
+
+  test('beaucoup de nouvelles cartes dans une région placée : rapide, sur '
+      'la grille', () {
+    final first = layoutBoard([node('r')], [item('c0', 'r')]);
+    final many = [
+      ...placedItems([item('c0', 'r')], first),
+      for (var k = 1; k < 3000; k++) item('c$k', 'r', index: k),
+    ];
+    final clock = Stopwatch()..start();
+    final layout = layoutBoard(placedNodes([node('r')], first), many);
+    clock.stop();
+    expect(clock.elapsed, lessThan(const Duration(seconds: 2)));
+    expectConsistent([node('r')], many, layout);
+    expect(layout.cards['c0'], first.cards['c0']);
+    // Toutes sur la grille de la première carte.
+    final origin = first.cards['c0']!;
+    for (final p in layout.cards.values) {
+      final col = (p.x - origin.x) / (config.cardWidth + config.gap);
+      final row = (p.y - origin.y) / (config.cardHeight + config.gap);
+      expect(col, closeTo(col.roundToDouble(), 1e-9));
+      expect(row, closeTo(row.roundToDouble(), 1e-9));
+    }
   });
 }

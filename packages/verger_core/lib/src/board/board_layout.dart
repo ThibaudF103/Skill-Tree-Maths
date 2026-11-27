@@ -253,11 +253,10 @@ class _Layout {
         if (_regions.containsKey(k.id) && _settle(k.id)) k.id,
     };
     if (grown.isNotEmpty) _resolve(_boxesIn(id), grown, c.gap);
-    for (final item in _cardsOf(id)) {
-      if (_cards.containsKey(item.id)) continue;
-      _cards[item.id] = _freeSpot(id, c.cardWidth, c.cardHeight);
-      _changedCards.add(item.id);
-    }
+    _placeCards(id, [
+      for (final item in _cardsOf(id))
+        if (!_cards.containsKey(item.id)) item,
+    ]);
     for (final k in _kids(id)) {
       if (_regions.containsKey(k.id)) continue;
       final f = _fresh(k.id);
@@ -318,6 +317,59 @@ class _Layout {
     return BoardPoint(area.x, math.max(area.y, below));
   }
 
+  /// Place de nouvelles cartes sur la grille des cartes de la région (celle
+  /// d'une mise en page neuve) : première case libre, ligne par ligne,
+  /// au-delà du bas de la région s'il le faut (elle grandira). Les
+  /// obstacles sont rangés par case, et le curseur ne recule jamais : le
+  /// placement de nombreuses cartes reste à peu près linéaire.
+  void _placeCards(String id, List<KnowledgeItem> fresh) {
+    if (fresh.isEmpty) return;
+    final area = _content(id);
+    final stepX = c.cardWidth + c.gap;
+    final stepY = c.cardHeight + c.gap;
+    final cols = math.max(1, ((area.width + c.gap + _eps) / stepX).floor());
+    final buckets = <int, List<BoardRect>>{};
+    void add(BoardRect r) {
+      final halo = r.inflate(c.gap);
+      final lastRow = ((halo.bottom - area.y) / stepY).floor();
+      if (lastRow < 0) return;
+      final firstRow = math.max(0, ((halo.y - area.y) / stepY).floor());
+      final firstCol = ((halo.x - area.x) / stepX).floor().clamp(0, cols - 1);
+      final lastCol = ((halo.right - area.x) / stepX).floor().clamp(
+        0,
+        cols - 1,
+      );
+      for (var row = firstRow; row <= lastRow; row++) {
+        for (var col = firstCol; col <= lastCol; col++) {
+          (buckets[row * cols + col] ??= []).add(r);
+        }
+      }
+    }
+
+    for (final b in _boxesIn(id)) {
+      add(b.rect);
+    }
+    var cursor = 0;
+    for (final item in fresh) {
+      while (true) {
+        final slot = BoardRect(
+          area.x + (cursor % cols) * stepX,
+          area.y + (cursor ~/ cols) * stepY,
+          c.cardWidth,
+          c.cardHeight,
+        );
+        final halo = slot.inflate(c.gap - _eps);
+        final near = buckets[cursor] ?? const <BoardRect>[];
+        cursor++;
+        if (near.any(halo.overlaps)) continue;
+        _cards[item.id] = slot.topLeft;
+        _changedCards.add(item.id);
+        add(slot);
+        break;
+      }
+    }
+  }
+
   /// Agrandit la région pour contenir ses cartes et sous-régions (jamais
   /// ne la rétrécit). Vrai si elle a grandi.
   bool _fit(String id) {
@@ -334,31 +386,43 @@ class _Layout {
     return true;
   }
 
-  /// Supprime les chevauchements dus aux boîtes [dirty] (agrandies) : dans
-  /// l'ordre de lecture, une boîte qui en recouvre une précédente, l'une
-  /// des deux étant concernée, descend juste en dessous (avec son
-  /// contenu). Les boîtes qui ne touchent à rien ne bougent pas.
+  /// Supprime les chevauchements dus aux boîtes [dirty] (agrandies ou
+  /// déplacées) : pour une paire qui se recouvre, si une seule des deux est
+  /// concernée, c'est l'autre qui descend juste en dessous (avec son
+  /// contenu) ; si les deux le sont, la seconde dans l'ordre de lecture. Ce
+  /// qui est déjà placé bouge ainsi le moins possible : une région qui
+  /// grandit pousse ses voisines, elle ne saute pas. Les boîtes qui ne
+  /// touchent à rien ne bougent pas.
   void _resolve(List<_Box> boxes, Set<String> dirty, double gap) {
-    boxes.sort((a, b) {
+    int order(_Box a, _Box b) {
       final dy = a.rect.y.compareTo(b.rect.y);
       if (dy != 0) return dy;
       final dx = a.rect.x.compareTo(b.rect.x);
       return dx != 0 ? dx : a.id.compareTo(b.id);
-    });
-    final done = <_Box>[];
-    for (final box in boxes) {
-      for (var moved = true; moved;) {
-        moved = false;
-        for (final other in done) {
-          if (!dirty.contains(box.id) && !dirty.contains(other.id)) continue;
-          if (!box.rect.inflate(gap - _eps).overlaps(other.rect)) continue;
-          final dy = other.rect.bottom + gap - box.rect.y;
-          _shift(box, dy);
-          dirty.add(box.id);
-          moved = true;
+    }
+
+    // Chaque passe déplace une boîte vers le bas ; plafond de sécurité.
+    final limit = boxes.length * boxes.length + 1;
+    for (var pass = 0; pass < limit; pass++) {
+      boxes.sort(order);
+      _Box? mover;
+      _Box? obstacle;
+      search:
+      for (final (i, a) in boxes.indexed) {
+        if (!dirty.contains(a.id)) continue;
+        final halo = a.rect.inflate(gap - _eps);
+        for (final (j, b) in boxes.indexed) {
+          if (i == j || !halo.overlaps(b.rect)) continue;
+          // [a] est concernée : [b] s'écarte, sauf si elle l'est aussi et
+          // vient avant.
+          final bothDirty = dirty.contains(b.id);
+          (mover, obstacle) = bothDirty && j < i ? (a, b) : (b, a);
+          break search;
         }
       }
-      done.add(box);
+      if (mover == null || obstacle == null) return;
+      _shift(mover, obstacle.rect.bottom + gap - mover.rect.y);
+      dirty.add(mover.id);
     }
   }
 

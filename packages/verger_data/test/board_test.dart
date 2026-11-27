@@ -165,4 +165,59 @@ void main() {
     expect(await store.boardViewport(), equals(null));
     await store.close();
   });
+
+  test('instantanés cohérents : une écriture du tableau arrive en une '
+      'fois, régions et cartes ensemble', () async {
+    final store = memoryStore();
+    final tree = await store.createNode(title: 'Mécanique');
+    await store.createItem(
+      nodeId: tree.id,
+      kind: ItemKind.definition,
+      title: 'Oscillateur harmonique',
+    );
+    final snapshots =
+        <({List<KnowledgeNode> nodes, List<KnowledgeItem> items})>[];
+    final sub = store.watchBoard().listen(snapshots.add);
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    final first = snapshots.single;
+    final layout = layoutBoard(first.nodes, first.items);
+    await store.saveBoardGeometry(regions: layout.regions, cards: layout.cards);
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    await sub.cancel();
+    expect(snapshots, hasLength(2));
+    // Jamais de région placée avec une carte encore sans place (la carte
+    // serait replacée ailleurs que dans la grille).
+    for (final snap in snapshots) {
+      final placedRegions = snap.nodes.every((n) => n.board != null);
+      final placedCards = snap.items.every((i) => i.boardPosition != null);
+      expect(placedRegions, placedCards);
+    }
+    final last = snapshots.last;
+    expect(layoutBoard(last.nodes, last.items).hasChanges, isFalse);
+    await store.close();
+  });
+
+  test('annuler une suppression : la carte revient sans place, puis est '
+      'replacée sans recouvrir celle qui a pris la sienne', () async {
+    final (store, _) = await laidOut();
+    final branch = (await store.allNodes())[1];
+    final harmonic = (await store.allItems()).first;
+    final deletion = await store.deleteItem(harmonic.id);
+    final other = await store.createItem(
+      nodeId: branch.id,
+      kind: ItemKind.definition,
+      title: 'Pendule simple',
+    );
+    var layout = layoutBoard(await store.allNodes(), await store.allItems());
+    await store.saveBoardGeometry(regions: layout.regions, cards: layout.cards);
+    // La nouvelle carte a pris la place libérée.
+    expect((await store.item(other.id))!.boardPosition, harmonic.boardPosition);
+
+    await store.undoDeletion(deletion);
+    expect((await store.item(harmonic.id))!.boardPosition, equals(null));
+    layout = layoutBoard(await store.allNodes(), await store.allItems());
+    expect(layout.cards[harmonic.id], isNot(layout.cards[other.id]));
+    expect(layout.changedCards, {harmonic.id});
+    await store.close();
+  });
 }

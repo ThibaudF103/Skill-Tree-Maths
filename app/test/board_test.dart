@@ -190,7 +190,9 @@ void main() {
       final controller = await pump(tester, 1);
       final built = tester.widgetList(find.byType(BoardCard)).length;
       expect(built, greaterThan(0));
-      expect(built, lessThan(items.length ~/ 4));
+      // Environ 26 cartes visibles (1000 × 700) : à peine plus de deux
+      // fois autant sont construites.
+      expect(built, lessThan(70));
       expect(find.text('Carte 0'), findsOneWidget);
       expect(find.text('Carte 399'), findsNothing);
 
