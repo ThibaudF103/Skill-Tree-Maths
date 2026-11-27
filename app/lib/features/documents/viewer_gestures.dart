@@ -75,8 +75,41 @@ class ScrollPassThrough extends StatelessWidget {
 /// la visionneuse : les deux entrent dans l'arène des gestes. Un glissé
 /// revient à la visionneuse (défilement, zoom), un toucher à l'élément,
 /// inscrit le premier.
-class PointerPassThrough extends SingleChildRenderObjectWidget {
-  const PointerPassThrough({super.key, super.child});
+///
+/// Seul le doigt fait défiler : un glissé de la souris ou du stylet reste à
+/// l'élément, sans sélectionner le texte placé dessous ni déplacer la page.
+class PointerPassThrough extends StatelessWidget {
+  const PointerPassThrough({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return _HitPassThrough(
+      child: RawGestureDetector(
+        gestures: {
+          // Inscrit avant la visionneuse : gagne le glissé dès le seuil.
+          PanGestureRecognizer:
+              GestureRecognizerFactoryWithHandlers<PanGestureRecognizer>(
+                () => PanGestureRecognizer(
+                  debugOwner: this,
+                  supportedDevices: const {
+                    PointerDeviceKind.mouse,
+                    PointerDeviceKind.stylus,
+                    PointerDeviceKind.invertedStylus,
+                  },
+                ),
+                (r) => r.onStart = (_) {},
+              ),
+        },
+        child: child,
+      ),
+    );
+  }
+}
+
+class _HitPassThrough extends SingleChildRenderObjectWidget {
+  const _HitPassThrough({super.child});
 
   @override
   RenderObject createRenderObject(BuildContext context) =>

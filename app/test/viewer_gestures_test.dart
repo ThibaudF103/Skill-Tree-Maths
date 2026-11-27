@@ -638,7 +638,16 @@ void main() {
                   behavior: HitTestBehavior.opaque,
                   onTapUp: (_) => events.add('tap page'),
                   onDoubleTapDown: (_) => events.add('double tap page'),
-                  child: const SizedBox(width: 400, height: 2000),
+                  // Sélection du texte à la souris et au stylet.
+                  child: GestureDetector(
+                    dragStartBehavior: DragStartBehavior.down,
+                    supportedDevices: const {
+                      PointerDeviceKind.mouse,
+                      PointerDeviceKind.stylus,
+                    },
+                    onPanStart: (_) => events.add('sélection'),
+                    child: const SizedBox(width: 400, height: 2000),
+                  ),
                 ),
               ),
               // Calque de la page, comme dans la visionneuse.
@@ -695,7 +704,36 @@ void main() {
       // Le double toucher de la visionneuse retient le geste un instant.
       await tester.pump(const Duration(milliseconds: 500));
       expect(events, ['tap cadre']);
+      // Clic de souris aussi.
+      await tester.tapAt(const Offset(150, 150), kind: PointerDeviceKind.mouse);
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(events, ['tap cadre', 'tap cadre']);
       expect(transform.value.getTranslation().y, 0);
+    });
+
+    testWidgets('souris et stylet sur un cadre : pas de sélection dessous', (
+      tester,
+    ) async {
+      final (transform, events) = await pumpViewer(tester);
+      for (final kind in [PointerDeviceKind.mouse, PointerDeviceKind.stylus]) {
+        await tester.dragFrom(
+          const Offset(150, 150),
+          const Offset(60, 60),
+          kind: kind,
+        );
+        await tester.pump(const Duration(milliseconds: 500));
+        expect(events, isEmpty, reason: '$kind');
+      }
+      expect(transform.value.isIdentity(), isTrue);
+      // Hors du cadre, la visionneuse reçoit la souris (sélection ou
+      // déplacement).
+      await tester.dragFrom(
+        const Offset(320, 320),
+        const Offset(40, 40),
+        kind: PointerDeviceKind.mouse,
+      );
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(events.isNotEmpty || !transform.value.isIdentity(), isTrue);
     });
 
     testWidgets('mode « Encadrer » : le doigt dans un cadre fait défiler', (
@@ -765,6 +803,28 @@ void main() {
         expect(drawn.last, 'end', reason: '$kind');
         expect(scrolled, isEmpty, reason: '$kind');
       }
+
+      // Second doigt posé hors du cadre avant le départ du glissé, et qui
+      // glisse : le geste reste un défilement, décidé par le premier appui.
+      drawn.clear();
+      final first = await tester.startGesture(
+        const Offset(150, 150),
+        kind: PointerDeviceKind.touch,
+      );
+      final second = await tester.startGesture(
+        const Offset(330, 330),
+        pointer: 99,
+        kind: PointerDeviceKind.touch,
+      );
+      for (var i = 0; i < 5; i++) {
+        await second.moveBy(const Offset(0, -20));
+        await tester.pump();
+      }
+      await second.up();
+      await first.up();
+      await tester.pumpAndSettle();
+      expect(drawn, isEmpty);
+      expect(scrolled, isNotEmpty);
     });
   });
 
